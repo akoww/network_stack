@@ -1,3 +1,4 @@
+
 #include "socket/AsioTcpSocket.h"
 
 #include <system_error>
@@ -8,17 +9,16 @@
 #include <asio/use_awaitable.hpp>
 #include <asio/error.hpp>
 #include <asio/redirect_error.hpp>
+#include <asio/connect.hpp>
 
 namespace Network
 {
 
-    // Constructor taking io_context
     AsioTcpSocket::AsioTcpSocket(asio::io_context& io_ctx)
         : socket_(io_ctx)
     {
     }
 
-    // Constructor taking an rvalue socket (move)
     AsioTcpSocket::AsioTcpSocket(asio::ip::tcp::socket&& sock)
         : socket_(std::move(sock))
     {

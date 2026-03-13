@@ -4,6 +4,7 @@
 #include "SyncInterface.h"
 
 #include <asio/ip/tcp.hpp>
+#include <asio/ip/basic_resolver.hpp>
 
 namespace Network
 {
@@ -26,13 +27,13 @@ namespace Network
         bool is_connected() const noexcept override;
 
         // async
-        asio::awaitable<std::expected<std::size_t, std::error_code>>
-        async_send(std::span<const std::byte> buffer) override;
+         asio::awaitable<std::expected<std::size_t, std::error_code>>
+         async_send(std::span<const std::byte> buffer) override;
 
-        asio::awaitable<std::expected<std::size_t, std::error_code>>
-        async_receive(std::span<std::byte> buffer) override;
+         asio::awaitable<std::expected<std::size_t, std::error_code>>
+         async_receive(std::span<std::byte> buffer) override;
 
-        // sync
+         // sync
         std::expected<std::size_t, std::error_code>
         send(std::span<const std::byte> buffer) override;
 

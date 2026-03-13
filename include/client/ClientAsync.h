@@ -17,9 +17,9 @@ class ClientAsync : public ClientBase
 {
     public:
 
-    ClientAsync(std::string_view host, uint16_t port);
+    ClientAsync(std::string_view host, uint16_t port, asio::io_context& io_ctx);
 
-    asio::awaitable<std::expected<AsioTcpSocket,std::error_code>> connect(Options opts);
+    asio::awaitable<std::expected<std::unique_ptr<AsioTcpSocket>, std::error_code>> connect(Options opts);
 
 };
 
