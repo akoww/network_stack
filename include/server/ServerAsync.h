@@ -19,6 +19,7 @@ public:
     ServerAsync(uint16_t port, asio::io_context& io_ctx);
 
     asio::awaitable<std::expected<void, std::error_code>> listen();
+    void stop();
 
 private:
     void handle_client(std::unique_ptr<AsioTcpSocket> socket);

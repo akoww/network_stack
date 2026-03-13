@@ -23,36 +23,38 @@ std::expected<void, std::error_code> ServerSync::listen()
 {
     std::error_code ec;
 
-    asio::ip::tcp::acceptor acceptor(get_io_context());
     asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
-    acceptor.open(endpoint.protocol(), ec);
+    _acceptor.open(endpoint.protocol(), ec);
     if (ec) {
         return std::unexpected(ec);
     }
 
-    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
     if (ec) {
         return std::unexpected(ec);
     }
 
-    acceptor.bind(endpoint, ec);
+    _acceptor.bind(endpoint, ec);
     if (ec) {
         return std::unexpected(ec);
     }
 
-    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+    _acceptor.listen(asio::socket_base::max_listen_connections, ec);
     if (ec) {
         return std::unexpected(ec);
     }
 
     asio::ip::tcp::socket socket(get_io_context());
 
-    while (true) {
+    while (!_stop_requested.load()) {
         ec = {};
-        acceptor.accept(socket, ec);
+        _acceptor.accept(socket, ec);
 
         if (ec) {
+            if (_stop_requested.load()) {
+                return {};
+            }
             return std::unexpected(ec);
         }
 
@@ -62,6 +64,14 @@ std::expected<void, std::error_code> ServerSync::listen()
 
         socket = asio::ip::tcp::socket(get_io_context());
     }
+
+    return {};
+}
+
+void ServerSync::stop() {
+    ServerBase::stop();
+    std::error_code ec;
+    _acceptor.cancel(ec);
 }
 
 }

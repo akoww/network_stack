@@ -1,6 +1,8 @@
 #pragma once
 
+#include <atomic>
 #include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
 
 namespace Network {
 
@@ -15,6 +17,13 @@ public:
     asio::io_context& get_io_context();
 
     virtual void handle_client(std::unique_ptr<AsioTcpSocket> socket) = 0;
+    void stop();
+    bool is_stopped() const noexcept;
+    virtual void cancel_acceptors() = 0;
+
+protected:
+    std::atomic<bool> _stop_requested{false};
+    asio::ip::tcp::acceptor _acceptor;
 
 private:
     std::string _host;

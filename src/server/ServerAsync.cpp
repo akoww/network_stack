@@ -28,36 +28,38 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 {
     std::error_code ec;
 
-    asio::ip::tcp::acceptor acceptor(get_io_context());
     asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
-    acceptor.open(endpoint.protocol(), ec);
+    _acceptor.open(endpoint.protocol(), ec);
     if (ec) {
         co_return std::unexpected(ec);
     }
 
-    acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+    _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
     if (ec) {
         co_return std::unexpected(ec);
     }
 
-    acceptor.bind(endpoint, ec);
+    _acceptor.bind(endpoint, ec);
     if (ec) {
         co_return std::unexpected(ec);
     }
 
-    acceptor.listen(asio::socket_base::max_listen_connections, ec);
+    _acceptor.listen(asio::socket_base::max_listen_connections, ec);
     if (ec) {
         co_return std::unexpected(ec);
     }
 
     asio::ip::tcp::socket socket(get_io_context());
 
-    while (true) {
+    while (!_stop_requested.load()) {
         ec = {};
-        co_await acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
+        co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
         if (ec) {
+            if (_stop_requested.load()) {
+                co_return std::expected<void, std::error_code>{};
+            }
             co_return std::unexpected(ec);
         }
 
@@ -74,6 +76,13 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 
         socket = asio::ip::tcp::socket(get_io_context());
     }
+
+    co_return std::expected<void, std::error_code>{};
+}
+
+void ServerAsync::stop() {
+    ServerBase::stop();
+    _acceptor.cancel();
 }
 
 }
