@@ -20,7 +20,7 @@ ServerAsync::ServerAsync(uint16_t port, asio::io_context& io_ctx)
 {
 }
 
-void ServerAsync::handle_client(std::unique_ptr<AsioTcpSocket> socket)
+void ServerAsync::handle_client([[maybe_unused]] std::unique_ptr<AsioTcpSocket> socket)
 {
 }
 

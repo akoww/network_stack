@@ -10,6 +10,8 @@ class AsioTcpSocket;
 
 class ServerBase {
 public:
+    virtual ~ServerBase() = default;
+
     explicit ServerBase(uint16_t port, asio::io_context& io_ctx);
 
     std::string_view host() const;

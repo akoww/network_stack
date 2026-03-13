@@ -12,6 +12,46 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+
+# ============================================================================
+# Compiler flags for all builds
+# ============================================================================
+if(MSVC)
+    # MSVC compiler flags
+    add_compile_options(
+        /W4           # High warning level
+        /WX           # Treat warnings as errors
+        /permissive-  # Enforce standard compliance
+    )
+else()
+    # GCC / Clang flags
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wshadow
+        -Wnon-virtual-dtor
+        -Wold-style-cast
+        -Wcast-align
+        -Wconversion
+        -Wsign-conversion
+        -Wnull-dereference
+        -Werror
+        -pedantic
+        -pedantic-errors
+    )
+endif()
+
+
+# ============================================================================
+# Build-type-specific flags
+# ============================================================================
+# Debug build
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined,leak")
+
+# Release build
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
+
+
 # Output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
