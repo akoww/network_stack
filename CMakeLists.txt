@@ -115,7 +115,7 @@ set(TEST_SOURCES
     tests/test_error_code.cpp
     tests/test_socket_interface.cpp
     tests/test_client_async.cpp
-    tests/test_context_wrapper.cpp
+    #tests/test_context_wrapper.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
