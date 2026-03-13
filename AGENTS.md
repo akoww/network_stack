@@ -98,12 +98,15 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 - Use `std::error_code` with `Network::get_network_category()` for error codes
 - Convert with `std::make_error_code(Network::Error::X)`
 - Check errors via `if (!ec)` or `if (ec)`
+- **ASIO operations**: Always use `asio::redirect_error(asio::use_awaitable, ec)` for async operations and pass `ec` parameter for sync operations
+- **Never throw exceptions**: All ASIO errors must be captured via error codes, never via try/catch
 
 ### Asynchronous Code
 
 - Use `asio::awaitable<T>` for async operations returning `std::expected<T, std::error_code>`
 - Functions marked `co_await` use `asio::co_spawn` or `co_await` within coroutines
 - Use `asio::detached` for fire-and-forget coroutines
+- **Always use `asio::redirect_error(asio::use_awaitable, ec)` pattern** for async ASIO operations to capture errors without exceptions
 
 ### Formatting
 
@@ -146,6 +149,15 @@ public:
 // Implementation (src/ socket/AsioTcpSocket.cpp)
 #include "socket/AsioTcpSocket.h"
 
+#include <system_error>
+#include <asio/buffer.hpp>
+#include <asio/awaitable.hpp>
+#include <asio/co_spawn.hpp>
+#include <asio/detached.hpp>
+#include <asio/use_awaitable.hpp>
+#include <asio/error.hpp>
+#include <asio/redirect_error.hpp>
+
 namespace Network {
 
 AsioTcpSocket::AsioTcpSocket(asio::io_context& io_ctx) : socket_(io_ctx) {}
@@ -163,14 +175,25 @@ bool AsioTcpSocket::is_connected() const noexcept {
 
 asio::awaitable<std::expected<std::size_t, std::error_code>>
 AsioTcpSocket::async_send(std::span<const std::byte> buffer) override {
-    // TODO: Implement async send
-    co_return std::unexpected(std::make_error_code(std::errc::operation_not_supported));
+    std::error_code ec;
+    std::size_t bytes_sent = co_await socket_.async_send(
+        asio::buffer(buffer),
+        asio::redirect_error(asio::use_awaitable, ec)
+    );
+    if (ec) {
+        co_return std::unexpected(ec);
+    }
+    co_return bytes_sent;
 }
 
 std::expected<std::size_t, std::error_code>
 AsioTcpSocket::send(std::span<const std::byte> buffer) override {
-    // TODO: Implement sync send
-    co_return std::unexpected(std::make_error_code(std::errc::operation_not_supported));
+    std::error_code ec;
+    std::size_t bytes_sent = socket_.send(asio::buffer(buffer), 0, ec);
+    if (ec) {
+        return std::unexpected(ec);
+    }
+    return bytes_sent;
 }
 
 } // namespace Network
