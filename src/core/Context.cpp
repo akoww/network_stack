@@ -44,7 +44,7 @@ namespace Network
 
         work_guard_.reset();
         // Inherit stop() from io_context
-        this->stop(); 
+        asio::io_context::stop(); 
         
         if (thread_.joinable()) {
             thread_.join();

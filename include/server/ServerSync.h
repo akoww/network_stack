@@ -22,7 +22,7 @@ public:
     void stop();
 
 private:
-    void handle_client(std::unique_ptr<AsioTcpSocket> socket);
+    void handle_client(std::unique_ptr<AsioTcpSocket> socket) override;
 };
 
 }

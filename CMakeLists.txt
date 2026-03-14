@@ -128,8 +128,10 @@ target_sources(network_stack_core
         src/socket/AsioTcpSocket.cpp
         src/socket/TcpImpl.cpp
         src/client/ClientAsync.cpp
+        src/client/ClientBase.cpp
         src/client/ClientSync.cpp
         src/server/ServerAsync.cpp
+        src/server/ServerBase.cpp
         src/server/ServerSync.cpp
 )
 
@@ -155,7 +157,7 @@ set(TEST_SOURCES
     tests/test_error_code.cpp
     tests/test_socket_interface.cpp
     tests/test_client_async.cpp
-    #tests/test_context_wrapper.cpp
+    tests/test_sync_client_server.cpp
 )
 
 add_separate_tests(TEST_SOURCES)

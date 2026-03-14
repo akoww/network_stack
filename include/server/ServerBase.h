@@ -21,7 +21,6 @@ public:
     virtual void handle_client(std::unique_ptr<AsioTcpSocket> socket) = 0;
     void stop();
     bool is_stopped() const noexcept;
-    virtual void cancel_acceptors() = 0;
 
 protected:
     std::atomic<bool> _stop_requested{false};
