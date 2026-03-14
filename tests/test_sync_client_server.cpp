@@ -6,7 +6,7 @@
 #include "client/ClientSync.h"
 #include "server/ServerSync.h"
 #include "socket/AsioTcpSocket.h"
-#include "test_fixture_io_context.h"
+#include "fixtures/test_fixture_io_context.h"
 
 namespace Network::Test {
 

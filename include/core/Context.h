@@ -26,9 +26,12 @@ public:
     // this->post(...), this->run(), this->poll(), this->stop(), etc.
     
 private:
+    std::mutex mutex_;
     std::thread thread_;
     std::atomic<bool> running_;
-    asio::executor_work_guard<asio::io_context::executor_type> work_guard_;
+
+    using Guard = asio::executor_work_guard<asio::io_context::executor_type>;
+    std::optional<Guard> work_guard_;
 };
 
     

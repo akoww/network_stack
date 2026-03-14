@@ -123,7 +123,6 @@ target_include_directories(network_stack_core
 # Source files
 target_sources(network_stack_core 
     PRIVATE
-        src/core/NetworkService.cpp
         src/core/Context.cpp
         src/socket/AsioTcpSocket.cpp
         src/socket/TcpImpl.cpp
@@ -158,6 +157,7 @@ set(TEST_SOURCES
     tests/test_socket_interface.cpp
     tests/test_client_async.cpp
     tests/test_sync_client_server.cpp
+    tests/test_context_wrapper.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
