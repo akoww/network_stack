@@ -6,21 +6,25 @@
 
 #include "ClientBase.h"
 
-#include "socket/AsioTcpSocket.h"
-
 #include <expected>
 
 namespace Network
 {
 
-class ClientAsync : public ClientBase
-{
+    class TcpSocket;
+
+    /// @brief Asynchronous client implementation.
+    /// Provides coroutine-based async connection establishment.
+    class ClientAsync : public ClientBase
+    {
     public:
+        /// @brief Construct with host, port, and io_context.
+        ClientAsync(std::string_view host, uint16_t port, asio::io_context &io_ctx);
 
-    ClientAsync(std::string_view host, uint16_t port, asio::io_context& io_ctx);
-
-    asio::awaitable<std::expected<std::unique_ptr<AsioTcpSocket>, std::error_code>> connect(Options opts);
-
-};
+        /// @brief Asynchronously connect to the remote endpoint.
+        /// @param opts Connection options including timeout.
+        /// @return Socket on success, or error code on failure.
+        asio::awaitable<std::expected<std::unique_ptr<TcpSocket>, std::error_code>> connect(Options opts);
+    };
 
 }

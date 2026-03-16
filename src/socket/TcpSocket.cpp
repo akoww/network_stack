@@ -1,5 +1,5 @@
 
-#include "socket/AsioTcpSocket.h"
+#include "socket/TcpSocket.h"
 
 #include <system_error>
 #include <asio/buffer.hpp>
@@ -14,74 +14,77 @@
 namespace Network
 {
 
-    AsioTcpSocket::AsioTcpSocket(asio::io_context& io_ctx)
+    TcpSocket::TcpSocket(asio::io_context &io_ctx)
         : socket_(io_ctx)
     {
     }
 
-    AsioTcpSocket::AsioTcpSocket(asio::ip::tcp::socket&& sock)
+    TcpSocket::TcpSocket(asio::ip::tcp::socket &&sock)
         : socket_(std::move(sock))
     {
     }
 
-    AsioTcpSocket::~AsioTcpSocket()
+    TcpSocket::~TcpSocket()
     {
-        if (socket_.is_open()) {
+        if (socket_.is_open())
+        {
             std::error_code ec;
             socket_.close(ec);
         }
     }
 
-    bool AsioTcpSocket::is_connected() const noexcept
+    bool TcpSocket::is_connected() const noexcept
     {
         return socket_.is_open();
     }
 
     asio::awaitable<std::expected<std::size_t, std::error_code>>
-    AsioTcpSocket::async_send(std::span<const std::byte> buffer)
+    TcpSocket::async_send(std::span<const std::byte> buffer)
     {
         std::error_code ec;
         std::size_t bytes_sent = co_await socket_.async_send(
             asio::buffer(buffer),
-            asio::redirect_error(asio::use_awaitable, ec)
-        );
-        if (ec) {
+            asio::redirect_error(asio::use_awaitable, ec));
+        if (ec)
+        {
             co_return std::unexpected(ec);
         }
         co_return bytes_sent;
     }
 
     asio::awaitable<std::expected<std::size_t, std::error_code>>
-    AsioTcpSocket::async_receive(std::span<std::byte> buffer)
+    TcpSocket::async_receive(std::span<std::byte> buffer)
     {
         std::error_code ec;
         std::size_t bytes_received = co_await socket_.async_receive(
             asio::buffer(buffer),
-            asio::redirect_error(asio::use_awaitable, ec)
-        );
-        if (ec) {
+            asio::redirect_error(asio::use_awaitable, ec));
+        if (ec)
+        {
             co_return std::unexpected(ec);
         }
         co_return bytes_received;
     }
 
     std::expected<std::size_t, std::error_code>
-    AsioTcpSocket::send(std::span<const std::byte> buffer)
+    TcpSocket::send(std::span<const std::byte> buffer)
     {
         std::error_code ec;
         std::size_t bytes_sent = socket_.send(asio::buffer(buffer), 0, ec);
-        if (ec) {
+        if (ec)
+        {
             return std::unexpected(ec);
         }
         return bytes_sent;
     }
 
     std::expected<std::size_t, std::error_code>
-    AsioTcpSocket::receive(std::span<std::byte> buffer)
+    TcpSocket::receive(std::span<std::byte> buffer)
     {
         std::error_code ec;
         std::size_t bytes_received = socket_.receive(asio::buffer(buffer), 0, ec);
-        if (ec) {
+        if (ec)
+        {
             return std::unexpected(ec);
         }
         return bytes_received;

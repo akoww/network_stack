@@ -124,7 +124,8 @@ target_include_directories(network_stack_core
 target_sources(network_stack_core 
     PRIVATE
         src/core/Context.cpp
-        src/socket/AsioTcpSocket.cpp
+        src/core/ErrorCodes.cpp
+        src/socket/TcpSocket.cpp
         src/socket/TcpImpl.cpp
         src/client/ClientAsync.cpp
         src/client/ClientBase.cpp
