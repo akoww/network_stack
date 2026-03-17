@@ -39,7 +39,10 @@ namespace Network::Test
         {
         }
 
-        ~SyncClientServerFixture() override = default;
+        ~SyncClientServerFixture() override
+        {
+            stop_server();
+        };
 
         void SetUp() override
         {
@@ -48,13 +51,6 @@ namespace Network::Test
 
         void TearDown() override
         {
-            if (_client_socket)
-            {
-                _client_socket.reset();
-            }
-            _server.stop();
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            _io_ctx.stop();
         }
 
         Network::IoContextWrapper &get_io_context() { return _io_ctx; }

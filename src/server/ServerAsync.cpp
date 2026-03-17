@@ -53,17 +53,19 @@ namespace Network
 
         asio::ip::tcp::socket socket(get_io_context());
 
-        while (!_stop_requested.load())
+        while (!is_stopped())
         {
             ec = {};
             co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
+            if (is_stopped() && (ec == asio::error::operation_aborted ||
+                                 ec == asio::error::bad_descriptor))
+            {
+                co_return std::expected<void, std::error_code>{};
+            }
+
             if (ec)
             {
-                if (_stop_requested.load())
-                {
-                    co_return std::expected<void, std::error_code>{};
-                }
                 co_return std::unexpected(ec);
             }
 
