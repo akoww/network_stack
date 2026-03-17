@@ -1,6 +1,7 @@
 #include "server/ServerBase.h"
 
 #include <asio/ip/tcp.hpp>
+#include <spdlog/spdlog.h>
 
 namespace Network
 {
@@ -16,6 +17,7 @@ namespace Network
 
     void ServerBase::stop()
     {
+        spdlog::info("server stopping...");
         _stop_requested.store(true);
     }
 

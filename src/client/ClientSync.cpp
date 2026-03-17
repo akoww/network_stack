@@ -6,6 +6,7 @@
 #include <asio/connect.hpp>
 #include <asio/error.hpp>
 #include <memory>
+#include <spdlog/spdlog.h>
 #include <system_error>
 
 #include "socket/TcpSocket.h"
@@ -20,14 +21,16 @@ namespace Network
 
     std::expected<std::unique_ptr<TcpSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
     {
+        spdlog::info("client connecting to {}:{}...", host(), port());
+
         std::error_code ec;
 
         asio::ip::tcp::resolver resolver(get_io_context());
 
         auto endpoints = resolver.resolve(host(), std::to_string(port()), ec);
 
-        if (ec)
-        {
+        if (ec) {
+            spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
             return std::unexpected(ec);
         }
 
@@ -35,10 +38,12 @@ namespace Network
 
         asio::connect(socket, endpoints, ec);
 
-        if (ec)
-        {
+        if (ec) {
+            spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
             return std::unexpected(ec);
         }
+
+        spdlog::info("client connected to {}:{} successfully", host(), port());
 
         return std::make_unique<TcpSocket>(std::move(socket));
     }

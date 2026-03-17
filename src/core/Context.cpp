@@ -1,6 +1,6 @@
 #include "core/Context.h"
 
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 namespace Network {
 
@@ -26,14 +26,14 @@ void IoContextWrapper::start() {
   }
   std::lock_guard<std::mutex> lock(mutex_);
 
-  this->restart();
-  work_guard_.emplace(this->get_executor());
-  running_ = true;
-  thread_ = std::thread([this]() {
-    asio::io_context::run();
-    running_ = false;
-  });
-  std::cout << "context started" << std::endl;
+   this->restart();
+   work_guard_.emplace(this->get_executor());
+   running_ = true;
+   thread_ = std::thread([this]() {
+     asio::io_context::run();
+     running_ = false;
+   });
+   spdlog::info("context started");
 }
 
 // Stop the loop and wait for the thread
@@ -53,9 +53,9 @@ void IoContextWrapper::stop() {
 
   // Optionally restart the context if you plan to use it again
   // this->restart();
-  running_ = false;
-  std::cout << "context stopped" << std::endl;
-}
+     running_ = false;
+   spdlog::info("context stopped");
+ }
 
 bool IoContextWrapper::is_running() const {
   return running_;

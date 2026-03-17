@@ -11,6 +11,7 @@
 #include <asio/redirect_error.hpp>
 #include <asio/connect.hpp>
 #include <memory>
+#include <spdlog/spdlog.h>
 #include <system_error>
 
 namespace Network
@@ -19,10 +20,13 @@ namespace Network
     ServerAsync::ServerAsync(uint16_t port, asio::io_context &io_ctx)
         : ServerBase(port, io_ctx)
     {
+        spdlog::info("server async created on port {}", port);
     }
 
     asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
     {
+        spdlog::info("server async listening on {}:{}", host(), port());
+
         std::error_code ec;
 
         asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
@@ -30,26 +34,32 @@ namespace Network
         _acceptor.open(endpoint.protocol(), ec);
         if (ec)
         {
+            spdlog::error("failed to open acceptor: {}", ec.message());
             co_return std::unexpected(ec);
         }
 
         _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
         if (ec)
         {
+            spdlog::error("failed to set reuse_address: {}", ec.message());
             co_return std::unexpected(ec);
         }
 
         _acceptor.bind(endpoint, ec);
         if (ec)
         {
+            spdlog::error("failed to bind to {}:{}", host(), port());
             co_return std::unexpected(ec);
         }
 
         _acceptor.listen(asio::socket_base::max_listen_connections, ec);
         if (ec)
         {
+            spdlog::error("failed to start listening: {}", ec.message());
             co_return std::unexpected(ec);
         }
+
+        spdlog::info("server async started on {}:{}", host(), port());
 
         asio::ip::tcp::socket socket(get_io_context());
 
@@ -66,8 +76,11 @@ namespace Network
 
             if (ec)
             {
+                spdlog::error("async accept error: {}", ec.message());
                 co_return std::unexpected(ec);
             }
+
+            spdlog::info("new async connection accepted");
 
             auto new_socket = std::make_unique<TcpSocket>(std::move(socket));
 
@@ -88,8 +101,10 @@ namespace Network
 
     void ServerAsync::stop()
     {
+        spdlog::info("server async stopping...");
         ServerBase::stop();
         _acceptor.cancel();
+        spdlog::info("server async stopped");
     }
 
 }

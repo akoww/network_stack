@@ -11,6 +11,7 @@
 #include <asio/redirect_error.hpp>
 #include <asio/connect.hpp>
 #include <memory>
+#include <spdlog/spdlog.h>
 #include <system_error>
 
 namespace Network
@@ -23,6 +24,8 @@ namespace Network
 
     asio::awaitable<std::expected<std::unique_ptr<TcpSocket>, std::error_code>> ClientAsync::connect(Options opts)
     {
+        spdlog::info("client async connecting to {}:{}...", host(), port());
+
         std::error_code ec;
 
         asio::ip::tcp::resolver resolver(get_io_context());
@@ -32,8 +35,8 @@ namespace Network
             std::to_string(port()),
             asio::redirect_error(asio::use_awaitable, ec));
 
-        if (ec)
-        {
+        if (ec) {
+            spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
             co_return std::unexpected(ec);
         }
 
@@ -41,10 +44,12 @@ namespace Network
 
         co_await asio::async_connect(socket, endpoints, asio::redirect_error(asio::use_awaitable, ec));
 
-        if (ec)
-        {
+        if (ec) {
+            spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
             co_return std::unexpected(ec);
         }
+
+        spdlog::info("client async connected to {}:{} successfully", host(), port());
 
         co_return std::make_unique<TcpSocket>(std::move(socket));
     }
