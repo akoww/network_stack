@@ -29,11 +29,23 @@ namespace Network::Test
         std::vector<std::unique_ptr<TcpSocket>> _sockets;
     };
 
+    inline std::span<const std::byte> to_bytes(std::string_view sv)
+    {
+        return std::as_bytes(std::span(sv.data(), sv.size()));
+    }
+
+    inline std::string_view to_string_view(std::span<const std::byte> bytes, std::size_t length)
+    {
+        if (length >= bytes.size())
+            return "";
+        return {reinterpret_cast<const char*>(bytes.data()), length};
+    }
+
     class SyncClientServerFixture : public ::testing::Test
     {
+    public:
         static constexpr uint16_t test_port = 12345;
 
-    public:
         SyncClientServerFixture()
             : _server(test_port, _io_ctx), _client("127.0.0.1", test_port, _io_ctx)
         {
@@ -54,25 +66,19 @@ namespace Network::Test
         }
 
         Network::IoContextWrapper &get_io_context() { return _io_ctx; }
-        // ServerSync &get_server() { return _server; }
-        // ClientSync &get_client() { return _client; }
-
+        
         const std::unique_ptr<TcpSocket> &get_client_socket() { return _client_socket; }
         const std::vector<std::unique_ptr<TcpSocket>> &get_server_sockets() const { return _server.getSockets(); }
 
         bool start_server()
         {
-
-            server_thread_ = std::thread([this]()
-                                         { _server.listen(); });
-
+            server_thread_ = std::thread([this]() { _server.listen(); });
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             return true;
         }
 
         bool connect_client()
         {
-
             auto connect_result = _client.connect({});
             if (!connect_result)
             {
@@ -97,12 +103,20 @@ namespace Network::Test
             }
         }
 
-    private:
+        bool restart_server()
+        {
+            stop_server();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            server_thread_ = std::thread([this]() { _server.listen(); });
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            return true;
+        }
+
+    protected:
         Network::IoContextWrapper _io_ctx;
         TestSyncServer _server;
         ClientSync _client;
         std::unique_ptr<TcpSocket> _client_socket{nullptr};
-
         std::thread server_thread_;
     };
 
