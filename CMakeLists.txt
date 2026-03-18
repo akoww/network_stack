@@ -125,14 +125,20 @@ target_sources(network_stack_core
     PRIVATE
         src/core/Context.cpp
         src/core/ErrorCodes.cpp
+
         src/socket/TcpSocket.cpp
         src/socket/TcpImpl.cpp
+
         src/client/ClientAsync.cpp
         src/client/ClientBase.cpp
         src/client/ClientSync.cpp
+
         src/server/ServerAsync.cpp
         src/server/ServerBase.cpp
         src/server/ServerSync.cpp
+
+        src/protocol/FtpFileTransfer.cpp
+        src/protocol/FtpUtils.cpp
 )
 
 # Compile options
