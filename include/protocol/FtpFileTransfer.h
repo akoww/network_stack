@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FileTransfer.h"
+#include "FtpUtils.h"
 #include "socket/TcpSocket.h"
 
 #include <expected>
@@ -9,6 +10,20 @@
 #include <string>
 
 namespace Network {
+
+class FtpFileTransfer;
+
+class DefaultFtpNavigator : public Utility::SmartDirectoryNavigator {
+public:
+  DefaultFtpNavigator(FtpFileTransfer *parent);
+
+  std::expected<void, std::error_code> ftpCd(const std::string &dir) override;
+  std::expected<void, std::error_code>
+  ftpSelectDrive(const std::string &drive) override;
+
+private:
+  FtpFileTransfer *_parent;
+};
 
 class FtpFileTransfer : public IAbstractFileTransfer {
 public:
@@ -54,23 +69,29 @@ public:
         WriteCallback next) override;
 
 private:
-   std::expected<std::string, std::error_code> sendCommand(const std::string &cmd,
-                                                           int expected_code = -1);
-  std::expected<int, std::error_code> receiveResponse();
+  std::expected<std::string, std::error_code>
+  sendCommand(std::string_view cmd, int expected_code = -1);
+
   std::expected<void, std::error_code>
   ensureDirectory(const std::filesystem::path &path);
+
   std::expected<std::unique_ptr<TcpSocket>, std::error_code>
   openDataConnection();
 
-  asio::ip::tcp::endpoint parsePasvResponse(const std::string &response);
+  std::optional<asio::ip::tcp::endpoint>
+  parsePasvResponse(std::string_view response) const;
+
   void navigateToDirectory(const std::filesystem::path &path);
 
   std::string _host;
   uint16_t _port;
+  DefaultFtpNavigator _navigator;
+
   asio::io_context &_io_context;
   std::unique_ptr<TcpSocket> _socket;
-  std::filesystem::path _current_dir;
   ConnectOptions _options;
+
+  friend DefaultFtpNavigator;
 };
 
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code>

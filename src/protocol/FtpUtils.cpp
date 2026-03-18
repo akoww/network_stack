@@ -44,7 +44,8 @@ fs::path stripWindowsDrive(const fs::path &p) {
 SmartDirectoryNavigator::SmartDirectoryNavigator(const fs::path &startPath)
     : current(normalize(startPath)) {}
 
-void SmartDirectoryNavigator::changeDirectory(const fs::path &targetPath) {
+std::expected<void, std::error_code>
+SmartDirectoryNavigator::changeDirectory(const fs::path &targetPath) {
   fs::path target = normalize(targetPath);
 
   bool currentHasDrive = hasWindowsDrive(current);
@@ -60,20 +61,23 @@ void SmartDirectoryNavigator::changeDirectory(const fs::path &targetPath) {
 
     if (currentDrive != targetDrive) {
       if (!targetDrive.empty()) {
-        ftpSelectDrive(targetDrive);
+        if (auto result = ftpSelectDrive(targetDrive); !result)
+          return std::unexpected(result.error());
       }
 
-      descendFromRoot(target);
+      if (auto result = descendFromRoot(target); !result)
+        return std::unexpected(result.error());
       current = target;
-      return;
+      return {};
     }
   }
 
   // POSIX absolute root jump
   if (targetIsPosixRoot && !currentIsPosixRoot) {
-    descendFromRoot(target);
+    if (auto result = descendFromRoot(target); !result)
+      return std::unexpected(result.error());
     current = target;
-    return;
+    return {};
   }
 
   auto currentParts = split(current.relative_path());
@@ -86,14 +90,17 @@ void SmartDirectoryNavigator::changeDirectory(const fs::path &targetPath) {
   }
 
   for (size_t i = common; i < currentParts.size(); ++i) {
-    ftpCd("..");
+    if (auto result = ftpCd(".."); !result)
+      return std::unexpected(result.error());
   }
 
   for (size_t i = common; i < targetParts.size(); ++i) {
-    ftpCd(targetParts[i].string());
+    if (auto result = ftpCd(targetParts[i].string()); !result)
+      return std::unexpected(result.error());
   }
 
   current = target;
+  return {};
 }
 
 fs::path SmartDirectoryNavigator::normalize(const fs::path &p) {
@@ -111,13 +118,17 @@ std::vector<fs::path> SmartDirectoryNavigator::split(const fs::path &p) {
   return parts;
 }
 
-void SmartDirectoryNavigator::descendFromRoot(const fs::path &target) {
+std::expected<void, std::error_code>
+SmartDirectoryNavigator::descendFromRoot(const fs::path &target) {
   fs::path clean = stripWindowsDrive(target);
 
   for (const auto &part : clean) {
     if (part != "/" && part != "\\" && part != "")
-      ftpCd(part.string());
+
+      if (auto result = ftpCd(part.string()); !result)
+        return std::unexpected(result.error());
   }
+  return {};
 }
 } // namespace Network::Utility
 
