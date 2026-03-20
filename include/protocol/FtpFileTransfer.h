@@ -68,15 +68,60 @@ public:
   write(const std::filesystem::path &remote_dst_path,
         WriteCallback next) override;
 
-private:
-  std::expected<std::string, std::error_code>
-  sendCommand(std::string_view cmd, int expected_code = -1);
+protected:
+  struct FtpCapabilities {
+    // Listing
+    bool mlst = false;
+    bool nlst = false;
+    bool list = true; // assume fallback
 
-  std::expected<void, std::error_code>
-  ensureDirectory(const std::filesystem::path &path);
+    // File info
+    bool size = false;
+    bool mdtm = false;
+
+    // File ops
+    bool rename = false;
+
+    // Connection
+    bool epsv = false;
+    bool pasv = true;
+
+    // Misc
+    bool feat = false;
+  };
+
+private:
+  //--------------------
+
+  struct Answer {
+    std::string full_msg;
+    int code;
+  };
+
+  std::expected<void, std::error_code> sendCommand(std::string_view cmd);
+  std::expected<Answer, std::error_code> receiveResponse();
+
+  std::expected<Answer, std::error_code>
+  sendAndReceiveResponse(std::string_view cmd);
+
+  // static variants for data channel
+
+  std::expected<void, std::error_code> sendCommand(TcpSocket &sock,
+                                                   std::string_view cmd);
+  std::expected<Answer, std::error_code> receiveResponse(TcpSocket &sock);
+  std::expected<std::string, std::error_code>
+  receiveRawResponse(TcpSocket &sock);
+
+  std::expected<Answer, std::error_code>
+  sendAndReceiveResponse(TcpSocket &sock, std::string_view cmd);
+
+  //--------------------
 
   std::expected<std::unique_ptr<TcpSocket>, std::error_code>
   openDataConnection();
+
+  std::expected<void, std::error_code>
+  ensureDirectory(const std::filesystem::path &path);
 
   std::optional<asio::ip::tcp::endpoint>
   parsePasvResponse(std::string_view response) const;

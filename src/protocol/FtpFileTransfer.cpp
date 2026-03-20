@@ -6,10 +6,13 @@
 
 #include <asio/connect.hpp>
 #include <asio/ip/tcp.hpp>
+#include <expected>
 #include <spdlog/spdlog.h>
 #include <system_error>
 
 #include <array>
+#include <map>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -21,10 +24,15 @@ DefaultFtpNavigator::DefaultFtpNavigator(FtpFileTransfer *parent)
 
 std::expected<void, std::error_code>
 DefaultFtpNavigator::ftpCd(const std::string &dir) {
-  auto cmd_result = _parent->sendCommand(std::format("CWD {}", dir), 250);
+  spdlog::info("cwd {}", dir);
+  auto cmd_result = _parent->sendAndReceiveResponse(std::format("CWD {}", dir));
   if (!cmd_result) {
     spdlog::warn("Failed to change directory to '{}': {}", dir,
                  cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 250) {
+    spdlog::warn("Failed to change directory to '{}': code {}", dir,
+                 cmd_result->code);
     return std::unexpected(cmd_result.error());
   }
   return {};
@@ -32,10 +40,15 @@ DefaultFtpNavigator::ftpCd(const std::string &dir) {
 
 std::expected<void, std::error_code>
 DefaultFtpNavigator::ftpSelectDrive(const std::string &drive) {
-  auto cmd_result = _parent->sendCommand(std::format("CWD {}", drive), 250);
+  auto cmd_result =
+      _parent->sendAndReceiveResponse(std::format("CWD {}", drive));
   if (!cmd_result) {
     spdlog::warn("Failed to change directory to '{}': {}", drive,
                  cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 250) {
+    spdlog::warn("Failed to change directory to '{}': Code {}", drive,
+                 cmd_result->code);
     return std::unexpected(cmd_result.error());
   }
   return {};
@@ -55,6 +68,13 @@ template <typename Container> auto as_byte_span(const Container &c) {
   return std::span<const std::byte>(
       reinterpret_cast<const std::byte *>(std::ranges::data(c)),
       std::ranges::size(c));
+}
+
+std::filesystem::path get_last_component(const std::filesystem::path &p) {
+  if (p.filename().empty()) {
+    return p.parent_path().filename();
+  }
+  return p.filename();
 }
 
 } // namespace
@@ -103,7 +123,7 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
 
   // Send USER command
   if (!opts.username.empty()) {
-    auto cmd_result = sendCommand("USER " + opts.username, -1);
+    auto cmd_result = sendAndReceiveResponse("USER " + opts.username);
     if (!cmd_result) {
       spdlog::error("USER command failed: {}", cmd_result.error().message());
       _socket.reset();
@@ -111,7 +131,7 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
     }
 
     // USER returns 331 (need password) or 230 (logged in)
-    int user_response_code = std::stoi(cmd_result->substr(0, 3));
+    int user_response_code = cmd_result->code;
     if (user_response_code != 331 && user_response_code != 230) {
       spdlog::error("USER command returned unexpected code: {}",
                     user_response_code);
@@ -122,14 +142,14 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
 
   // Send PASS command
   if (!opts.password.empty()) {
-    auto cmd_result = sendCommand("PASS " + opts.password, -1);
+    auto cmd_result = sendAndReceiveResponse("PASS " + opts.password);
     if (!cmd_result) {
       spdlog::error("PASS command failed: {}", cmd_result.error().message());
       _socket.reset();
       return std::unexpected(cmd_result.error());
     }
 
-    int pass_response_code = std::stoi(cmd_result->substr(0, 3));
+    int pass_response_code = cmd_result->code;
     if (pass_response_code != 230 && pass_response_code != 231) {
       spdlog::error("PASS command returned unexpected code: {}",
                     pass_response_code);
@@ -181,21 +201,42 @@ void extractLines(std::string &buf, std::vector<std::string> &out) {
 
 } // namespace
 
-std::expected<std::string, std::error_code>
-FtpFileTransfer::sendCommand(std::string_view cmd, int expected_code) {
-  const std::string command = std::format("{}\r\n", cmd);
+std::expected<void, std::error_code>
+FtpFileTransfer::sendCommand(std::string_view cmd) {
+  return sendCommand(*_socket, cmd); // Success
+}
 
-  if (auto r = _socket->send(as_byte_span(command)); !r) {
+std::expected<FtpFileTransfer::Answer, std::error_code>
+FtpFileTransfer::receiveResponse() {
+  return receiveResponse(*_socket);
+}
+
+std::expected<FtpFileTransfer::Answer, std::error_code>
+FtpFileTransfer::sendAndReceiveResponse(std::string_view cmd) {
+  return sendAndReceiveResponse(*_socket, cmd);
+}
+
+//----
+
+std::expected<void, std::error_code>
+FtpFileTransfer::sendCommand(TcpSocket &sock, std::string_view cmd) {
+  const std::string command = std::format("{}\r\n", cmd);
+  if (auto r = sock.send(as_byte_span(command)); !r) {
     spdlog::error("Failed to send command '{}': {}", cmd, r.error().message());
     return std::unexpected(r.error());
   }
+  return {}; // Success
+}
+
+std::expected<FtpFileTransfer::Answer, std::error_code>
+FtpFileTransfer::receiveResponse(TcpSocket &sock) {
 
   std::string buf;
   std::vector<std::string> lines;
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
-    auto r = _socket->receive(std::span(tmp));
+    auto r = sock.receive(std::span(tmp));
     if (!r) {
       spdlog::error("Failed to receive FTP response: {}", r.error().message());
       return std::unexpected(r.error());
@@ -204,51 +245,126 @@ FtpFileTransfer::sendCommand(std::string_view cmd, int expected_code) {
       spdlog::error("Connection closed while receiving response");
       return std::unexpected(make_error_code(Network::Error::ConnectionLost));
     }
-
     buf.append(reinterpret_cast<const char *>(tmp.data()), *r);
     extractLines(buf, lines);
-
     if (isCompleteFtpResponse(lines))
       break;
   }
 
-  std::string response;
+  std::string full_msg;
   for (size_t i = 0; i < lines.size(); ++i)
-    response += lines[i] + (i + 1 < lines.size() ? "\n" : "");
+    full_msg += lines[i] + (i + 1 < lines.size() ? "\n" : "");
 
-  if (response.size() < 3)
+  if (full_msg.size() < 3)
     return std::unexpected(make_error_code(Network::Error::ProtocolError));
 
-  int code = std::stoi(response.substr(0, 3));
+  int code = std::stoi(full_msg.substr(0, 3));
 
-  if (expected_code != -1 && code != expected_code) {
-    spdlog::error("Command '{}' failed: expected {} got {}", cmd, expected_code,
-                  code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  spdlog::debug("Response code: {}", code);
+
+  return Answer{.full_msg = full_msg, .code = code};
+}
+
+std::expected<std::string, std::error_code>
+FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
+
+  std::string buf;
+  std::array<std::byte, 1024> tmp{};
+
+  while (true) {
+    auto r = sock.receive(std::span(tmp));
+    if (!r) {
+      spdlog::error("Failed to receive FTP response: {}", r.error().message());
+      return std::unexpected(r.error());
+    }
+    if (*r == 0) {
+      break;
+    }
+    buf.append(reinterpret_cast<const char *>(tmp.data()), *r);
+  }
+  return buf;
+}
+
+std::expected<FtpFileTransfer::Answer, std::error_code>
+FtpFileTransfer::sendAndReceiveResponse(TcpSocket &sock, std::string_view cmd) {
+
+  if (auto send_result = sendCommand(sock, cmd)) {
+    return std::unexpected(send_result.error());
   }
 
-  spdlog::debug("Command '{}' response: {}", cmd, code);
-  return response;
+  return receiveResponse(sock);
 }
 
 namespace {
 
 std::chrono::system_clock::time_point
-parseFtpTimestamp([[maybe_unused]] const std::string &month,
-                  [[maybe_unused]] const std::string &day,
-                  [[maybe_unused]] const std::string &time_or_year) {
-  // TODO: Implement actual parsing logic here.
-  // Returning 'now()' is currently what your code did, but we shouldn't just
-  // ignore the field. For now, returning 'now()' as a placeholder to avoid
-  // breaking compilation while signaling where the fix goes.
-  return std::chrono::system_clock::now();
+parseFtpTimestamp(const std::string &month, const std::string &day,
+                  const std::string &time_or_year) {
+
+  // Map month names to month numbers (0-11)
+  static const std::map<std::string, int> monthMap = {
+      {"Jan", 0}, {"Feb", 1}, {"Mar", 2}, {"Apr", 3}, {"May", 4},  {"Jun", 5},
+      {"Jul", 6}, {"Aug", 7}, {"Sep", 8}, {"Oct", 9}, {"Nov", 10}, {"Dec", 11}};
+
+  // Find and validate month
+  auto it = monthMap.find(month);
+  if (it == monthMap.end()) {
+    throw std::runtime_error("Invalid month name: " + month);
+  }
+  int monthNum = it->second;
+
+  // Parse day (strip any leading spaces)
+  int dayNum = std::stoi(day);
+  if (dayNum < 1 || dayNum > 31) {
+    throw std::runtime_error("Invalid day: " + day);
+  }
+
+  // Get current year for timestamps without year
+  auto now = std::chrono::system_clock::now();
+  auto now_time_t = std::chrono::system_clock::to_time_t(now);
+  std::tm tm_now = *std::localtime(&now_time_t);
+  int currentYear = tm_now.tm_year + 1900;
+
+  int year, hour, minute;
+
+  // Determine if we have time (HH:MM) or year (YYYY)
+  if (time_or_year.find(':') != std::string::npos) {
+    // Format: HH:MM - use current year (modified within last 6 months)
+    size_t colonPos = time_or_year.find(':');
+    hour = std::stoi(time_or_year.substr(0, colonPos));
+    minute = std::stoi(time_or_year.substr(colonPos + 1));
+    year = currentYear;
+  } else {
+    // Format: YYYY - use given year, set time to midnight
+    year = std::stoi(time_or_year);
+    hour = 0;
+    minute = 0;
+  }
+
+  // Build tm structure
+  std::tm tm = {};
+  tm.tm_year = year - 1900;
+  tm.tm_mon = monthNum;
+  tm.tm_mday = dayNum;
+  tm.tm_hour = hour;
+  tm.tm_min = minute;
+  tm.tm_sec = 0;
+  tm.tm_isdst = -1; // Let mktime determine DST
+
+  // Convert to time_t
+  std::time_t time_t_value = std::mktime(&tm);
+  if (time_t_value == static_cast<std::time_t>(-1)) {
+    throw std::runtime_error("Invalid date/time combination");
+  }
+
+  return std::chrono::system_clock::from_time_t(time_t_value);
 }
 
-std::optional<FileListData> parseFtpLine(const std::string &line) {
+std::optional<FileListData> parseFtpLine(std::string_view line) {
   if (line.empty())
     return std::nullopt;
 
-  std::istringstream iss(line);
+  std::istringstream iss(std::string(line), std::ios_base::in);
   std::string perms, link_count, owner, group, month, day, time_or_year;
   uint64_t size;
 
@@ -294,6 +410,17 @@ std::optional<FileListData> parseFtpLine(const std::string &line) {
   return file;
 }
 
+auto splitLines(std::string_view lines) {
+  return std::views::split(lines, '\n') |
+         std::views::transform([](auto &&part) {
+           std::string_view s(part); // C++23 range ctor
+           while (!s.empty() && (s.back() == '\r' || s.back() == '\n'))
+             s.remove_suffix(1);
+           return s;
+         }) |
+         std::views::filter([](const auto &l) { return !l.empty(); });
+}
+
 } // namespace
 
 std::expected<std::vector<FileListData>, std::error_code>
@@ -313,61 +440,24 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
 
   auto data_socket = std::move(*data_socket_result);
 
-  auto cmd_result = sendCommand("LIST", -1);
+  auto cmd_result = sendAndReceiveResponse("LIST");
   if (!cmd_result) {
     spdlog::error("LIST command failed: {}", cmd_result.error().message());
     return std::unexpected(cmd_result.error());
   }
 
+  auto list_result = receiveRawResponse(*data_socket);
+  if (!list_result) {
+    spdlog::error("LIST command line did not open");
+    return std::unexpected(list_result.error());
+  }
+
   // 2. Receive and Parse
   std::vector<FileListData> files;
-  std::array<std::byte, 4096> buffer{};
-  std::string
-      remaining_data; // CRITICAL FIX: Keep partial lines between packets
+  for (auto line : splitLines(*list_result)) {
 
-  while (true) {
-    auto recv_result = data_socket->receive(std::span(buffer));
-
-    if (!recv_result) {
-      if (recv_result.error() == asio::error::eof) {
-        // Process any remaining data after EOF
-        if (!remaining_data.empty()) {
-          if (auto parsed = parseFtpLine(remaining_data)) {
-            files.push_back(*parsed);
-          }
-        }
-        spdlog::debug("Received EOF from data connection");
-        break;
-      }
-      spdlog::error("Failed to receive LIST data: {}",
-                    recv_result.error().message());
-      return std::unexpected(recv_result.error());
-    }
-
-    if (*recv_result == 0)
-      break;
-
-    // Append new chunk to remaining data
-    remaining_data.append(reinterpret_cast<const char *>(buffer.data()),
-                          *recv_result);
-
-    // Process complete lines
-    while (true) {
-      std::size_t pos = remaining_data.find('\n');
-      if (pos == std::string::npos)
-        break; // No complete line yet
-
-      std::string line = remaining_data.substr(0, pos);
-      remaining_data.erase(0, pos + 1);
-
-      // Remove potential trailing \r (Windows/FTP standard)
-      if (!line.empty() && line.back() == '\r') {
-        line.pop_back();
-      }
-
-      if (auto file_data = parseFtpLine(line)) {
-        files.push_back(*file_data);
-      }
+    if (auto file_data = parseFtpLine(line)) {
+      files.push_back(*file_data);
     }
   }
 
@@ -376,30 +466,112 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
 
 std::expected<void, std::error_code>
 FtpFileTransfer::createDir(const std::filesystem::path &path) {
-  (void)path; // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+
+  // naviagte to parent path
+  if (auto change_result = _navigator.changeDirectory(path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}", path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto cmd_result = sendAndReceiveResponse(
+      std::format("MKD {}", get_last_component(path).string()));
+  if (!cmd_result) {
+    spdlog::error("MKD command failed for '{}': {}", path.string(),
+                  cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 257) {
+    spdlog::warn("Can't create dir '{}' Code: '{}'", path.string(),
+                 cmd_result->code);
+    return std::unexpected(cmd_result.error());
+  }
+  return {};
 }
 
 std::expected<bool, std::error_code>
 FtpFileTransfer::exists(const std::filesystem::path &remote_path) {
-  auto cmd_result = sendCommand("STAT " + remote_path.string(), -1);
+
+  // naviagte to parent path
+  if (auto change_result =
+          _navigator.changeDirectory(remote_path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}",
+                  remote_path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto connection_result = openDataConnection();
+  if (!connection_result) {
+    spdlog::error("cant open data connection");
+    return std::unexpected(connection_result.error());
+  }
+
+  auto data_connection = std::move(*connection_result);
+
+  auto cmd_result = sendAndReceiveResponse(
+      "NLST " + get_last_component(remote_path).string());
   if (!cmd_result) {
-    spdlog::error("STAT command failed: {}", cmd_result.error().message());
+    spdlog::error("NLST command failed: {}", cmd_result.error().message());
     return std::unexpected(cmd_result.error());
   }
 
-  int response_code = std::stoi(cmd_result->substr(0, 3));
+  int response_code = cmd_result->code;
   if (response_code == 550 || response_code == 553) {
     return false;
   }
 
-  return true;
+  bool exists = false;
+
+  // check if file exists there
+  std::array<std::byte, 2048> exist_buffer;
+  std::string_view exist_str;
+  if (auto exist_result = data_connection->receive(std::span(exist_buffer));
+      !exist_result) {
+    // maybe not an error?
+    spdlog::error("cant read on data connection");
+    // return std::unexpected(exist_result.error());
+  } else {
+    exist_str = std::string_view(
+        reinterpret_cast<const char *>(exist_buffer.data()), *exist_result);
+    exists = true;
+  }
+
+  data_connection.reset();
+
+  std::array<std::byte, 2048> tmp_buffer;
+  std::string_view close_str;
+  if (auto close_result = _socket->receive(std::span(tmp_buffer));
+      !close_result) {
+    spdlog::error("cant close on data connection");
+    return std::unexpected(close_result.error());
+  } else {
+    close_str = std::string_view(
+        reinterpret_cast<const char *>(tmp_buffer.data()), *close_result);
+  }
+  return exists;
 }
 
 std::expected<void, std::error_code>
 FtpFileTransfer::remove(const std::filesystem::path &remote_path) {
-  (void)remote_path; // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  std::string cmd;
+  if (exists(remote_path).value_or(false)) {
+    cmd = "RMD";
+  } else {
+    cmd = "DELE";
+  }
+  auto cmd_result =
+      sendAndReceiveResponse(std::format("{} {}", cmd, remote_path.string()));
+  if (!cmd_result) {
+    spdlog::error("{} command failed for '{}': {}", cmd, remote_path.string(),
+                  cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 250) {
+    spdlog::warn("Failed to remove file '{}' Code: '{}'", remote_path.string(),
+                 cmd_result->code);
+    return std::unexpected(cmd_result.error());
+  }
+
+  return {};
 }
 
 std::expected<std::vector<uint8_t>, std::error_code>
@@ -440,13 +612,16 @@ FtpFileTransfer::ensureDirectory(const std::filesystem::path &path) {
 
 std::expected<std::unique_ptr<TcpSocket>, std::error_code>
 FtpFileTransfer::openDataConnection() {
-  auto pasv_result = sendCommand("PASV", 227);
+  auto pasv_result = sendAndReceiveResponse("PASV");
   if (!pasv_result) {
     spdlog::error("PASV command failed: {}", pasv_result.error().message());
     return std::unexpected(pasv_result.error());
+  } else if (pasv_result->code != 227) {
+    spdlog::error("Failed to open connection. Code: '{}'", pasv_result->code);
+    return std::unexpected(pasv_result.error());
   }
 
-  auto endpoint = parsePasvResponse(*pasv_result);
+  auto endpoint = parsePasvResponse(pasv_result->full_msg);
 
   auto data_socket = std::make_unique<ClientSync>(
       endpoint->address().to_string(), endpoint->port(), _io_context);

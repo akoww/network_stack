@@ -1,123 +1,215 @@
-#include <gtest/gtest.h>
 #include <chrono>
-#include <thread>
+#include <gtest/gtest.h>
+
+#include <spdlog/spdlog.h>
 
 #include "core/Context.h"
 #include "protocol/FtpFileTransfer.h"
 
-
 namespace Network::Test {
 
 TEST(FtpIntegrationTest, ConnectAndDisconnect) {
-    IoContextWrapper io_ctx;
-    io_ctx.start();
-    
-    FtpFileTransfer::ConnectOptions opts;
-    opts.username = "demo";
-    opts.password = "password";
-    opts.timeout = std::chrono::seconds(10);
-    
-    auto ftp_result = openFtpConnection("test.rebex.net", 21, io_ctx, opts);
-    EXPECT_TRUE(ftp_result.has_value()) << "FTP connection failed: " << ftp_result.error().message();
-    
-    if (ftp_result) {
-        auto ftp = std::move(*ftp_result);
-        EXPECT_TRUE(ftp->isAlive());
-    }
-    
-    io_ctx.stop();
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymouse";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::unique_ptr<Network::FtpFileTransfer>(
+        static_cast<Network::FtpFileTransfer *>(ftp_result->release()));
+    EXPECT_TRUE(ftp->isAlive());
+  }
+
+  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ExistsFile) {
-    IoContextWrapper io_ctx;
-    io_ctx.start();
-    
-    FtpFileTransfer::ConnectOptions opts;
-    opts.username = "demo";
-    opts.password = "password";
-    opts.timeout = std::chrono::seconds(10);
-    
-    auto ftp_result = openFtpConnection("test.rebex.net", 21, io_ctx, opts);
-    EXPECT_TRUE(ftp_result.has_value()) << "FTP connection failed: " << ftp_result.error().message();
-    
-    if (ftp_result) {
-        auto ftp = std::move(*ftp_result);
-        
-        auto exists_result = ftp->exists("/readme.txt");
-        EXPECT_TRUE(exists_result.has_value()) << "exists() failed: " << exists_result.error().message();
-        EXPECT_TRUE(exists_result.value()) << "readme.txt should exist";
-        
-        auto not_exists_result = ftp->exists("/nonexistent_file_12345.txt");
-        EXPECT_TRUE(not_exists_result.has_value()) << "exists() failed: " << not_exists_result.error().message();
-        EXPECT_FALSE(not_exists_result.value()) << "nonexistent file should return false";
-    }
-    
-    io_ctx.stop();
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymouse";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    auto exists_result = ftp->exists("/readme.txt");
+    EXPECT_TRUE(exists_result.has_value())
+        << "exists() failed: " << exists_result.error().message();
+    EXPECT_TRUE(exists_result.value()) << "readme.txt should exist";
+
+    auto not_exists_result = ftp->exists("/nonexistent_file_12345.txt");
+    EXPECT_TRUE(not_exists_result.has_value())
+        << "exists() failed: " << not_exists_result.error().message();
+    EXPECT_FALSE(not_exists_result.value())
+        << "nonexistent file should return false";
+  }
+
+  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ListDirectory) {
-    IoContextWrapper io_ctx;
-    io_ctx.start();
-    
-    FtpFileTransfer::ConnectOptions opts;
-    opts.username = "demo";
-    opts.password = "password";
-    opts.timeout = std::chrono::seconds(10);
-    
-    auto ftp_result = openFtpConnection("test.rebex.net", 21, io_ctx, opts);
-    EXPECT_TRUE(ftp_result.has_value()) << "FTP connection failed: " << ftp_result.error().message();
-    
-    if (ftp_result) {
-        auto ftp = std::move(*ftp_result);
-        
-        auto list_result = ftp->list("/");
-        EXPECT_TRUE(list_result.has_value()) << "list() failed: " << list_result.error().message();
-        
-         const auto& files = list_result.value();
-         EXPECT_FALSE(files.empty()) << "Directory listing should not be empty";
-         
-         bool found = false;
-         for (const auto& file : files) {
-             if (file.file_name == "readme.txt") {
-                 found = true;
-                 EXPECT_GT(file.size, 0) << "readme.txt should have size > 0";
-                 EXPECT_NE(file.date, std::chrono::system_clock::time_point{}) << "date should be valid";
-                 break;
-             }
-         }
-         EXPECT_TRUE(found) << "readme.txt should be in directory listing";
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymouse";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    auto list_result = ftp->list("/");
+    EXPECT_TRUE(list_result.has_value())
+        << "list() failed: " << list_result.error().message();
+
+    const auto &files = list_result.value();
+    EXPECT_FALSE(files.empty()) << "Directory listing should not be empty";
+
+    bool found = false;
+    for (const auto &file : files) {
+      spdlog::info("- {}", file.file_name);
+      if (file.file_name == "readme.txt") {
+        found = true;
+        EXPECT_GT(file.size, 0) << "readme.txt should have size > 0";
+        EXPECT_NE(file.date, std::chrono::system_clock::time_point{})
+            << "date should be valid";
+        break;
+      }
     }
-    
-    io_ctx.stop();
+    EXPECT_TRUE(found) << "readme.txt should be in directory listing";
+  }
+
+  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ExistsAndListCombined) {
-    IoContextWrapper io_ctx;
-    io_ctx.start();
-    
-    FtpFileTransfer::ConnectOptions opts;
-    opts.username = "demo";
-    opts.password = "password";
-    opts.timeout = std::chrono::seconds(10);
-    
-    auto ftp_result = openFtpConnection("test.rebex.net", 21, io_ctx, opts);
-    EXPECT_TRUE(ftp_result.has_value()) << "FTP connection failed: " << ftp_result.error().message();
-    
-    if (ftp_result) {
-        auto ftp = std::move(*ftp_result);
-        
-        auto list_result = ftp->list("/");
-        EXPECT_TRUE(list_result.has_value());
-        
-        for (const auto& file : list_result.value()) {
-            auto exists_result = ftp->exists("/" + file.file_name);
-            EXPECT_TRUE(exists_result.has_value()) 
-                << "exists() for " << file.file_name << " failed: " << exists_result.error().message();
-            EXPECT_TRUE(exists_result.value()) << file.file_name << " should exist";
-        }
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymouse";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    auto list_result = ftp->list("/");
+    EXPECT_TRUE(list_result.has_value());
+
+    for (const auto &file : list_result.value()) {
+      auto exists_result = ftp->exists("/" + file.file_name);
+      EXPECT_TRUE(exists_result.has_value())
+          << "exists() for " << file.file_name
+          << " failed: " << exists_result.error().message();
+      EXPECT_TRUE(exists_result.value()) << file.file_name << " should exist";
     }
-    
-    io_ctx.stop();
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, NestedDirectoriesNavigation) {
+
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymouse";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  // GTEST_SKIP() << "Skipping since we dont have correct rights";
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    const std::filesystem::path base_dir = "test_nested";
+    const std::filesystem::path level1 = base_dir / "dir_a";
+    const std::filesystem::path level2 = level1 / "dir_b";
+    const std::filesystem::path level3 = level2 / "dir_c";
+
+    auto create_result = ftp->createDir(base_dir);
+    EXPECT_TRUE(create_result.has_value())
+        << "Failed to create base directory: "
+        << create_result.error().message();
+
+    create_result = ftp->createDir(level1);
+    EXPECT_TRUE(create_result.has_value())
+        << "Failed to create level1 directory: "
+        << create_result.error().message();
+
+    create_result = ftp->createDir(level2);
+    EXPECT_TRUE(create_result.has_value())
+        << "Failed to create level2 directory: "
+        << create_result.error().message();
+
+    create_result = ftp->createDir(level3);
+    EXPECT_TRUE(create_result.has_value())
+        << "Failed to create level3 directory: "
+        << create_result.error().message();
+
+    auto exists_result = ftp->exists(base_dir);
+    EXPECT_TRUE(exists_result.has_value())
+        << "exists() failed: " << exists_result.error().message();
+    EXPECT_TRUE(exists_result.value()) << base_dir << " should exist";
+
+    exists_result = ftp->exists(level3);
+    EXPECT_TRUE(exists_result.has_value())
+        << "exists() failed: " << exists_result.error().message();
+    EXPECT_TRUE(exists_result.value()) << level3 << " should exist";
+
+    auto list_result = ftp->list(base_dir);
+    EXPECT_TRUE(list_result.has_value())
+        << "list() failed: " << list_result.error().message();
+    bool found_dir_a = false;
+    for (const auto &file : list_result.value()) {
+      if (file.file_name == "dir_a") {
+        found_dir_a = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(found_dir_a) << "dir_a should be in " << base_dir;
+
+    EXPECT_TRUE(ftp->remove(level3).has_value()) << "Can't remove directory";
+    EXPECT_TRUE(ftp->remove(level2).has_value()) << "Can't remove directory";
+    EXPECT_TRUE(ftp->remove(level1).has_value()) << "Can't remove directory";
+    EXPECT_TRUE(ftp->remove(base_dir).has_value()) << "Can't remove directory";
+
+    exists_result = ftp->exists(base_dir);
+    EXPECT_TRUE(exists_result.has_value())
+        << "exists() failed after removal: " << exists_result.error().message();
+    EXPECT_FALSE(exists_result.value())
+        << base_dir << " should not exist after removal";
+  }
+
+  io_ctx.stop();
 }
 
 } // namespace Network::Test
