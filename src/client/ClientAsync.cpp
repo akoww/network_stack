@@ -22,7 +22,7 @@ namespace Network
     {
     }
 
-    asio::awaitable<std::expected<std::unique_ptr<TcpSocket>, std::error_code>> ClientAsync::connect(Options opts)
+    asio::awaitable<std::expected<std::unique_ptr<TcpSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
     {
         spdlog::info("client async connecting to {}:{}...", host(), port());
 

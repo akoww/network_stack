@@ -33,7 +33,7 @@ DefaultFtpNavigator::ftpCd(const std::string &dir) {
   } else if (cmd_result->code != 250) {
     spdlog::warn("Failed to change directory to '{}': code {}", dir,
                  cmd_result->code);
-    return std::unexpected(cmd_result.error());
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
   return {};
 }
@@ -49,7 +49,7 @@ DefaultFtpNavigator::ftpSelectDrive(const std::string &drive) {
   } else if (cmd_result->code != 250) {
     spdlog::warn("Failed to change directory to '{}': Code {}", drive,
                  cmd_result->code);
-    return std::unexpected(cmd_result.error());
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
   return {};
 }
@@ -158,6 +158,18 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
     }
   }
 
+  // Send FEAT command to query server features (optional)
+  auto feat_result = sendAndReceiveResponse("FEAT");
+  if (feat_result) {
+    if (feat_result->code == 211) {
+      parseFeatures(feat_result->full_msg);
+    } else {
+      spdlog::debug("FEAT returned unexpected code: {}", feat_result->code);
+    }
+  } else {
+    spdlog::debug("FEAT command failed: {}", feat_result.error().message());
+  }
+
   spdlog::info("FTP connected and authenticated successfully");
   return {};
 }
@@ -168,7 +180,7 @@ bool FtpFileTransfer::isAlive() const noexcept {
 
 namespace {
 
-bool isCompleteFtpResponse(const std::vector<std::string> &lines) {
+bool isCompleteFtpResponse(std::ranges::input_range auto &&lines) {
   if (lines.empty())
     return false;
 
@@ -177,7 +189,7 @@ bool isCompleteFtpResponse(const std::vector<std::string> &lines) {
       !std::isdigit(first[2]))
     return false;
 
-  const std::string code = first.substr(0, 3);
+  const std::string_view code = first.substr(0, 3);
 
   if (first[3] == ' ')
     return true; // single-line
@@ -191,12 +203,15 @@ bool isCompleteFtpResponse(const std::vector<std::string> &lines) {
   return false;
 }
 
-void extractLines(std::string &buf, std::vector<std::string> &out) {
-  size_t pos;
-  while ((pos = buf.find("\r\n")) != std::string::npos) {
-    out.emplace_back(buf.substr(0, pos));
-    buf.erase(0, pos + 2);
-  }
+auto splitLines(std::string_view lines) {
+  return std::views::split(lines, '\n') |
+         std::views::transform([](auto &&part) {
+           std::string_view s(part); // C++23 range ctor
+           while (!s.empty() && (s.back() == '\r' || s.back() == '\n'))
+             s.remove_suffix(1);
+           return s;
+         }) |
+         std::views::filter([](const auto &l) { return !l.empty(); });
 }
 
 } // namespace
@@ -232,7 +247,6 @@ std::expected<FtpFileTransfer::Answer, std::error_code>
 FtpFileTransfer::receiveResponse(TcpSocket &sock) {
 
   std::string buf;
-  std::vector<std::string> lines;
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
@@ -246,23 +260,19 @@ FtpFileTransfer::receiveResponse(TcpSocket &sock) {
       return std::unexpected(make_error_code(Network::Error::ConnectionLost));
     }
     buf.append(reinterpret_cast<const char *>(tmp.data()), *r);
-    extractLines(buf, lines);
+    auto lines = splitLines(buf);
     if (isCompleteFtpResponse(lines))
       break;
   }
 
-  std::string full_msg;
-  for (size_t i = 0; i < lines.size(); ++i)
-    full_msg += lines[i] + (i + 1 < lines.size() ? "\n" : "");
-
-  if (full_msg.size() < 3)
+  if (buf.size() < 3)
     return std::unexpected(make_error_code(Network::Error::ProtocolError));
 
-  int code = std::stoi(full_msg.substr(0, 3));
+  int code = std::stoi(buf.substr(0, 3));
 
   spdlog::debug("Response code: {}", code);
 
-  return Answer{.full_msg = full_msg, .code = code};
+  return Answer{.full_msg = buf, .code = code};
 }
 
 std::expected<std::string, std::error_code>
@@ -288,7 +298,7 @@ FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
 std::expected<FtpFileTransfer::Answer, std::error_code>
 FtpFileTransfer::sendAndReceiveResponse(TcpSocket &sock, std::string_view cmd) {
 
-  if (auto send_result = sendCommand(sock, cmd)) {
+  if (auto send_result = sendCommand(sock, cmd); !send_result) {
     return std::unexpected(send_result.error());
   }
 
@@ -410,17 +420,6 @@ std::optional<FileListData> parseFtpLine(std::string_view line) {
   return file;
 }
 
-auto splitLines(std::string_view lines) {
-  return std::views::split(lines, '\n') |
-         std::views::transform([](auto &&part) {
-           std::string_view s(part); // C++23 range ctor
-           while (!s.empty() && (s.back() == '\r' || s.back() == '\n'))
-             s.remove_suffix(1);
-           return s;
-         }) |
-         std::views::filter([](const auto &l) { return !l.empty(); });
-}
-
 } // namespace
 
 std::expected<std::vector<FileListData>, std::error_code>
@@ -431,6 +430,15 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
     return std::unexpected(result.error());
   }
 
+  auto cmd_result = sendAndReceiveResponse("LIST");
+  if (!cmd_result) {
+    spdlog::error("LIST command failed: {}", cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 150) {
+    spdlog::error("LIST command failed with code: {}", cmd_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
   auto data_socket_result = openDataConnection();
   if (!data_socket_result) {
     spdlog::error("Failed to open data connection for LIST: {}",
@@ -439,12 +447,6 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
   }
 
   auto data_socket = std::move(*data_socket_result);
-
-  auto cmd_result = sendAndReceiveResponse("LIST");
-  if (!cmd_result) {
-    spdlog::error("LIST command failed: {}", cmd_result.error().message());
-    return std::unexpected(cmd_result.error());
-  }
 
   auto list_result = receiveRawResponse(*data_socket);
   if (!list_result) {
@@ -483,7 +485,7 @@ FtpFileTransfer::createDir(const std::filesystem::path &path) {
   } else if (cmd_result->code != 257) {
     spdlog::warn("Can't create dir '{}' Code: '{}'", path.string(),
                  cmd_result->code);
-    return std::unexpected(cmd_result.error());
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
   return {};
 }
@@ -500,14 +502,6 @@ FtpFileTransfer::exists(const std::filesystem::path &remote_path) {
     return std::unexpected(change_result.error());
   }
 
-  auto connection_result = openDataConnection();
-  if (!connection_result) {
-    spdlog::error("cant open data connection");
-    return std::unexpected(connection_result.error());
-  }
-
-  auto data_connection = std::move(*connection_result);
-
   auto cmd_result = sendAndReceiveResponse(
       "NLST " + get_last_component(remote_path).string());
   if (!cmd_result) {
@@ -521,6 +515,13 @@ FtpFileTransfer::exists(const std::filesystem::path &remote_path) {
   }
 
   bool exists = false;
+  auto connection_result = openDataConnection();
+  if (!connection_result) {
+    spdlog::error("cant open data connection");
+    return std::unexpected(connection_result.error());
+  }
+
+  auto data_connection = std::move(*connection_result);
 
   // check if file exists there
   std::array<std::byte, 2048> exist_buffer;
@@ -568,7 +569,7 @@ FtpFileTransfer::remove(const std::filesystem::path &remote_path) {
   } else if (cmd_result->code != 250) {
     spdlog::warn("Failed to remove file '{}' Code: '{}'", remote_path.string(),
                  cmd_result->code);
-    return std::unexpected(cmd_result.error());
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
   return {};
@@ -618,7 +619,7 @@ FtpFileTransfer::openDataConnection() {
     return std::unexpected(pasv_result.error());
   } else if (pasv_result->code != 227) {
     spdlog::error("Failed to open connection. Code: '{}'", pasv_result->code);
-    return std::unexpected(pasv_result.error());
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
   auto endpoint = parsePasvResponse(pasv_result->full_msg);
@@ -735,6 +736,53 @@ FtpFileTransfer::parsePasvResponse(std::string_view response) const {
   // Address construction is safe here because we validated 0-255 ranges
   asio::ip::address_v4 addr(ip);
   return asio::ip::tcp::endpoint(addr, port);
+}
+
+void FtpFileTransfer::parseFeatures(std::string_view feat_response) {
+  spdlog::debug("Parsing FEAT response");
+
+  auto lines = splitLines(feat_response);
+
+  for (const auto &line : lines) {
+    if (line.size() < 2) {
+      continue;
+    }
+
+    if (line[0] == ' ' && line.size() > 1) {
+      std::string_view feature = line.substr(1);
+
+      size_t end_pos = feature.size();
+      while (end_pos > 0 &&
+             (feature[end_pos - 1] == ' ' || feature[end_pos - 1] == '\r' ||
+              feature[end_pos - 1] == '\n')) {
+        --end_pos;
+      }
+      feature = feature.substr(0, end_pos);
+
+      if (feature.starts_with("MLST")) {
+        _capabilities.mlst = true;
+        spdlog::debug("FEAT: MLST supported");
+      } else if (feature.starts_with("NLST")) {
+        _capabilities.nlst = true;
+        spdlog::debug("FEAT: NLST supported");
+      } else if (feature.starts_with("SIZE")) {
+        _capabilities.size = true;
+        spdlog::debug("FEAT: SIZE supported");
+      } else if (feature.starts_with("MDTM")) {
+        _capabilities.mdtm = true;
+        spdlog::debug("FEAT: MDTM supported");
+      } else if (feature.starts_with("RENAME")) {
+        _capabilities.rename = true;
+        spdlog::debug("FEAT: RENAME supported");
+      } else if (feature.starts_with("PASV")) {
+        _capabilities.pasv = true;
+        spdlog::debug("FEAT: PASV supported");
+      } else if (feature.starts_with("FEAT")) {
+        _capabilities.feat = true;
+        spdlog::debug("FEAT: FEAT supported");
+      }
+    }
+  }
 }
 
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code>

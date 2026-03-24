@@ -128,6 +128,8 @@ private:
 
   void navigateToDirectory(const std::filesystem::path &path);
 
+  void parseFeatures(std::string_view feat_response);
+
   std::string _host;
   uint16_t _port;
   DefaultFtpNavigator _navigator;
@@ -135,6 +137,7 @@ private:
   asio::io_context &_io_context;
   std::unique_ptr<TcpSocket> _socket;
   ConnectOptions _options;
+  FtpCapabilities _capabilities;
 
   friend DefaultFtpNavigator;
 };

@@ -13,7 +13,7 @@ TEST(FtpIntegrationTest, ConnectAndDisconnect) {
   io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
-  opts.username = "anonymouse";
+  opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
 
@@ -35,7 +35,7 @@ TEST(FtpIntegrationTest, ExistsFile) {
   io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
-  opts.username = "anonymouse";
+  opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
 
@@ -47,12 +47,12 @@ TEST(FtpIntegrationTest, ExistsFile) {
     auto ftp = std::move(*ftp_result);
 
     auto exists_result = ftp->exists("/readme.txt");
-    EXPECT_TRUE(exists_result.has_value())
+    ASSERT_TRUE(exists_result.has_value())
         << "exists() failed: " << exists_result.error().message();
     EXPECT_TRUE(exists_result.value()) << "readme.txt should exist";
 
     auto not_exists_result = ftp->exists("/nonexistent_file_12345.txt");
-    EXPECT_TRUE(not_exists_result.has_value())
+    ASSERT_TRUE(not_exists_result.has_value())
         << "exists() failed: " << not_exists_result.error().message();
     EXPECT_FALSE(not_exists_result.value())
         << "nonexistent file should return false";
@@ -66,7 +66,7 @@ TEST(FtpIntegrationTest, ListDirectory) {
   io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
-  opts.username = "anonymouse";
+  opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
 
@@ -106,7 +106,7 @@ TEST(FtpIntegrationTest, ExistsAndListCombined) {
   io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
-  opts.username = "anonymouse";
+  opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
 
@@ -138,7 +138,7 @@ TEST(FtpIntegrationTest, NestedDirectoriesNavigation) {
   io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
-  opts.username = "anonymouse";
+  opts.username = "anonymous";
   opts.timeout = std::chrono::seconds(10);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
