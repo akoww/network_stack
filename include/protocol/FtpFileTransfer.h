@@ -64,11 +64,14 @@ public:
   write(const std::filesystem::path &remote_dst_path,
         std::span<const std::byte> data) override;
 
-  std::expected<FileListData, std::error_code>
-  write(const std::filesystem::path &remote_dst_path,
-        WriteCallback next) override;
+   std::expected<FileListData, std::error_code>
+   write(const std::filesystem::path &remote_dst_path,
+         WriteCallback next) override;
 
-protected:
+   std::expected<bool, std::error_code>
+   isDirectory(const std::filesystem::path &path) override;
+
+ protected:
   struct FtpCapabilities {
     // Listing
     bool mlst = false;
@@ -117,24 +120,27 @@ private:
 
   //--------------------
 
-  std::expected<std::unique_ptr<TcpSocket>, std::error_code>
-  openDataConnection();
+   std::expected<std::unique_ptr<TcpSocket>, std::error_code>
+   openDataConnection();
 
-  std::expected<bool, std::error_code>
-  isDirectory(const std::filesystem::path &path);
+   std::optional<asio::ip::tcp::endpoint>
+   parsePasvResponse(std::string_view response) const;
 
-  std::optional<asio::ip::tcp::endpoint>
-  parsePasvResponse(std::string_view response) const;
+   void navigateToDirectory(const std::filesystem::path &path);
 
-  void navigateToDirectory(const std::filesystem::path &path);
+   void parseFeatures(std::string_view feat_response);
 
-  void parseFeatures(std::string_view feat_response);
+   std::expected<bool, std::error_code> existsMlst(std::string_view name);
+   std::expected<bool, std::error_code> existsCwd(std::string_view name);
+   std::expected<bool, std::error_code> existsSize(std::string_view name);
 
-  std::expected<bool, std::error_code> existsMlst(std::string_view name);
-  std::expected<bool, std::error_code> existsCwd(std::string_view name);
-  std::expected<bool, std::error_code> existsSize(std::string_view name);
+    std::expected<bool, std::error_code>
+    isDirectory(const std::filesystem::path &path) override;
 
-  std::string _host;
+    std::expected<bool, std::error_code> isDirectoryMlst(std::string_view name);
+   std::expected<bool, std::error_code> isDirectoryCwd(std::string_view name);
+
+   std::string _host;
   uint16_t _port;
   DefaultFtpNavigator _navigator;
 

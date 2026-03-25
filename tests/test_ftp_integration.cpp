@@ -301,4 +301,68 @@ TEST(FtpIntegrationTest, ReadExistingFile) {
   io_ctx.stop();
 }
 
+TEST(FtpIntegrationTest, IsDirectory) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    auto root_dir_result = ftp->isDirectory("/");
+    EXPECT_TRUE(root_dir_result.has_value())
+        << "isDirectory('/') failed: " << root_dir_result.error().message();
+    EXPECT_TRUE(root_dir_result.value()) << "root should be a directory";
+
+    auto file_result = ftp->isDirectory("/readme.txt");
+    if (file_result.has_value()) {
+      EXPECT_FALSE(file_result.value()) << "readme.txt should be a file";
+    } else {
+      spdlog::warn("isDirectory('/readme.txt') failed: {}",
+                   file_result.error().message());
+    }
+
+    auto nonexistent_result = ftp->isDirectory("/nonexistent_dir_12345");
+    EXPECT_TRUE(nonexistent_result.has_value())
+        << "isDirectory() for nonexistent path should return result";
+    EXPECT_FALSE(nonexistent_result.value())
+        << "nonexistent path should not be a directory";
+
+    const std::filesystem::path test_dir = "/test_isdir_dir";
+    const std::filesystem::path test_file = "/test_isdir_file.txt";
+
+    auto create_dir_result = ftp->createDir(test_dir);
+    if (create_dir_result.has_value()) {
+      auto is_dir_result = ftp->isDirectory(test_dir);
+      EXPECT_TRUE(is_dir_result.has_value());
+      EXPECT_TRUE(is_dir_result.value()) << test_dir << " should be a directory";
+
+      auto create_file_result =
+          ftp->write(test_file, std::vector<std::byte>{std::byte(0x41)});
+      if (create_file_result.has_value()) {
+        auto is_file_result = ftp->isDirectory(test_file);
+        EXPECT_TRUE(is_file_result.has_value());
+        EXPECT_FALSE(is_file_result.value())
+            << test_file << " should be a file";
+
+        EXPECT_TRUE(ftp->remove(test_file).has_value())
+            << "Failed to remove test file";
+      }
+
+      EXPECT_TRUE(ftp->remove(test_dir).has_value())
+          << "Failed to remove test directory";
+    }
+  }
+
+  io_ctx.stop();
+}
+
 } // namespace Network::Test

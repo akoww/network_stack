@@ -813,50 +813,21 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
 }
 
 std::expected<bool, std::error_code>
-FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
-  auto name = path.filename().string();
-  if (name.empty()) {
-    return true;
+FtpFileTransfer::isDirectoryMlst(std::string_view name) {
+  if (!_capabilities.mlst) {
+    return false;
   }
 
-  if (auto change_result =
-          _navigator.changeDirectory(path.parent_path());
-      !change_result) {
-    spdlog::error(" cant change directory to: {}",
-                  path.parent_path().string());
-    return std::unexpected(change_result.error());
+  auto cmd_result = sendAndReceiveResponse(std::format("MLST {}", name));
+  if (!cmd_result) {
+    return std::unexpected(cmd_result.error());
   }
 
-  if (_capabilities.mlst) {
-    auto result = existsMlst(name);
-    if (!result) {
-      return std::unexpected(result.error());
-    }
-    if (!*result) {
-      spdlog::debug("Path does not exist: {}", path.string());
-      return std::unexpected(
-          make_error_code(Network::Error::ProtocolError));
-    }
-
-    auto cmd_result =
-        sendAndReceiveResponse(std::format("MLST {}", name));
-    if (!cmd_result) {
-      spdlog::error("MLST command failed for '{}': {}", path.string(),
-                    cmd_result.error().message());
-      return std::unexpected(cmd_result.error());
-    }
-
-    if (cmd_result->code != 250) {
-      spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
-      return std::unexpected(
-          make_error_code(Network::Error::ProtocolError));
-    }
-
+  if (cmd_result->code == 250) {
     size_t start = cmd_result->full_msg.find("type=");
     if (start == std::string::npos) {
-      spdlog::warn("MLST response missing type= field: {}", path.string());
-      return std::unexpected(
-          make_error_code(Network::Error::ProtocolError));
+      spdlog::warn("MLST response missing type= field");
+      return std::unexpected(make_error_code(Network::Error::ProtocolError));
     }
 
     size_t end = cmd_result->full_msg.find(';', start);
@@ -864,12 +835,18 @@ FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
         start, end == std::string::npos ? end : end - start);
 
     return type_field.find("type=dir") != std::string::npos;
+  } else if (cmd_result->code == 550) {
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
+  spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
+  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+}
+
+std::expected<bool, std::error_code>
+FtpFileTransfer::isDirectoryCwd(std::string_view name) {
   auto cmd_result = sendAndReceiveResponse(std::format("CWD {}", name));
   if (!cmd_result) {
-    spdlog::error("CWD command failed for '{}': {}", path.string(),
-                  cmd_result.error().message());
     return std::unexpected(cmd_result.error());
   }
 
@@ -877,18 +854,15 @@ FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
     bool restore_ok = _navigator.ftpCd("..").has_value();
     if (!restore_ok) {
       spdlog::error("Failed to restore directory after CWD test");
+          return std::unexpected(make_error_code(Network::Error::ProtocolError));
+
     }
     return true;
   } else if (cmd_result->code == 550) {
-    bool restore_ok = _navigator.ftpCd("..").has_value();
-    if (!restore_ok) {
-      spdlog::error("Failed to restore directory after CWD test");
-    }
-
     if (_capabilities.size) {
       auto size_result = existsSize(name);
       if (!size_result) {
-        spdlog::error("SIZE check failed for '{}': {}", path.string(),
+        spdlog::error("SIZE check failed for '{}': {}", name,
                       size_result.error().message());
         return std::unexpected(size_result.error());
       }
@@ -897,14 +871,40 @@ FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
       }
     }
 
-    spdlog::debug("Path does not exist or is not accessible: {}",
-                  path.string());
-    return std::unexpected(
-        make_error_code(Network::Error::ProtocolError));
+    spdlog::debug("Path does not exist or is not accessible: {}", name);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
   spdlog::warn("CWD returned unexpected code: {}", cmd_result->code);
   return std::unexpected(make_error_code(Network::Error::ProtocolError));
+}
+
+std::expected<bool, std::error_code>
+FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
+  auto name = path.filename().string();
+  if (name.empty()) {
+    return true;
+  }
+
+  if (auto change_result = _navigator.changeDirectory(path.parent_path());
+      !change_result) {
+    spdlog::error("Can't change directory to: {}", path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  if (_capabilities.mlst) {
+    auto result = isDirectoryMlst(name);
+    if (result.has_value()) {
+      return result;
+    }
+  }
+
+  auto result = isDirectoryCwd(name);
+  if (result.has_value()) {
+    return result;
+  }
+
+  return std::unexpected(result.error());
 }
 
 std::expected<std::unique_ptr<TcpSocket>, std::error_code>

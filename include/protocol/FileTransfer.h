@@ -168,9 +168,18 @@ public:
   using WriteCallback = std::function<
       std::expected<std::span<const std::byte>, std::error_code>()>;
   virtual std::expected<FileListData, std::error_code>
-  write(const std::filesystem::path &remote_dst_path, WriteCallback next) = 0;
+   write(const std::filesystem::path &remote_dst_path, WriteCallback next) = 0;
 
-protected:
+   /**
+    * @brief Checks if a path is a directory on the remote server.
+    * @param path The remote path to check.
+    * @return True if path is a directory, false if it's a file or doesn't exist.
+    * Returns an error code if the check fails.
+    */
+   virtual std::expected<bool, std::error_code>
+   isDirectory(const std::filesystem::path &path) = 0;
+
+ protected:
 };
 
 namespace FileTransferUtils {
