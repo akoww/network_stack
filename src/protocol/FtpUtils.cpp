@@ -48,7 +48,7 @@ SmartDirectoryNavigator::SmartDirectoryNavigator(const fs::path &startPath)
 std::expected<void, std::error_code>
 SmartDirectoryNavigator::changeDirectory(const fs::path &targetPath) {
 
-  spdlog::info("switch dir to: {}", targetPath.string());
+  spdlog::trace("try switch dir to: {}", targetPath.string());
 
   fs::path target = normalize(targetPath);
 

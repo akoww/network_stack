@@ -54,7 +54,7 @@ public:
   std::expected<void, std::error_code>
   remove(const std::filesystem::path &remote_path) override;
 
-  std::expected<std::vector<uint8_t>, std::error_code>
+  std::expected<std::vector<std::byte>, std::error_code>
   read(const std::filesystem::path &path) override;
 
   std::expected<std::size_t, std::error_code>
@@ -62,7 +62,7 @@ public:
 
   std::expected<FileListData, std::error_code>
   write(const std::filesystem::path &remote_dst_path,
-        std::span<uint8_t> data) override;
+        std::span<const std::byte> data) override;
 
   std::expected<FileListData, std::error_code>
   write(const std::filesystem::path &remote_dst_path,
@@ -109,7 +109,7 @@ private:
   std::expected<void, std::error_code> sendCommand(TcpSocket &sock,
                                                    std::string_view cmd);
   std::expected<Answer, std::error_code> receiveResponse(TcpSocket &sock);
-  std::expected<std::string, std::error_code>
+  std::expected<std::vector<std::byte>, std::error_code>
   receiveRawResponse(TcpSocket &sock);
 
   std::expected<Answer, std::error_code>
@@ -120,8 +120,8 @@ private:
   std::expected<std::unique_ptr<TcpSocket>, std::error_code>
   openDataConnection();
 
-  std::expected<void, std::error_code>
-  ensureDirectory(const std::filesystem::path &path);
+  std::expected<bool, std::error_code>
+  isDirectory(const std::filesystem::path &path);
 
   std::optional<asio::ip::tcp::endpoint>
   parsePasvResponse(std::string_view response) const;
@@ -129,6 +129,10 @@ private:
   void navigateToDirectory(const std::filesystem::path &path);
 
   void parseFeatures(std::string_view feat_response);
+
+  std::expected<bool, std::error_code> existsMlst(std::string_view name);
+  std::expected<bool, std::error_code> existsCwd(std::string_view name);
+  std::expected<bool, std::error_code> existsSize(std::string_view name);
 
   std::string _host;
   uint16_t _port;

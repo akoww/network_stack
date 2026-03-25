@@ -7,6 +7,7 @@
 #include <asio/connect.hpp>
 #include <asio/ip/tcp.hpp>
 #include <expected>
+#include <filesystem>
 #include <spdlog/spdlog.h>
 #include <system_error>
 
@@ -203,6 +204,23 @@ bool isCompleteFtpResponse(std::ranges::input_range auto &&lines) {
   return false;
 }
 
+template <typename C>
+concept ContiguousByteContainer =
+    requires(C c) {
+      std::data(c);
+      std::size(c);
+    } &&
+    std::is_trivial_v<
+        std::remove_pointer_t<decltype(std::data(std::declval<C &>()))>> &&
+    sizeof(std::remove_pointer_t<decltype(std::data(std::declval<C &>()))>) ==
+        1;
+
+template <ContiguousByteContainer C>
+std::string_view to_string_view(const C &container) {
+  return std::string_view(reinterpret_cast<const char *>(std::data(container)),
+                          std::size(container));
+}
+
 auto splitLines(std::string_view lines) {
   return std::views::split(lines, '\n') |
          std::views::transform([](auto &&part) {
@@ -275,22 +293,27 @@ FtpFileTransfer::receiveResponse(TcpSocket &sock) {
   return Answer{.full_msg = buf, .code = code};
 }
 
-std::expected<std::string, std::error_code>
+std::expected<std::vector<std::byte>, std::error_code>
 FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
 
-  std::string buf;
+  std::vector<std::byte> buf;
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
     auto r = sock.receive(std::span(tmp));
     if (!r) {
+      if (r.error() == asio::error::eof) // not an error
+      {
+        break;
+      }
+
       spdlog::error("Failed to receive FTP response: {}", r.error().message());
       return std::unexpected(r.error());
     }
     if (*r == 0) {
       break;
     }
-    buf.append(reinterpret_cast<const char *>(tmp.data()), *r);
+    buf.insert(buf.end(), tmp.begin(), tmp.begin() + *r);
   }
   return buf;
 }
@@ -430,6 +453,14 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
     return std::unexpected(result.error());
   }
 
+  auto data_socket_result = openDataConnection();
+  if (!data_socket_result) {
+    spdlog::error("Failed to open data connection for LIST: {}",
+                  data_socket_result.error().message());
+    return std::unexpected(data_socket_result.error());
+  }
+  auto data_socket = std::move(*data_socket_result);
+
   auto cmd_result = sendAndReceiveResponse("LIST");
   if (!cmd_result) {
     spdlog::error("LIST command failed: {}", cmd_result.error().message());
@@ -439,15 +470,6 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
     return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
-  auto data_socket_result = openDataConnection();
-  if (!data_socket_result) {
-    spdlog::error("Failed to open data connection for LIST: {}",
-                  data_socket_result.error().message());
-    return std::unexpected(data_socket_result.error());
-  }
-
-  auto data_socket = std::move(*data_socket_result);
-
   auto list_result = receiveRawResponse(*data_socket);
   if (!list_result) {
     spdlog::error("LIST command line did not open");
@@ -456,11 +478,29 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
 
   // 2. Receive and Parse
   std::vector<FileListData> files;
-  for (auto line : splitLines(*list_result)) {
+  for (auto line : splitLines(to_string_view(*list_result))) {
 
     if (auto file_data = parseFtpLine(line)) {
       files.push_back(*file_data);
     }
+  }
+
+  // need to flush the connection since list soemtimes do not send request until
+  // some other command is transmitted
+  auto send_noop = sendCommand("NOOP");
+  if (!send_noop) {
+    spdlog::error("LIST command end not received");
+    return std::unexpected(send_noop.error());
+  }
+  auto list_end = receiveResponse();
+  if (!list_end) {
+    spdlog::error("LIST command end not received");
+    return std::unexpected(list_end.error());
+  }
+  auto noop_end = receiveResponse();
+  if (!noop_end) {
+    spdlog::error("LIST command end not received");
+    return std::unexpected(noop_end.error());
   }
 
   return files; // Implicit conversion to expected<std::vector, error_code>
@@ -468,6 +508,16 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
 
 std::expected<void, std::error_code>
 FtpFileTransfer::createDir(const std::filesystem::path &path) {
+
+  // check if path exists. dont need to do if it exists
+  if (auto exists_result = exists(path); !exists_result) {
+    // protocol error
+    spdlog::error("cant check if directory exists: {}",
+                  path.parent_path().string());
+    return std::unexpected(exists_result.error());
+  } else if (*exists_result) {
+    return {}; // dont need to do anything since dir exists
+  }
 
   // naviagte to parent path
   if (auto change_result = _navigator.changeDirectory(path.parent_path());
@@ -491,9 +541,118 @@ FtpFileTransfer::createDir(const std::filesystem::path &path) {
 }
 
 std::expected<bool, std::error_code>
+FtpFileTransfer::existsMlst(std::string_view name) {
+  if (!_capabilities.mlst) {
+    return false;
+  }
+
+  auto cmd_result = sendAndReceiveResponse(std::format("MLST {}", name));
+  if (!cmd_result) {
+    return std::unexpected(cmd_result.error());
+  }
+
+  if (cmd_result->code == 250) {
+    return true;
+  } else if (cmd_result->code == 550) {
+    return false;
+  }
+
+  spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
+  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+}
+
+std::expected<bool, std::error_code>
+FtpFileTransfer::existsCwd(std::string_view name) {
+  auto cmd_result = sendAndReceiveResponse(std::format("CWD {}", name));
+  if (!cmd_result) {
+    return std::unexpected(cmd_result.error());
+  }
+
+  if (cmd_result->code == 250) {
+    bool restore_ok = _navigator.ftpCd("..").has_value();
+    if (!restore_ok) {
+      spdlog::error("Failed to restore directory after CWD test");
+    }
+    return true;
+  } else if (cmd_result->code == 550) {
+    return false;
+  }
+
+  spdlog::warn("CWD returned unexpected code: {}", cmd_result->code);
+  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+}
+
+std::expected<bool, std::error_code>
+FtpFileTransfer::existsSize(std::string_view name) {
+  auto cmd_result = sendAndReceiveResponse(std::format("SIZE {}", name));
+  if (!cmd_result) {
+    return std::unexpected(cmd_result.error());
+  }
+
+  if (cmd_result->code == 213) {
+    return true;
+  } else if (cmd_result->code == 550 || cmd_result->code == 500) {
+    return false;
+  }
+
+  spdlog::warn("SIZE returned unexpected code: {}", cmd_result->code);
+  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+}
+
+std::expected<bool, std::error_code>
 FtpFileTransfer::exists(const std::filesystem::path &remote_path) {
 
-  // naviagte to parent path
+  auto name = remote_path.filename().string();
+  if (name.empty()) {
+    return true;
+  }
+
+  if (auto change_result =
+          _navigator.changeDirectory(remote_path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}",
+                  remote_path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  if (_capabilities.mlst) {
+    auto result = existsMlst(name);
+    if (result.has_value()) {
+      if (result.value()) {
+        return result;
+      }
+    }
+  }
+
+  if (_capabilities.size) {
+    auto result = existsSize(name);
+    if (result.has_value()) {
+      if (result.value()) {
+        return result;
+      }
+    }
+  }
+
+  auto result = existsCwd(name);
+  if (result.has_value()) {
+    return result;
+  }
+
+  return false;
+}
+
+std::expected<void, std::error_code>
+FtpFileTransfer::remove(const std::filesystem::path &remote_path) {
+
+  std::string cmd;
+  auto is_dir_result = isDirectory(remote_path);
+  if (!is_dir_result) {
+    spdlog::error("Failed to determine if '{}' is directory: {}",
+                  remote_path.string(), is_dir_result.error().message());
+    return std::unexpected(is_dir_result.error());
+  }
+  cmd = *is_dir_result ? "RMD" : "DELE";
+
   if (auto change_result =
           _navigator.changeDirectory(remote_path.parent_path());
       !change_result) {
@@ -503,65 +662,7 @@ FtpFileTransfer::exists(const std::filesystem::path &remote_path) {
   }
 
   auto cmd_result = sendAndReceiveResponse(
-      "NLST " + get_last_component(remote_path).string());
-  if (!cmd_result) {
-    spdlog::error("NLST command failed: {}", cmd_result.error().message());
-    return std::unexpected(cmd_result.error());
-  }
-
-  int response_code = cmd_result->code;
-  if (response_code == 550 || response_code == 553) {
-    return false;
-  }
-
-  bool exists = false;
-  auto connection_result = openDataConnection();
-  if (!connection_result) {
-    spdlog::error("cant open data connection");
-    return std::unexpected(connection_result.error());
-  }
-
-  auto data_connection = std::move(*connection_result);
-
-  // check if file exists there
-  std::array<std::byte, 2048> exist_buffer;
-  std::string_view exist_str;
-  if (auto exist_result = data_connection->receive(std::span(exist_buffer));
-      !exist_result) {
-    // maybe not an error?
-    spdlog::error("cant read on data connection");
-    // return std::unexpected(exist_result.error());
-  } else {
-    exist_str = std::string_view(
-        reinterpret_cast<const char *>(exist_buffer.data()), *exist_result);
-    exists = true;
-  }
-
-  data_connection.reset();
-
-  std::array<std::byte, 2048> tmp_buffer;
-  std::string_view close_str;
-  if (auto close_result = _socket->receive(std::span(tmp_buffer));
-      !close_result) {
-    spdlog::error("cant close on data connection");
-    return std::unexpected(close_result.error());
-  } else {
-    close_str = std::string_view(
-        reinterpret_cast<const char *>(tmp_buffer.data()), *close_result);
-  }
-  return exists;
-}
-
-std::expected<void, std::error_code>
-FtpFileTransfer::remove(const std::filesystem::path &remote_path) {
-  std::string cmd;
-  if (exists(remote_path).value_or(false)) {
-    cmd = "RMD";
-  } else {
-    cmd = "DELE";
-  }
-  auto cmd_result =
-      sendAndReceiveResponse(std::format("{} {}", cmd, remote_path.string()));
+      std::format("{} {}", cmd, remote_path.filename().string()));
   if (!cmd_result) {
     spdlog::error("{} command failed for '{}': {}", cmd, remote_path.string(),
                   cmd_result.error().message());
@@ -575,10 +676,59 @@ FtpFileTransfer::remove(const std::filesystem::path &remote_path) {
   return {};
 }
 
-std::expected<std::vector<uint8_t>, std::error_code>
+std::expected<std::vector<std::byte>, std::error_code>
 FtpFileTransfer::read(const std::filesystem::path &path) {
-  (void)path; // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  spdlog::info("Reading file: {}", path.string());
+
+  // naviagte to parent path
+  if (auto change_result = _navigator.changeDirectory(path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}", path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto data_socket_result = openDataConnection();
+  if (!data_socket_result) {
+    spdlog::error("Failed to open data connection for RETR: {}",
+                  data_socket_result.error().message());
+    return std::unexpected(data_socket_result.error());
+  }
+  auto data_socket = std::move(*data_socket_result);
+
+  auto cmd_result =
+      sendAndReceiveResponse(std::format("RETR {}", path.filename().string()));
+  if (!cmd_result) {
+    spdlog::error("RETR command failed: {}", cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 150) {
+    spdlog::error("RETR command failed with code: {}", cmd_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  std::vector<std::byte> buffer;
+  if (auto receive_result = receiveRawResponse(*data_socket); !receive_result) {
+    spdlog::error("RETR read data failed: {}",
+                  receive_result.error().message());
+    return std::unexpected(receive_result.error());
+  } else {
+    buffer = std::move(*receive_result);
+  }
+
+  auto response = receiveResponse(*_socket);
+  if (!response) {
+    spdlog::error("Failed to receive RETR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
+
+  if (response->code != 226) {
+    spdlog::error("RETR completion returned unexpected code: {}",
+                  response->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  spdlog::info("File read successfully: {} bytes", buffer.size());
+  return buffer;
 }
 
 std::expected<std::size_t, std::error_code>
@@ -591,10 +741,67 @@ FtpFileTransfer::read(const std::filesystem::path &path,
 
 std::expected<FileListData, std::error_code>
 FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
-                       std::span<uint8_t> data) {
-  (void)remote_dst_path; // unused
-  (void)data;            // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+                       std::span<const std::byte> data) {
+  spdlog::info("Writing file: {}", remote_dst_path.string());
+
+  // naviagte to parent path
+  if (auto change_result =
+          _navigator.changeDirectory(remote_dst_path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}",
+                  remote_dst_path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto data_socket_result = openDataConnection();
+  if (!data_socket_result) {
+    spdlog::error("Failed to open data connection for STOR: {}",
+                  data_socket_result.error().message());
+    return std::unexpected(data_socket_result.error());
+  }
+  auto data_socket = std::move(*data_socket_result);
+
+  auto cmd_result = sendAndReceiveResponse(
+      std::format("STOR {}", remote_dst_path.filename().string()));
+  if (!cmd_result) {
+    spdlog::error("STOR command failed: {}", cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 150) {
+    spdlog::error("STOR command failed with code: {}", cmd_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  auto buffer = as_byte_span(data);
+  auto send_result = data_socket->send(buffer);
+  if (!send_result) {
+    spdlog::error("Failed to send file data: {}",
+                  send_result.error().message());
+    return std::unexpected(send_result.error());
+  }
+
+  data_socket.reset();
+
+  auto response = receiveResponse(*_socket);
+  if (!response) {
+    spdlog::error("Failed to receive STOR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
+
+  if (response->code != 226) {
+    spdlog::error("STOR completion returned unexpected code: {}",
+                  response->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  FileListData file_data;
+  file_data.file_name = remote_dst_path.filename().string();
+  file_data.size = data.size();
+  file_data.date = std::chrono::system_clock::now();
+  file_data.full_path = remote_dst_path;
+
+  spdlog::info("File written successfully: {} bytes", data.size());
+  return file_data;
 }
 
 std::expected<FileListData, std::error_code>
@@ -605,9 +812,98 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
   return std::unexpected(make_error_code(Network::Error::ProtocolError));
 }
 
-std::expected<void, std::error_code>
-FtpFileTransfer::ensureDirectory(const std::filesystem::path &path) {
-  (void)path; // unused
+std::expected<bool, std::error_code>
+FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
+  auto name = path.filename().string();
+  if (name.empty()) {
+    return true;
+  }
+
+  if (auto change_result =
+          _navigator.changeDirectory(path.parent_path());
+      !change_result) {
+    spdlog::error(" cant change directory to: {}",
+                  path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  if (_capabilities.mlst) {
+    auto result = existsMlst(name);
+    if (!result) {
+      return std::unexpected(result.error());
+    }
+    if (!*result) {
+      spdlog::debug("Path does not exist: {}", path.string());
+      return std::unexpected(
+          make_error_code(Network::Error::ProtocolError));
+    }
+
+    auto cmd_result =
+        sendAndReceiveResponse(std::format("MLST {}", name));
+    if (!cmd_result) {
+      spdlog::error("MLST command failed for '{}': {}", path.string(),
+                    cmd_result.error().message());
+      return std::unexpected(cmd_result.error());
+    }
+
+    if (cmd_result->code != 250) {
+      spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
+      return std::unexpected(
+          make_error_code(Network::Error::ProtocolError));
+    }
+
+    size_t start = cmd_result->full_msg.find("type=");
+    if (start == std::string::npos) {
+      spdlog::warn("MLST response missing type= field: {}", path.string());
+      return std::unexpected(
+          make_error_code(Network::Error::ProtocolError));
+    }
+
+    size_t end = cmd_result->full_msg.find(';', start);
+    std::string type_field = cmd_result->full_msg.substr(
+        start, end == std::string::npos ? end : end - start);
+
+    return type_field.find("type=dir") != std::string::npos;
+  }
+
+  auto cmd_result = sendAndReceiveResponse(std::format("CWD {}", name));
+  if (!cmd_result) {
+    spdlog::error("CWD command failed for '{}': {}", path.string(),
+                  cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  }
+
+  if (cmd_result->code == 250) {
+    bool restore_ok = _navigator.ftpCd("..").has_value();
+    if (!restore_ok) {
+      spdlog::error("Failed to restore directory after CWD test");
+    }
+    return true;
+  } else if (cmd_result->code == 550) {
+    bool restore_ok = _navigator.ftpCd("..").has_value();
+    if (!restore_ok) {
+      spdlog::error("Failed to restore directory after CWD test");
+    }
+
+    if (_capabilities.size) {
+      auto size_result = existsSize(name);
+      if (!size_result) {
+        spdlog::error("SIZE check failed for '{}': {}", path.string(),
+                      size_result.error().message());
+        return std::unexpected(size_result.error());
+      }
+      if (*size_result) {
+        return false;
+      }
+    }
+
+    spdlog::debug("Path does not exist or is not accessible: {}",
+                  path.string());
+    return std::unexpected(
+        make_error_code(Network::Error::ProtocolError));
+  }
+
+  spdlog::warn("CWD returned unexpected code: {}", cmd_result->code);
   return std::unexpected(make_error_code(Network::Error::ProtocolError));
 }
 

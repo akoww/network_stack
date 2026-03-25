@@ -212,4 +212,93 @@ TEST(FtpIntegrationTest, NestedDirectoriesNavigation) {
   io_ctx.stop();
 }
 
+TEST(FtpIntegrationTest, WriteAndReadFile) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::vector<std::byte> test_data = {
+        std::byte(0x48), std::byte(0x65), std::byte(0x6c), std::byte(0x6c),
+        std::byte(0x6f), std::byte(0x20), std::byte(0x57), std::byte(0x6f),
+        std::byte(0x72), std::byte(0x6c), std::byte(0x64)};
+    std::filesystem::path test_path = "/upload/test_write_read.txt";
+
+    auto write_result = ftp->write(test_path, test_data);
+    if (!write_result) {
+      GTEST_SKIP() << "Write failed (likely server doesn't allow uploads): "
+                   << write_result.error().message();
+    }
+    EXPECT_TRUE(write_result.has_value());
+    if (write_result) {
+      EXPECT_EQ(write_result->file_name, "test_write_read.txt");
+      EXPECT_EQ(write_result->size, test_data.size());
+    }
+
+    auto exists_result = ftp->exists(test_path);
+    EXPECT_TRUE(exists_result.has_value())
+        << "exists() failed: " << exists_result.error().message();
+    EXPECT_TRUE(exists_result.value()) << "test file should exist";
+
+    auto read_result = ftp->read(test_path);
+    EXPECT_TRUE(read_result.has_value())
+        << "read() failed: " << read_result.error().message();
+    if (read_result) {
+      EXPECT_EQ(*read_result, test_data)
+          << "Read data should match written data";
+    }
+
+    EXPECT_TRUE(ftp->remove(test_path).has_value())
+        << "Failed to remove test file";
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, ReadExistingFile) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::filesystem::path test_path = "/readme.txt";
+
+    auto exists_result = ftp->exists(test_path);
+    if (!exists_result.has_value() || !exists_result.value()) {
+      GTEST_SKIP() << "readme.txt does not exist on server";
+    }
+
+    auto read_result = ftp->read(test_path);
+    EXPECT_TRUE(read_result.has_value())
+        << "read() failed: " << read_result.error().message();
+    if (read_result) {
+      EXPECT_FALSE(read_result->empty()) << "readme.txt should have content";
+      spdlog::info("Read {} bytes from {}", read_result->size(),
+                   test_path.string());
+    }
+  }
+
+  io_ctx.stop();
+}
+
 } // namespace Network::Test
