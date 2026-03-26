@@ -1,34 +1,29 @@
 #pragma once
 
+#include <cstddef>
 #include <expected>
 #include <span>
-#include <cstddef>
 #include <system_error>
-#include <cstddef>
 
-#include "BaseInterface.h"
+namespace Network {
 
-namespace Network
-{
+/// @brief Synchronous socket interface.
+/// Provides blocking send and receive operations.
+class SyncSocket {
+public:
+  virtual ~SyncSocket() = default;
 
-    /// @brief Synchronous socket interface.
-    /// Provides blocking send and receive operations.
-    class SyncSocket : public SocketBase
-    {
-    public:
-        virtual ~SyncSocket() = default;
+  virtual std::expected<std::size_t, std::error_code>
+  read_some(std::span<std::byte> buffer) = 0;
 
-        /// @brief Send data over the socket.
-        /// @param buffer Span of bytes to send.
-        /// @return Number of bytes sent, or error code on failure.
-        virtual std::expected<std::size_t, std::error_code>
-        send(std::span<const std::byte> buffer) = 0;
+  virtual std::expected<std::size_t, std::error_code>
+  write_all(std::span<const std::byte> buffer) = 0;
 
-        /// @brief Receive data from the socket.
-        /// @param buffer Span to receive data into.
-        /// @return Number of bytes received, or error code on failure.
-        virtual std::expected<std::size_t, std::error_code>
-        receive(std::span<std::byte> buffer) = 0;
-    };
+  virtual std::expected<std::size_t, std::error_code>
+  read_exact(std::span<std::byte> buffer) = 0;
 
-}
+  virtual std::expected<std::size_t, std::error_code>
+  read_until(std::span<std::byte> buffer, std::string_view delimiter) = 0;
+};
+
+} // namespace Network

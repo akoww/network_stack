@@ -130,15 +130,12 @@ private:
 
    void parseFeatures(std::string_view feat_response);
 
-   std::expected<bool, std::error_code> existsMlst(std::string_view name);
-   std::expected<bool, std::error_code> existsCwd(std::string_view name);
-   std::expected<bool, std::error_code> existsSize(std::string_view name);
-
-    std::expected<bool, std::error_code>
-    isDirectory(const std::filesystem::path &path) override;
+    std::expected<bool, std::error_code> existsMlst(std::string_view name);
+    std::expected<bool, std::error_code> existsCwd(std::string_view name);
+    std::expected<bool, std::error_code> existsSize(std::string_view name);
 
     std::expected<bool, std::error_code> isDirectoryMlst(std::string_view name);
-   std::expected<bool, std::error_code> isDirectoryCwd(std::string_view name);
+    std::expected<bool, std::error_code> isDirectoryCwd(std::string_view name);
 
    std::string _host;
   uint16_t _port;

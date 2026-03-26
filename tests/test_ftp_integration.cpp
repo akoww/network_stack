@@ -331,10 +331,8 @@ TEST(FtpIntegrationTest, IsDirectory) {
     }
 
     auto nonexistent_result = ftp->isDirectory("/nonexistent_dir_12345");
-    EXPECT_TRUE(nonexistent_result.has_value())
-        << "isDirectory() for nonexistent path should return result";
-    EXPECT_FALSE(nonexistent_result.value())
-        << "nonexistent path should not be a directory";
+    EXPECT_FALSE(nonexistent_result.has_value())
+        << "isDirectory() for nonexistent path should return error";
 
     const std::filesystem::path test_dir = "/test_isdir_dir";
     const std::filesystem::path test_file = "/test_isdir_file.txt";
@@ -343,7 +341,8 @@ TEST(FtpIntegrationTest, IsDirectory) {
     if (create_dir_result.has_value()) {
       auto is_dir_result = ftp->isDirectory(test_dir);
       EXPECT_TRUE(is_dir_result.has_value());
-      EXPECT_TRUE(is_dir_result.value()) << test_dir << " should be a directory";
+      EXPECT_TRUE(is_dir_result.value())
+          << test_dir << " should be a directory";
 
       auto create_file_result =
           ftp->write(test_file, std::vector<std::byte>{std::byte(0x41)});

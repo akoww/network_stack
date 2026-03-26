@@ -105,7 +105,7 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
 
   // Wait for FTP server greeting (220 response)
   std::array<std::byte, 512> buffer{};
-  auto recv_result = _socket->receive(std::span(buffer));
+  auto recv_result = _socket->read_until(std::span(buffer), "\r\n");
 
   if (!recv_result) {
     spdlog::error("Failed to receive FTP greeting: {}",
@@ -254,7 +254,7 @@ FtpFileTransfer::sendAndReceiveResponse(std::string_view cmd) {
 std::expected<void, std::error_code>
 FtpFileTransfer::sendCommand(TcpSocket &sock, std::string_view cmd) {
   const std::string command = std::format("{}\r\n", cmd);
-  if (auto r = sock.send(as_byte_span(command)); !r) {
+  if (auto r = sock.write_all(as_byte_span(command)); !r) {
     spdlog::error("Failed to send command '{}': {}", cmd, r.error().message());
     return std::unexpected(r.error());
   }
@@ -268,7 +268,7 @@ FtpFileTransfer::receiveResponse(TcpSocket &sock) {
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
-    auto r = sock.receive(std::span(tmp));
+    auto r = sock.read_until(std::span(tmp), "\r\n");
     if (!r) {
       spdlog::error("Failed to receive FTP response: {}", r.error().message());
       return std::unexpected(r.error());
@@ -300,7 +300,7 @@ FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
-    auto r = sock.receive(std::span(tmp));
+    auto r = sock.read_some(std::span(tmp));
     if (!r) {
       if (r.error() == asio::error::eof) // not an error
       {
@@ -772,7 +772,7 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
   }
 
   auto buffer = as_byte_span(data);
-  auto send_result = data_socket->send(buffer);
+  auto send_result = data_socket->write_all(buffer);
   if (!send_result) {
     spdlog::error("Failed to send file data: {}",
                   send_result.error().message());
@@ -854,8 +854,7 @@ FtpFileTransfer::isDirectoryCwd(std::string_view name) {
     bool restore_ok = _navigator.ftpCd("..").has_value();
     if (!restore_ok) {
       spdlog::error("Failed to restore directory after CWD test");
-          return std::unexpected(make_error_code(Network::Error::ProtocolError));
-
+      return std::unexpected(make_error_code(Network::Error::ProtocolError));
     }
     return true;
   } else if (cmd_result->code == 550) {
