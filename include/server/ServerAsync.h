@@ -8,23 +8,36 @@
 
 #include <expected>
 
-namespace Network
-{
+namespace Network {
 
-    /// @brief Asynchronous server implementation.
-    /// Uses coroutines for async accept and client handling.
-    class ServerAsync : public ServerBase
-    {
-    public:
-        /// @brief Construct with port and io_context.
-        ServerAsync(uint16_t port, asio::io_context &io_ctx);
+/// @brief Asynchronous server implementation.
+/// Uses coroutines for async accept and client handling.
+/// Each accepted connection is handled via a new coroutine.
+/// @section usage Usage
+/// ```cpp
+/// asio::co_spawn(io_ctx, []() -> asio::awaitable<void> {
+///   ServerAsync server(8080, io_ctx);
+///   auto result = co_await server.listen();
+///   if (!result) {
+///     // handle error...
+///   }
+/// }(), asio::detached);
+/// ```
+class ServerAsync : public ServerBase {
+public:
+  /// @brief Construct with port and io_context.
+  ServerAsync(uint16_t port, asio::io_context &io_ctx);
 
-        /// @brief Asynchronously start accepting connections.
-        asio::awaitable<std::expected<void, std::error_code>> listen();
-        /// @brief Stop accepting connections.
-        void stop();
+  /// @brief Asynchronously start accepting connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note This coroutine will not complete until server is stopped.
+  asio::awaitable<std::expected<void, std::error_code>> listen();
 
-    private:
-    };
+  /// @brief Stop accepting connections.
+  /// Closes the acceptor and signals any waiting async operations.
+  void stop();
+
+private:
+};
 
 }

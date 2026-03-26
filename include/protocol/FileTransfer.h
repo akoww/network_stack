@@ -9,207 +9,150 @@
 
 namespace Network {
 
-/**
- * @class IAbstractFileTransfer
- * @brief Interface for file transfer operations over network protocols, such as
- * FTP and SFTP.
- *
- * This interface provides methods to perform common file operations, such as
- * listing files, reading and writing files, creating directories, and checking
- * the existence of files or directories on a remote server. The operations
- * leverage the `std::expected` type for error handling.
- *
- * Implementations of this interface are expected to handle the underlying
- * protocol-specific details for FTP, SFTP, or other network-based file transfer
- * protocols.
- */
+/// @brief Interface for file transfer operations over network protocols.
+/// This interface provides methods to perform common file operations such as
+/// listing files, reading/writing files, creating directories, and checking
+/// existence on remote servers (e.g., FTP, SFTP).
+/// @note All methods use std::expected for error handling. Implementations
+/// must handle protocol-specific details.
+/// @section ftp_usage FTP Example
+/// ```cpp
+/// asio::io_context io_ctx;
+/// FtpFileTransfer ftp("example.com", 21, io_ctx);
+/// auto result = ftp.connect({.username = "user", .password = "pass"});
+/// if (result) {
+///   auto files = ftp.list("/remote/path");
+///   // use files...
+/// }
+/// ```
 class IAbstractFileTransfer {
 public:
   virtual ~IAbstractFileTransfer() = default;
 
+  /// @brief Configuration for file transfer operations.
   struct TransferConfig {
     std::chrono::milliseconds timeout = std::chrono::seconds(3);
   };
 
-  /**
-   * @brief FTP file list properties.
-   */
+  /// @brief FTP file list entry data.
+  /// Contains metadata about a file or directory on the remote server.
   struct FileListData {
-    /**
-     * @brief Last change date of an FTP file.
-     */
+    /// @brief Last modification time of the file.
     std::chrono::system_clock::time_point date;
 
-    /**
-     * @brief Current size if the FTP file.
-     */
+    /// @brief Size of the file in bytes.
     std::size_t size;
 
-    /**
-     * @brief Name of the FTP file.
-     */
+    /// @brief Name of the file (basename only).
     std::string file_name;
 
-    /**
-     * @brief full path of the file
-     */
+    /// @brief Full path of the file on the remote server.
     std::filesystem::path full_path;
   };
 
-  /**
-   * @brief Checks if connection is still alive
-   *
-   * @return true connection is good
-   * @return false connection is not good
-   */
+  /// @brief Check if the connection to the server is still alive.
+  /// @return true if connection is active, false otherwise.
   virtual bool isAlive() const = 0;
 
-  /**
-   * @brief Lists the contents of a remote directory.
-   * @param path The remote directory path.
-   * @param opt_filter Optional extension filter that reduce the results and
-   * communication
-   * @return A vector of `Entry` objects representing the directory contents, or
-   * an error code.
-   */
+  /// @brief List the contents of a remote directory.
+  /// @param path Remote directory path.
+  /// @return Vector of FileListData for each entry, or error code on failure.
+  /// @note Returns only direct children; does not recurse into subdirectories.
   virtual std::expected<std::vector<FileListData>, std::error_code>
   list(const std::filesystem::path &path) = 0;
 
-  /**
-   * @brief Creates a directory on the remote server.
-   * @param path The remote directory path to create.
-   * @return Success if the directory is created (or already exists, depending
-   * on server behavior), or an error code on failure. Note: This creates a
-   * single directory level; intermediate parent directories are not created.
-   */
+  /// @brief Create a directory on the remote server.
+  /// @param path Directory path to create.
+  /// @return Success if directory is created or already exists, error on failure.
+  /// @note Creates only the final directory level; parent directories must exist.
   virtual std::expected<void, std::error_code>
   createDir(const std::filesystem::path &path) = 0;
 
-  /**
-   * @brief Checks if a file or directory exists on the remote server.
-   * @param remote_path The remote file or directory path.
-   * @return True if the file or directory exists, false otherwise. Returns an
-   * error code if the check fails.
-   */
+  /// @brief Check if a file or directory exists on the remote server.
+  /// @param remote_path Path to check.
+  /// @return true if exists, false otherwise. Returns error code on failure.
   virtual std::expected<bool, std::error_code>
   exists(const std::filesystem::path &remote_path) = 0;
 
-  /**
-   * @brief Removes a file or directory on the remote server.
-   * @param remote_path The path to the file or directory to remove.
-   * @return Success or an error code.
-   */
+  /// @brief Remove a file or directory on the remote server.
+  /// @param remote_path Path to remove.
+  /// @return Success on deletion, error on failure.
+  /// @note For directories, must be empty to succeed.
   virtual std::expected<void, std::error_code>
   remove(const std::filesystem::path &remote_path) = 0;
 
-  /**
-   * @brief Reads the contents of a remote file into a vector.
-   * @param path The path to the remote file.
-   * @return A vector containing the file data, or an error code.
-   */
+  /// @brief Read entire remote file into memory.
+  /// @param path Remote file path.
+  /// @return Vector containing file bytes, or error code on failure.
   virtual std::expected<std::vector<std::byte>, std::error_code>
   read(const std::filesystem::path &path) = 0;
 
-   /**
-    * @brief Reads the contents of a remote file incrementally by chunks using a
-    * callback.
-    *
-    * This method enables reading a remote file in chunks via a callback for
-    * customized handling of the data being read. Each call to the callback
-    * provides a span of bytes for processing.
-    *
-    * @param path The path to the remote file on the server.
-    * @param callback A function called to process data as it is read from the
-    * remote file.
-    *   - Argument: data - a span of bytes containing chunk of data read from
-    * the file.
-    *   - Returns: Number of bytes processed (must equal span size) or an error
-    * code.
-    *
-    * @return Returns `std::expected<std::size_t, std::error_code>` indicating
-    * the success or failure of the operation. On success, returns total bytes
-    * processed. Callback must fully consume all provided data.
-    */
-   using ReadCallback =
-       std::function<std::expected<std::size_t, std::error_code>(
-           std::span<const std::byte>)>;
+  /// @brief Read remote file incrementally via callback.
+  /// @param path Remote file path.
+  /// @param callback Function called with each chunk of data.
+  /// @return Total bytes processed on success, error code on failure.
+  /// @note Callback receives spans of data; must fully consume each chunk.
+  /// @note This method enables streaming large files without loading entirely into memory.
+  using ReadCallback =
+      std::function<std::expected<std::size_t, std::error_code>(
+          std::span<const std::byte>)>;
   virtual std::expected<std::size_t, std::error_code>
   read(const std::filesystem::path &path, ReadCallback callback) = 0;
 
-  /**
-   * @brief Writes raw data from memory to the remote server.
-   * @param data The data to write as a span of bytes.
-   * @param remote_dst_path The destination path on the remote server.
-   * @return An `Entry` object with attributes of the created file, or an error
-   * code.
-   */
+  /// @brief Write data from memory to remote file.
+  /// @param remote_dst_path Destination path on remote server.
+  /// @param data Data to write as span of bytes.
+  /// @return FileListData containing metadata of written file, or error code.
   virtual std::expected<FileListData, std::error_code>
   write(const std::filesystem::path &remote_dst_path,
         std::span<const std::byte> data) = 0;
 
-  /**
-   * @brief Writes to a remote file from chunks provided by the callback
-   * function.
-   *
-   * This method enables writing to a file on the remote server incrementally by
-   * requesting chunks of data from the provided callback function. Each call to
-   * the callback is expected to return a span of bytes to write.
-   *
-   * @param remote_dst_path The destination path of the file on the remote
-   * server.
-   * @param next A function providing the next chunk of data to write.
-   *   - Returns: A span of bytes containing data to be written, or an error
-   * code.
-   *
-   * @return Returns `std::expected<FileListData, std::error_code>` containing
-   * metadata about the newly created file on success, or an error code on
-   * failure.
-   */
+  /// @brief Write to remote file incrementally via callback.
+  /// @param remote_dst_path Destination path on remote server.
+  /// @param next Function called to provide next chunk of data.
+  /// @return FileListData containing metadata of written file, or error code.
+  /// @note Callback returns spans of data to write. Return empty span to finish.
+  /// @note This method enables streaming data from files or other sources.
   using WriteCallback = std::function<
       std::expected<std::span<const std::byte>, std::error_code>()>;
   virtual std::expected<FileListData, std::error_code>
-   write(const std::filesystem::path &remote_dst_path, WriteCallback next) = 0;
+  write(const std::filesystem::path &remote_dst_path, WriteCallback next) = 0;
 
-   /**
-    * @brief Checks if a path is a directory on the remote server.
-    * @param path The remote path to check.
-    * @return True if path is a directory, false if it's a file or doesn't exist.
-    * Returns an error code if the check fails.
-    */
-   virtual std::expected<bool, std::error_code>
-   isDirectory(const std::filesystem::path &path) = 0;
+  /// @brief Check if a path refers to a directory on the remote server.
+  /// @param path Remote path to check.
+  /// @return true if directory, false if file or doesn't exist, error on failure.
+  virtual std::expected<bool, std::error_code>
+  isDirectory(const std::filesystem::path &path) = 0;
 
- protected:
+protected:
 };
 
+/// @brief Utility functions for common file transfer operations.
 namespace FileTransferUtils {
 
+/// @brief Callback type for progress updates during file transfers.
 using ProgressCallback =
     std::function<void(const std::filesystem::path & /*file*/,
                        std::size_t /*transferred*/, std::size_t /*total*/)>;
 
-/**
- * @brief Writes a local file to the remote server.
- * @param local_src_path The source path of the local file.
- * @param remote_dst_path The destination path on the remote server.
- * @param progress The progress callback to track the file transfer.
- * @return An `Entry` object with attributes of the created file, or an error
- * code.
- */
+/// @brief Upload a local file to the remote server.
+/// @param transfer File transfer interface instance.
+/// @param local_src_path Source path of the local file.
+/// @param remote_dst_path Destination path on remote server.
+/// @param progress Optional callback for progress updates.
+/// @return FileListData with metadata of uploaded file, or error code.
 std::expected<IAbstractFileTransfer::FileListData, std::error_code>
 writeFromFile(IAbstractFileTransfer &transfer,
               const std::filesystem::path &local_src_path,
               const std::filesystem::path &remote_dst_path,
               ProgressCallback progress);
 
-/**
- * @brief Reads a remote file and saves it to a local file.
- * @param remote_src_path The source path of the file on the remote server.
- * @param local_dst_path The destination path of the file on the local
- * filesystem.
- * @param progress The progress callback to track the file transfer.
- * @return The number of bytes transferred, or an error code.
- */
+/// @brief Download a remote file to local filesystem.
+/// @param transfer File transfer interface instance.
+/// @param remote_src_path Source path on remote server.
+/// @param local_dst_path Destination path on local filesystem.
+/// @param progress Optional callback for progress updates.
+/// @return Number of bytes transferred on success, error code on failure.
 std::expected<std::size_t, std::error_code>
 readToFile(IAbstractFileTransfer &transfer,
            const std::filesystem::path &remote_src_path,
