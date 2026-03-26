@@ -485,23 +485,12 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
     }
   }
 
-  // need to flush the connection since list soemtimes do not send request until
-  // some other command is transmitted
-  auto send_noop = sendCommand("NOOP");
-  if (!send_noop) {
-    spdlog::error("LIST command end not received");
-    return std::unexpected(send_noop.error());
-  }
   auto list_end = receiveResponse();
   if (!list_end) {
     spdlog::error("LIST command end not received");
     return std::unexpected(list_end.error());
   }
-  auto noop_end = receiveResponse();
-  if (!noop_end) {
-    spdlog::error("LIST command end not received");
-    return std::unexpected(noop_end.error());
-  }
+
 
   return files; // Implicit conversion to expected<std::vector, error_code>
 }
