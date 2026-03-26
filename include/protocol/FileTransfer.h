@@ -110,29 +110,29 @@ public:
   virtual std::expected<std::vector<std::byte>, std::error_code>
   read(const std::filesystem::path &path) = 0;
 
-  /**
-   * @brief Reads the contents of a remote file incrementally by chunks using a
-   * callback.
-   *
-   * This method enables reading a remote file in chunks via a callback for
-   * customized handling of the data being read. Each call to the callback
-   * provides a span of bytes starting from a given offset for processing.
-   *
-   * @param path The path to the remote file on the server.
-   * @param callback A function called to process data as it is read from the
-   * remote file.
-   *   - Argument: offset - the offset in the file where the reading starts.
-   *   - Returns: A span of bytes representing the data read from the file or an
-   * error code.
-   *
-   * @return Returns `std::expected<uint8_t, std::error_code>` indicating the
-   * success or failure of the operation. On success, it may return the number
-   * of bytes processed (or an appropriate indicator determined by
-   * implementation).
-   */
-  using ReadCallback =
-      std::function<std::expected<std::size_t, std::error_code>(
-          std::span<std::byte>)>;
+   /**
+    * @brief Reads the contents of a remote file incrementally by chunks using a
+    * callback.
+    *
+    * This method enables reading a remote file in chunks via a callback for
+    * customized handling of the data being read. Each call to the callback
+    * provides a span of bytes for processing.
+    *
+    * @param path The path to the remote file on the server.
+    * @param callback A function called to process data as it is read from the
+    * remote file.
+    *   - Argument: data - a span of bytes containing chunk of data read from
+    * the file.
+    *   - Returns: Number of bytes processed (must equal span size) or an error
+    * code.
+    *
+    * @return Returns `std::expected<std::size_t, std::error_code>` indicating
+    * the success or failure of the operation. On success, returns total bytes
+    * processed. Callback must fully consume all provided data.
+    */
+   using ReadCallback =
+       std::function<std::expected<std::size_t, std::error_code>(
+           std::span<const std::byte>)>;
   virtual std::expected<std::size_t, std::error_code>
   read(const std::filesystem::path &path, ReadCallback callback) = 0;
 

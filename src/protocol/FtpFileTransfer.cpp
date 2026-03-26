@@ -723,9 +723,82 @@ FtpFileTransfer::read(const std::filesystem::path &path) {
 std::expected<std::size_t, std::error_code>
 FtpFileTransfer::read(const std::filesystem::path &path,
                       ReadCallback callback) {
-  (void)path;     // unused
-  (void)callback; // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  spdlog::info("Reading file via callback: {}", path.string());
+
+  if (auto change_result = _navigator.changeDirectory(path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}", path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto data_socket_result = openDataConnection();
+  if (!data_socket_result) {
+    spdlog::error("Failed to open data connection for RETR: {}",
+                  data_socket_result.error().message());
+    return std::unexpected(data_socket_result.error());
+  }
+  auto data_socket = std::move(*data_socket_result);
+
+  auto cmd_result =
+      sendAndReceiveResponse(std::format("RETR {}", path.filename().string()));
+  if (!cmd_result) {
+    spdlog::error("RETR command failed: {}", cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 150) {
+    spdlog::error("RETR command failed with code: {}", cmd_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  std::vector<std::byte> buffer(16384);
+  std::size_t total_bytes = 0;
+
+  while (true) {
+    auto read_result = data_socket->read_some(std::span(buffer));
+    if (!read_result) {
+      if (read_result.error() == asio::error::eof) {
+        break;
+      }
+      spdlog::error("RETR data read failed: {}", read_result.error().message());
+      return std::unexpected(read_result.error());
+    }
+
+    std::size_t bytes_read = *read_result;
+    if (bytes_read == 0) {
+      break;
+    }
+
+    auto callback_result =
+        callback(std::span(buffer).first(bytes_read));
+    if (!callback_result) {
+      spdlog::error("Callback returned error: {}",
+                    callback_result.error().message());
+      return std::unexpected(callback_result.error());
+    }
+
+    if (*callback_result != bytes_read) {
+      spdlog::error("Callback must consume all data: {} bytes provided, {} consumed",
+                    bytes_read, *callback_result);
+      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    }
+
+    total_bytes += bytes_read;
+  }
+
+  auto response = receiveResponse(*_socket);
+  if (!response) {
+    spdlog::error("Failed to receive RETR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
+
+  if (response->code != 226) {
+    spdlog::error("RETR completion returned unexpected code: {}",
+                  response->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  spdlog::info("File read successfully via callback: {} bytes", total_bytes);
+  return total_bytes;
 }
 
 std::expected<FileListData, std::error_code>
@@ -796,9 +869,83 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
 std::expected<FileListData, std::error_code>
 FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
                        WriteCallback next) {
-  (void)remote_dst_path; // unused
-  (void)next;            // unused
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  spdlog::info("Writing file via callback: {}", remote_dst_path.string());
+
+  if (auto change_result =
+          _navigator.changeDirectory(remote_dst_path.parent_path());
+      !change_result) {
+    spdlog::error("cant change directory to: {}",
+                  remote_dst_path.parent_path().string());
+    return std::unexpected(change_result.error());
+  }
+
+  auto data_socket_result = openDataConnection();
+  if (!data_socket_result) {
+    spdlog::error("Failed to open data connection for STOR: {}",
+                  data_socket_result.error().message());
+    return std::unexpected(data_socket_result.error());
+  }
+  auto data_socket = std::move(*data_socket_result);
+
+  auto cmd_result = sendAndReceiveResponse(
+      std::format("STOR {}", remote_dst_path.filename().string()));
+  if (!cmd_result) {
+    spdlog::error("STOR command failed: {}", cmd_result.error().message());
+    return std::unexpected(cmd_result.error());
+  } else if (cmd_result->code != 150) {
+    spdlog::error("STOR command failed with code: {}", cmd_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  FileListData file_data;
+  file_data.file_name = remote_dst_path.filename().string();
+  file_data.date = std::chrono::system_clock::now();
+  file_data.full_path = remote_dst_path;
+
+  std::size_t total_bytes = 0;
+
+  while (true) {
+    auto chunk_result = next();
+    if (!chunk_result) {
+      spdlog::error("Callback returned error: {}",
+                    chunk_result.error().message());
+      return std::unexpected(chunk_result.error());
+    }
+
+    auto chunk = *chunk_result;
+    if (chunk.empty()) {
+      break;
+    }
+
+    auto send_result = data_socket->write_all(chunk);
+    if (!send_result) {
+      spdlog::error("Failed to send file data: {}",
+                    send_result.error().message());
+      return std::unexpected(send_result.error());
+    }
+
+    total_bytes += *send_result;
+  }
+
+  data_socket.reset();
+
+  auto response = receiveResponse(*_socket);
+  if (!response) {
+    spdlog::error("Failed to receive STOR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
+
+  if (response->code != 226) {
+    spdlog::error("STOR completion returned unexpected code: {}",
+                  response->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  file_data.size = total_bytes;
+
+  spdlog::info("File written successfully via callback: {} bytes", total_bytes);
+  return file_data;
 }
 
 std::expected<bool, std::error_code>

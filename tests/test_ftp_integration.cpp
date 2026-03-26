@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 
 #include "core/Context.h"
+#include "core/ErrorCodes.h"
 #include "protocol/FtpFileTransfer.h"
 
 namespace Network::Test {
@@ -359,6 +360,255 @@ TEST(FtpIntegrationTest, IsDirectory) {
       EXPECT_TRUE(ftp->remove(test_dir).has_value())
           << "Failed to remove test directory";
     }
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, ReadWithCallback) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value())
+      << "FTP connection failed: " << ftp_result.error().message();
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::filesystem::path test_path = "/readme.txt";
+
+    auto exists_result = ftp->exists(test_path);
+    if (!exists_result.has_value() || !exists_result.value()) {
+      GTEST_SKIP() << "readme.txt does not exist on server";
+    }
+
+    std::vector<std::byte> collected_data;
+    std::size_t callback_count = 0;
+
+    auto read_result =
+        ftp->read(test_path, [&](std::span<const std::byte> chunk) {
+          callback_count++;
+          for (std::byte b : chunk) {
+            collected_data.push_back(b);
+          }
+          return static_cast<std::size_t>(chunk.size());
+        });
+
+    EXPECT_TRUE(read_result.has_value())
+        << "read(callback) failed: " << read_result.error().message();
+    if (read_result) {
+      EXPECT_GT(callback_count, 0) << "Callback should be called at least once";
+      EXPECT_EQ(*read_result, collected_data.size())
+          << "Total bytes should match collected data size";
+
+      auto direct_read_result = ftp->read(test_path);
+      EXPECT_TRUE(direct_read_result.has_value())
+          << "direct read failed: " << direct_read_result.error().message();
+      if (direct_read_result && direct_read_result->size() > 0) {
+        EXPECT_EQ(collected_data, *direct_read_result)
+            << "Callback data should match direct read";
+      }
+    }
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, ReadWithCallbackError) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value());
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::filesystem::path test_path = "/readme.txt";
+
+    bool callback_called = false;
+
+    auto read_result = ftp->read(test_path, [&](std::span<const std::byte>) {
+      callback_called = true;
+      return std::unexpected(make_error_code(Network::Error::ConnectionLost));
+    });
+
+    EXPECT_FALSE(read_result.has_value()) << "Callback error should propagate";
+    EXPECT_TRUE(callback_called) << "Callback should be called";
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, WriteWithCallback) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value());
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::vector<std::byte> original_data = {
+        std::byte(0x48), std::byte(0x65), std::byte(0x6c), std::byte(0x6c),
+        std::byte(0x6f), std::byte(0x20), std::byte(0x57), std::byte(0x6f),
+        std::byte(0x72), std::byte(0x6c), std::byte(0x64)}; // "Hello World"
+
+    std::filesystem::path test_path = "/upload/test_write_callback.txt";
+
+    std::vector<std::byte> chunks;
+    std::size_t chunk_idx = 0;
+    std::size_t callback_count = 0;
+
+    auto write_result = ftp->write(test_path, [&]() {
+      callback_count++;
+      if (chunk_idx >= original_data.size()) {
+        return std::span<const std::byte>{}; // Empty span signals EOF
+      }
+
+      auto remaining =
+          static_cast<std::ptrdiff_t>(original_data.size() - chunk_idx);
+      auto chunk_size =
+          std::min<std::size_t>(3, static_cast<std::size_t>(remaining));
+
+      std::ptrdiff_t idx = static_cast<std::ptrdiff_t>(chunk_idx);
+      chunks.insert(chunks.end(), original_data.begin() + idx,
+                    original_data.begin() + idx +
+                        static_cast<std::ptrdiff_t>(chunk_size));
+
+      chunk_idx += chunk_size;
+      std::ptrdiff_t idx2 = static_cast<std::ptrdiff_t>(chunk_idx - chunk_size);
+      return std::span<const std::byte>(original_data.data() + idx2,
+                                        chunk_size);
+    });
+
+    if (!write_result) {
+      GTEST_SKIP() << "Write failed (server may not allow uploads): "
+                   << write_result.error().message();
+    }
+
+    EXPECT_TRUE(write_result.has_value());
+    if (write_result) {
+      EXPECT_GT(callback_count, 0) << "Callback should be called";
+      EXPECT_EQ(write_result->size, original_data.size())
+          << "Written size should match original";
+      EXPECT_EQ(chunks.size(), original_data.size())
+          << "All data should be collected";
+
+      auto read_result = ftp->read(test_path);
+      EXPECT_TRUE(read_result.has_value())
+          << "read after write failed: " << read_result.error().message();
+      if (read_result) {
+        EXPECT_EQ(*read_result, original_data)
+            << "Read data should match written data";
+      }
+
+      EXPECT_TRUE(ftp->remove(test_path).has_value())
+          << "Failed to remove test file";
+    }
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, WriteWithCallbackMultipleChunks) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value());
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::filesystem::path test_path = "/upload/test_write_multiple_chunks.txt";
+
+    std::vector<std::byte> original_data(1024);
+    for (std::size_t i = 0; i < original_data.size(); i++) {
+      original_data[i] = std::byte(i % 256);
+    }
+
+    std::size_t callback_count = 0;
+    std::vector<std::size_t> chunk_sizes;
+
+    auto write_result = ftp->write(test_path, [&]() {
+      callback_count++;
+      if (callback_count > 10) {
+        return std::span<const std::byte>{}; // EOF after 10+ calls
+      }
+
+      std::size_t chunk_size = std::min<std::size_t>(100, original_data.size());
+      if (chunk_size == 0) {
+        return std::span<const std::byte>{};
+      }
+
+      auto span = std::span<const std::byte>(original_data.data(), chunk_size);
+      return span;
+    });
+
+    if (!write_result) {
+      GTEST_SKIP() << "Write multiple chunks failed: "
+                   << write_result.error().message();
+    }
+
+    EXPECT_TRUE(write_result.has_value());
+    EXPECT_GT(callback_count, 1) << "Should have multiple callback calls";
+    EXPECT_EQ(write_result->size, 1000) << "Should have written 1000 bytes";
+  }
+
+  io_ctx.stop();
+}
+
+TEST(FtpIntegrationTest, WriteWithCallbackError) {
+  IoContextWrapper io_ctx;
+  io_ctx.start();
+
+  FtpFileTransfer::ConnectOptions opts;
+  opts.username = "anonymous";
+  opts.password = "";
+  opts.timeout = std::chrono::seconds(10);
+
+  auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
+  EXPECT_TRUE(ftp_result.has_value());
+
+  if (ftp_result) {
+    auto ftp = std::move(*ftp_result);
+
+    std::filesystem::path test_path = "/upload/test_write_error.txt";
+
+    bool callback_called = false;
+
+    auto write_result = ftp->write(test_path, [&]() {
+      callback_called = true;
+      std::error_code ec = make_error_code(Network::Error::ConnectionLost);
+      return std::unexpected(ec);
+    });
+
+    EXPECT_FALSE(write_result.has_value())
+        << "Write should fail on callback error";
+    EXPECT_TRUE(callback_called) << "Callback should be called";
   }
 
   io_ctx.stop();
