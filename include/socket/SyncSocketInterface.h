@@ -5,13 +5,16 @@
 #include <span>
 #include <system_error>
 
+#include "SocketBaseInterface.h"
+
 namespace Network {
 
 /// @brief Synchronous socket interface.
 /// Provides blocking send and receive operations.
 /// All synchronous socket implementations must inherit from this interface.
-/// @note Operations block until completion or error; use async versions for non-blocking behavior.
-class SyncSocket {
+/// @note Operations block until completion or error; use async versions for
+/// non-blocking behavior.
+class SyncSocket : public SocketBase {
 public:
   virtual ~SyncSocket() = default;
 

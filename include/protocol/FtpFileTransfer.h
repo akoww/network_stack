@@ -2,7 +2,8 @@
 
 #include "FileTransfer.h"
 #include "FtpUtils.h"
-#include "socket/TcpSocket.h"
+#include "core/Context.h"
+#include "socket/SyncSocketInterface.h"
 
 #include <expected>
 #include <filesystem>
@@ -67,7 +68,7 @@ public:
   /// @param port FTP server control port (default 21).
   /// @param io_ctx ASIO io_context for async operations.
   explicit FtpFileTransfer(std::string_view host, uint16_t port,
-                           asio::io_context &io_ctx);
+                           IoContextWrapper &io_ctx);
   ~FtpFileTransfer() override;
 
   /// @brief Connect to FTP server and perform initial setup.
@@ -145,26 +146,19 @@ protected:
 
   // Static variants for data channel operations
 
-  std::expected<void, std::error_code> sendCommand(TcpSocket &sock,
+  std::expected<void, std::error_code> sendCommand(SyncSocket &sock,
                                                    std::string_view cmd);
-  std::expected<Answer, std::error_code> receiveResponse(TcpSocket &sock);
+  std::expected<Answer, std::error_code> receiveResponse(SyncSocket &sock);
   std::expected<std::vector<std::byte>, std::error_code>
-  receiveRawResponse(TcpSocket &sock);
+  receiveRawResponse(SyncSocket &sock);
 
   std::expected<Answer, std::error_code>
-  sendAndReceiveResponse(TcpSocket &sock, std::string_view cmd);
+  sendAndReceiveResponse(SyncSocket &sock, std::string_view cmd);
 
   /// @brief Open FTP data connection (directory listing or file transfer).
   /// Uses PASV or EPSV based on server capabilities and configuration.
-  std::expected<std::unique_ptr<TcpSocket>, std::error_code>
+  std::expected<std::unique_ptr<SyncSocket>, std::error_code>
   openDataConnection();
-
-  /// @brief Parse PASV response to extract data endpoint.
-  /// @param response PASV response string from server.
-  /// @return TCP endpoint for data connection, or std::nullopt on parse
-  /// failure.
-  std::optional<asio::ip::tcp::endpoint>
-  parsePasvResponse(std::string_view response) const;
 
   /// @brief Navigate to directory using navigator.
   void navigateToDirectory(const std::filesystem::path &path);
@@ -189,8 +183,8 @@ private:
   uint16_t _port;
   DefaultFtpNavigator _navigator;
 
-  asio::io_context &_io_context;
-  std::unique_ptr<TcpSocket> _socket;
+  IoContextWrapper &_io_context;
+  std::unique_ptr<SyncSocket> _socket;
   ConnectOptions _options;
   FtpCapabilities _capabilities;
 
@@ -205,7 +199,7 @@ private:
 /// @return Unique pointer to IAbstractFileTransfer, or error code on failure.
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code>
 openFtpConnection(std::string_view host, uint16_t port,
-                  asio::io_context &io_ctx,
+                  IoContextWrapper &io_ctx,
                   const FtpFileTransfer::ConnectOptions &opts = {});
 
 } // namespace Network

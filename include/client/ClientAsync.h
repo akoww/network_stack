@@ -1,8 +1,8 @@
 #pragma once
 
-#include <asio/ip/tcp.hpp>
-#include <asio/io_context.hpp>
 #include <asio/awaitable.hpp>
+#include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
 
 #include "ClientBase.h"
 
@@ -10,7 +10,7 @@
 
 namespace Network {
 
-class TcpSocket;
+class AsyncSocket;
 
 /// @brief Asynchronous client implementation.
 /// Provides coroutine-based async connection establishment to a remote server.
@@ -35,7 +35,8 @@ public:
   /// @brief Asynchronously connect to the remote endpoint.
   /// @param opts Connection options including timeout.
   /// @return Socket on success, or error code on failure.
-  asio::awaitable<std::expected<std::unique_ptr<TcpSocket>, std::error_code>> connect(Options opts);
+  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+  connect(Options opts);
 };
 
-}
+} // namespace Network

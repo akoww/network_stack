@@ -2,7 +2,7 @@
 
 #include "client/ClientSync.h"
 #include "core/ErrorCodes.h"
-#include "socket/TcpSocket.h"
+#include "socket/SyncSocketInterface.h"
 
 #include <asio/connect.hpp>
 #include <asio/ip/tcp.hpp>
@@ -81,7 +81,7 @@ std::filesystem::path get_last_component(const std::filesystem::path &p) {
 } // namespace
 
 FtpFileTransfer::FtpFileTransfer(std::string_view host, uint16_t port,
-                                 asio::io_context &io_ctx)
+                                 IoContextWrapper &io_ctx)
     : _host(host), _port(port), _navigator(this), _io_context(io_ctx) {}
 
 FtpFileTransfer::~FtpFileTransfer() = default;
@@ -252,7 +252,7 @@ FtpFileTransfer::sendAndReceiveResponse(std::string_view cmd) {
 //----
 
 std::expected<void, std::error_code>
-FtpFileTransfer::sendCommand(TcpSocket &sock, std::string_view cmd) {
+FtpFileTransfer::sendCommand(SyncSocket &sock, std::string_view cmd) {
   const std::string command = std::format("{}\r\n", cmd);
   if (auto r = sock.write_all(as_byte_span(command)); !r) {
     spdlog::error("Failed to send command '{}': {}", cmd, r.error().message());
@@ -262,7 +262,7 @@ FtpFileTransfer::sendCommand(TcpSocket &sock, std::string_view cmd) {
 }
 
 std::expected<FtpFileTransfer::Answer, std::error_code>
-FtpFileTransfer::receiveResponse(TcpSocket &sock) {
+FtpFileTransfer::receiveResponse(SyncSocket &sock) {
 
   std::string buf;
   std::array<std::byte, 1024> tmp{};
@@ -294,7 +294,7 @@ FtpFileTransfer::receiveResponse(TcpSocket &sock) {
 }
 
 std::expected<std::vector<std::byte>, std::error_code>
-FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
+FtpFileTransfer::receiveRawResponse(SyncSocket &sock) {
 
   std::vector<std::byte> buf;
   std::array<std::byte, 1024> tmp{};
@@ -319,7 +319,8 @@ FtpFileTransfer::receiveRawResponse(TcpSocket &sock) {
 }
 
 std::expected<FtpFileTransfer::Answer, std::error_code>
-FtpFileTransfer::sendAndReceiveResponse(TcpSocket &sock, std::string_view cmd) {
+FtpFileTransfer::sendAndReceiveResponse(SyncSocket &sock,
+                                        std::string_view cmd) {
 
   if (auto send_result = sendCommand(sock, cmd); !send_result) {
     return std::unexpected(send_result.error());
@@ -490,7 +491,6 @@ FtpFileTransfer::list(const std::filesystem::path &path) {
     spdlog::error("LIST command end not received");
     return std::unexpected(list_end.error());
   }
-
 
   return files; // Implicit conversion to expected<std::vector, error_code>
 }
@@ -767,8 +767,7 @@ FtpFileTransfer::read(const std::filesystem::path &path,
       break;
     }
 
-    auto callback_result =
-        callback(std::span(buffer).first(bytes_read));
+    auto callback_result = callback(std::span(buffer).first(bytes_read));
     if (!callback_result) {
       spdlog::error("Callback returned error: {}",
                     callback_result.error().message());
@@ -776,8 +775,9 @@ FtpFileTransfer::read(const std::filesystem::path &path,
     }
 
     if (*callback_result != bytes_read) {
-      spdlog::error("Callback must consume all data: {} bytes provided, {} consumed",
-                    bytes_read, *callback_result);
+      spdlog::error(
+          "Callback must consume all data: {} bytes provided, {} consumed",
+          bytes_read, *callback_result);
       return std::unexpected(make_error_code(Network::Error::ProtocolError));
     }
 
@@ -1042,32 +1042,8 @@ FtpFileTransfer::isDirectory(const std::filesystem::path &path) {
   return std::unexpected(result.error());
 }
 
-std::expected<std::unique_ptr<TcpSocket>, std::error_code>
-FtpFileTransfer::openDataConnection() {
-  auto pasv_result = sendAndReceiveResponse("PASV");
-  if (!pasv_result) {
-    spdlog::error("PASV command failed: {}", pasv_result.error().message());
-    return std::unexpected(pasv_result.error());
-  } else if (pasv_result->code != 227) {
-    spdlog::error("Failed to open connection. Code: '{}'", pasv_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
-  }
-
-  auto endpoint = parsePasvResponse(pasv_result->full_msg);
-
-  auto data_socket = std::make_unique<ClientSync>(
-      endpoint->address().to_string(), endpoint->port(), _io_context);
-  auto connect_result = data_socket->connect({std::chrono::seconds(10)});
-  if (!connect_result) {
-    spdlog::error("Failed to connect data socket: {}",
-                  connect_result.error().message());
-    return std::unexpected(connect_result.error());
-  }
-
-  return connect_result;
-}
-
 namespace {
+
 // Helper to skip whitespace at the start of a view
 inline std::string_view trim_leading_space(std::string_view str) {
   while (!str.empty() &&
@@ -1105,10 +1081,9 @@ std::error_code parse_uint8(std::string_view str, uint32_t &out) {
   out = val;
   return {}; // No error
 }
-} // namespace
 
 std::optional<asio::ip::tcp::endpoint>
-FtpFileTransfer::parsePasvResponse(std::string_view response) const {
+parsePasvResponse(std::string_view response) {
   std::error_code ec;
   size_t start = response.find('(');
   if (start == std::string_view::npos) {
@@ -1169,6 +1144,33 @@ FtpFileTransfer::parsePasvResponse(std::string_view response) const {
   return asio::ip::tcp::endpoint(addr, port);
 }
 
+} // namespace
+
+std::expected<std::unique_ptr<SyncSocket>, std::error_code>
+FtpFileTransfer::openDataConnection() {
+  auto pasv_result = sendAndReceiveResponse("PASV");
+  if (!pasv_result) {
+    spdlog::error("PASV command failed: {}", pasv_result.error().message());
+    return std::unexpected(pasv_result.error());
+  } else if (pasv_result->code != 227) {
+    spdlog::error("Failed to open connection. Code: '{}'", pasv_result->code);
+    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  }
+
+  auto endpoint = parsePasvResponse(pasv_result->full_msg);
+
+  auto data_socket = std::make_unique<ClientSync>(
+      endpoint->address().to_string(), endpoint->port(), _io_context);
+  auto connect_result = data_socket->connect({std::chrono::seconds(10)});
+  if (!connect_result) {
+    spdlog::error("Failed to connect data socket: {}",
+                  connect_result.error().message());
+    return std::unexpected(connect_result.error());
+  }
+
+  return connect_result;
+}
+
 void FtpFileTransfer::parseFeatures(std::string_view feat_response) {
   spdlog::debug("Parsing FEAT response");
 
@@ -1218,7 +1220,7 @@ void FtpFileTransfer::parseFeatures(std::string_view feat_response) {
 
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code>
 openFtpConnection(std::string_view host, uint16_t port,
-                  asio::io_context &io_ctx,
+                  IoContextWrapper &io_ctx,
                   const FtpFileTransfer::ConnectOptions &opts) {
   auto ftp = std::make_unique<FtpFileTransfer>(host, port, io_ctx);
   auto connect_result = ftp->connect(opts);

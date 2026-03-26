@@ -6,13 +6,15 @@
 #include <span>
 #include <system_error>
 
+#include "SocketBaseInterface.h"
+
 namespace Network {
 
 /// @brief Asynchronous socket interface.
 /// Provides coroutine-based async send and receive operations.
 /// All asynchronous socket implementations must inherit from this interface.
 /// @note Operations return asio::awaitable and must be co_awaited.
-class AsyncSocket {
+class AsyncSocket : public SocketBase {
 public:
   virtual ~AsyncSocket() = default;
 

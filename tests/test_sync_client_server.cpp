@@ -121,7 +121,7 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
   server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  std::vector<std::unique_ptr<TcpSocket>> sockets;
+  std::vector<std::unique_ptr<SyncSocket>> sockets;
   for (int i = 0; i < 3; i++) {
     ClientSync client("127.0.0.1", test_port, _io_ctx);
     auto connect_result = client.connect({});
@@ -129,7 +129,7 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
       sockets.push_back(std::move(*connect_result));
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  auto send_recv = [&](TcpSocket &socket, const std::string &msg) {
+  auto send_recv = [&](SyncSocket &socket, const std::string &msg) {
     auto send_result = socket.write_all(to_bytes(msg));
     EXPECT_TRUE(send_result);
     std::array<std::byte, 1024> buffer{};
@@ -189,7 +189,8 @@ TEST_F(SyncClientServerFixture, SpecialCharacters) {
       std::array<std::byte, 1024> buffer{};
       auto recv_result = sock->read_some(std::span(buffer));
       if (recv_result && *recv_result > 0) {
-        auto send_result = sock->write_all(std::span(buffer).first(*recv_result));
+        auto send_result =
+            sock->write_all(std::span(buffer).first(*recv_result));
         EXPECT_TRUE(send_result);
       }
     }
@@ -225,7 +226,8 @@ TEST_F(SyncClientServerFixture, BinaryData) {
       std::array<std::byte, 1024> buffer{};
       auto recv_result = sock->read_some(std::span(buffer));
       if (recv_result && *recv_result > 0) {
-        auto send_result = sock->write_all(std::span(buffer).first(*recv_result));
+        auto send_result =
+            sock->write_all(std::span(buffer).first(*recv_result));
         EXPECT_TRUE(send_result);
       }
     }
