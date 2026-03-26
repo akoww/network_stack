@@ -110,15 +110,13 @@ TcpSocket::read_until(std::span<std::byte> buffer, std::string_view delimiter) {
 namespace {
 
 std::size_t
-move_data(std::vector<char> &buffer, std::span<std::byte> out,
+move_data(std::vector<std::byte> &buffer, std::span<std::byte> out,
           const std::size_t max_len = std::numeric_limits<std::size_t>::max()) {
   // Limit max_bytes to avoid overflow
   std::size_t bytes_to_copy = std::min({max_len, buffer.size(), out.size()});
 
-  // Copy with explicit conversion char -> std::byte
-  std::transform(buffer.begin(),
-                 buffer.begin() + static_cast<std::ptrdiff_t>(bytes_to_copy),
-                 out.begin(), [](char c) { return std::byte(c); });
+  std::ranges::copy_n(buffer.begin(),
+                      static_cast<std::ptrdiff_t>(bytes_to_copy), out.begin());
 
   // Remove copied bytes from the buffer
   buffer.erase(buffer.begin(),
@@ -206,9 +204,11 @@ asio::awaitable<std::expected<std::size_t, std::error_code>>
 TcpSocket::async_read_until(std::span<std::byte> out, std::string_view delim) {
   std::ranges::fill(out, std::byte{0});
 
+  auto delim_as_sv = std::as_bytes(std::span(delim));
+
   while (true) {
     auto it = std::search(read_buffer_.begin(), read_buffer_.end(),
-                          std::begin(delim), std::end(delim));
+                          std::begin(delim_as_sv), std::end(delim_as_sv));
     if (it != read_buffer_.end()) {
       std::size_t len = static_cast<std::size_t>(it - read_buffer_.begin() + 1);
       if (len > out.size()) {

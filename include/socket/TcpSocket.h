@@ -28,7 +28,7 @@ namespace Network {
 class TcpSocket : public SocketBase, public SyncSocket, public AsyncSocket {
 private:
   asio::ip::tcp::socket socket_;
-  std::vector<char> read_buffer_;
+  std::vector<std::byte> read_buffer_;
 
 public:
   /// @brief Construct with an io_context.
