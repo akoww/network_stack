@@ -59,24 +59,27 @@ TEST_F(IoContextFixture, MultipleClientsConcurrent) {
 
 TEST_F(SyncClientServerFixture, EchoServerMultipleMessages) {
   class EchoServer : public TestSyncServer {
+    std::vector<std::jthread> _threads;
+
   public:
     EchoServer(uint16_t port, asio::io_context &io_ctx)
         : TestSyncServer(port, io_ctx) {}
     void handle_client(std::unique_ptr<TcpSocket> sock) override {
-      std::array<std::byte, 1024> buffer{};
-      while (true) {
-        auto recv_result = sock->read_some(std::span(buffer));
-        if (!recv_result || *recv_result == 0)
-          break;
-        auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
-        if (!send_result)
-          break;
-      }
+      _threads.emplace_back([sock = std::move(sock)]() {
+        std::array<std::byte, 1024> buffer{};
+        while (true) {
+          auto recv_result = sock->read_some(std::span(buffer));
+          if (!recv_result || *recv_result == 0)
+            break;
+          auto send_result =
+              sock->write_all(std::span(buffer).first(*recv_result));
+          if (!send_result)
+            break;
+        }
+      });
     }
   };
   EchoServer server(test_port, _io_ctx);
-  server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   auto connect_result = _client.connect({});
@@ -95,30 +98,34 @@ TEST_F(SyncClientServerFixture, EchoServerMultipleMessages) {
       }
     }
   }
+  _client_socket.reset(); // shutdown
   server.stop();
   server_thread_.join();
 }
 
 TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
   class EchoServer : public TestSyncServer {
+    std::vector<std::jthread> _threads;
+
   public:
     EchoServer(uint16_t port, asio::io_context &io_ctx)
         : TestSyncServer(port, io_ctx) {}
     void handle_client(std::unique_ptr<TcpSocket> sock) override {
-      std::array<std::byte, 1024> buffer{};
-      while (true) {
-        auto recv_result = sock->read_some(std::span(buffer));
-        if (!recv_result || *recv_result == 0)
-          break;
-        auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
-        if (!send_result)
-          break;
-      }
+      _threads.emplace_back([sock = std::move(sock)]() {
+        std::array<std::byte, 1024> buffer{};
+        while (true) {
+          auto recv_result = sock->read_some(std::span(buffer));
+          if (!recv_result || *recv_result == 0)
+            break;
+          auto send_result =
+              sock->write_all(std::span(buffer).first(*recv_result));
+          if (!send_result)
+            break;
+        }
+      });
     }
   };
   EchoServer server(test_port, _io_ctx);
-  server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   std::vector<std::unique_ptr<SyncSocket>> sockets;
@@ -150,7 +157,6 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
 
 TEST_F(SyncClientServerFixture, ServerRestart) {
   TestSyncServer server(test_port, _io_ctx);
-  server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   auto connect_result = _client.connect({});
@@ -182,21 +188,24 @@ TEST_F(IoContextFixture, InvalidHost) {
 
 TEST_F(SyncClientServerFixture, SpecialCharacters) {
   class EchoServer : public TestSyncServer {
+    std::vector<std::jthread> _threads;
+
   public:
     EchoServer(uint16_t port, asio::io_context &io_ctx)
         : TestSyncServer(port, io_ctx) {}
     void handle_client(std::unique_ptr<TcpSocket> sock) override {
-      std::array<std::byte, 1024> buffer{};
-      auto recv_result = sock->read_some(std::span(buffer));
-      if (recv_result && *recv_result > 0) {
-        auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
-        EXPECT_TRUE(send_result);
-      }
+      _threads.emplace_back([sock = std::move(sock)]() {
+        std::array<std::byte, 1024> buffer{};
+        auto recv_result = sock->read_some(std::span(buffer));
+        if (recv_result && *recv_result > 0) {
+          auto send_result =
+              sock->write_all(std::span(buffer).first(*recv_result));
+          EXPECT_TRUE(send_result);
+        }
+      });
     }
   };
   EchoServer server(test_port, _io_ctx);
-  server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   auto connect_result = _client.connect({});
@@ -219,21 +228,24 @@ TEST_F(SyncClientServerFixture, SpecialCharacters) {
 
 TEST_F(SyncClientServerFixture, BinaryData) {
   class EchoServer : public TestSyncServer {
+    std::vector<std::jthread> _threads;
+
   public:
     EchoServer(uint16_t port, asio::io_context &io_ctx)
         : TestSyncServer(port, io_ctx) {}
     void handle_client(std::unique_ptr<TcpSocket> sock) override {
-      std::array<std::byte, 1024> buffer{};
-      auto recv_result = sock->read_some(std::span(buffer));
-      if (recv_result && *recv_result > 0) {
-        auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
-        EXPECT_TRUE(send_result);
-      }
+      _threads.emplace_back([sock = std::move(sock)]() {
+        std::array<std::byte, 1024> buffer{};
+        auto recv_result = sock->read_some(std::span(buffer));
+        if (recv_result && *recv_result > 0) {
+          auto send_result =
+              sock->write_all(std::span(buffer).first(*recv_result));
+          EXPECT_TRUE(send_result);
+        }
+      });
     }
   };
   EchoServer server(test_port, _io_ctx);
-  server.stop();
   server_thread_ = std::thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   auto connect_result = _client.connect({});

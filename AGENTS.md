@@ -24,14 +24,20 @@ cd build && cmake .. && cmake --build .
 cmake -DCMAKE_BUILD_TYPE=Debug ..  # or Release
 ```
 
-### Build and Run Tests
+ ### Build and Run Tests
 
-```bash
-cd build && ctest                   # All tests
-ctest -R test_error_code            # By regex
-ctest -V                            # Verbose
-./build/bin/test_error_code --gtest_filter=NetworkErrorTest.NoErrorIsSuccess  # Single test
-```
+ ```bash
+ cd build && ctest                   # All tests
+ ctest -R test_error_code            # By regex pattern
+ ctest -V                            # Verbose output
+ ctest -N                          # List all test names
+ ctest -I 0,1,1                    # Run test index 0 only
+
+ # Build and run a single test executable directly
+ cmake .. && cmake --build . --target test_error_code
+ ./build/bin/test_error_code --gtest_filter=NetworkErrorTest.NoErrorIsSuccess
+ ./build/bin/test_error_code --gtest_list_tests  # List all tests in executable
+ ```
 
 ### Linting
 
@@ -75,9 +81,9 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 
 ## Error Handling
 
-- Custom error enum `Network::Error` with values: `NoError`, `ConnectionRefused`, `ConnectionTimeout`, `ConnectionLost`, `DnsFailure`, `ProtocolError`
+- **Custom error enum** `Network::Error` with values: `NoError`, `ConnectionRefused`, `ConnectionTimeout`, `ConnectionLost`, `DnsFailure`, `ProtocolError`
 - Use `std::error_code` with `Network::get_network_category()` for error codes
-- Convert with `std::make_error_code(Network::Error::X)`
+- Convert with `std::make_error_code(Network::Error::X)` or implicit conversion via `is_error_code_enum`
 - Check errors via `if (!ec)` or `if (ec)`
 - **ASIO operations**: Always use `asio::redirect_error(asio::use_awaitable, ec)` for async operations and pass `ec` parameter for sync operations
 - **Never throw exceptions**: All ASIO errors must be captured via error codes
@@ -182,7 +188,7 @@ TcpSocket::async_write_all(std::span<const std::byte> buffer) {
 }
 
 } // namespace Network
-``
+```
 
 ## Custom CMake Macros
 
@@ -193,6 +199,6 @@ TcpSocket::async_write_all(std::span<const std::byte> buffer) {
 
 ## Known Issues / TODOs
 
-- `is_connected()` in `TcpSocket` currently uses `socket_.is_open()` - may need refinement
+- `is_connected()` in `TcpSocket` currently uses `socket_.is_open()` - may need refinement for connection state
 - Missing implementations for `read_exact()` and `read_until()` edge cases
-- FTP protocol implementation is incomplete
+- FTP protocol implementation is incomplete (integration tests present but require FTP server)

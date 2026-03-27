@@ -1,9 +1,9 @@
 #pragma once
 
-#include <string>
-#include <stdint.h>
-#include <chrono>
 #include <asio/io_context.hpp>
+#include <chrono>
+#include <stdint.h>
+#include <string>
 
 namespace Network {
 
@@ -27,7 +27,8 @@ public:
   /// @param host Remote host address (domain name or IP).
   /// @param port Remote port number.
   /// @param io_ctx ASIO io_context for async operations.
-  explicit ClientBase(std::string_view host, uint16_t port, asio::io_context &io_ctx);
+  explicit ClientBase(std::string_view host, uint16_t port,
+                      asio::io_context &io_ctx);
 
   /// @brief Get the target host.
   std::string_view host() const;
@@ -44,4 +45,4 @@ private:
   asio::io_context &_io_ctx;
 };
 
-}
+} // namespace Network

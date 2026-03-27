@@ -20,12 +20,19 @@
 
 #include <algorithm>
 #include <ranges>
+#include <system_error>
 
 namespace Network {
 
-TcpSocket::TcpSocket(asio::io_context &io_ctx) : socket_(io_ctx) {}
+namespace {
+unsigned int id_count = 1;
+}
 
-TcpSocket::TcpSocket(asio::ip::tcp::socket &&sock) : socket_(std::move(sock)) {}
+TcpSocket::TcpSocket(asio::io_context &io_ctx)
+    : socket_(io_ctx), id_(id_count++) {}
+
+TcpSocket::TcpSocket(asio::ip::tcp::socket &&sock)
+    : socket_(std::move(sock)), id_(id_count++) {}
 
 TcpSocket::~TcpSocket() {
   if (socket_.is_open()) {
@@ -34,10 +41,19 @@ TcpSocket::~TcpSocket() {
   }
 }
 
+bool is_connection_closed(const std::error_code &ec) {
+  return (ec == asio::error::eof || ec == asio::error::connection_reset ||
+          ec == asio::error::broken_pipe || ec == asio::error::not_connected);
+}
+
 bool TcpSocket::is_connected() const noexcept { return socket_.is_open(); }
+
+unsigned int TcpSocket::get_id() const { return id_; }
 
 std::expected<std::size_t, std::error_code>
 TcpSocket::write_all(std::span<const std::byte> buffer) {
+  spdlog::trace("[{}] write_all", get_id());
+
   auto promise = std::make_shared<
       std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
@@ -50,11 +66,17 @@ TcpSocket::write_all(std::span<const std::byte> buffer) {
       },
       asio::detached);
 
-  return future.get();
+  try {
+    return future.get();
+  } catch (...) {
+    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+  }
 }
 
 std::expected<std::size_t, std::error_code>
 TcpSocket::read_some(std::span<std::byte> buffer) {
+  spdlog::trace("[{}] read_some", get_id());
+
   auto promise = std::make_shared<
       std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
@@ -67,11 +89,16 @@ TcpSocket::read_some(std::span<std::byte> buffer) {
       },
       asio::detached);
 
-  return future.get();
+  try {
+    return future.get();
+  } catch (...) {
+    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+  }
 }
 
 std::expected<std::size_t, std::error_code>
 TcpSocket::read_exact(std::span<std::byte> buffer) {
+  spdlog::trace("[{}] read_exact", get_id());
   auto promise = std::make_shared<
       std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
@@ -84,11 +111,17 @@ TcpSocket::read_exact(std::span<std::byte> buffer) {
       },
       asio::detached);
 
-  return future.get();
+  try {
+    return future.get();
+  } catch (...) {
+    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+  }
 }
 
 std::expected<std::size_t, std::error_code>
 TcpSocket::read_until(std::span<std::byte> buffer, std::string_view delimiter) {
+  spdlog::trace("[{}] read_until", get_id());
+
   auto promise = std::make_shared<
       std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
@@ -102,7 +135,11 @@ TcpSocket::read_until(std::span<std::byte> buffer, std::string_view delimiter) {
       },
       asio::detached);
 
-  return future.get();
+  try {
+    return future.get();
+  } catch (...) {
+    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+  }
 }
 
 // async
@@ -133,22 +170,31 @@ move_data(std::vector<std::byte> &buffer, std::span<std::byte> out,
 
 asio::awaitable<std::expected<std::size_t, std::error_code>>
 TcpSocket::async_write_all(std::span<const std::byte> buffer) {
+  spdlog::trace("[{}] aync_write_all", get_id());
+
   std::error_code ec;
   std::size_t bytes_transferred =
       co_await asio::async_write(socket_, asio::buffer(buffer),
                                  asio::redirect_error(asio::use_awaitable, ec));
+  if (is_connection_closed(ec)) {
+    socket_.close();
+    co_return std::unexpected(ec);
+  }
   if (ec) {
     co_return std::unexpected(ec);
   }
+
   auto as_sv = std::string_view(reinterpret_cast<const char *>(buffer.data()),
                                 bytes_transferred);
-  spdlog::trace("send data: \"{}\"", as_sv);
+  spdlog::trace("[{}] send data: \"{}\"", get_id(), as_sv);
 
   co_return bytes_transferred;
 }
 
 asio::awaitable<std::expected<std::size_t, std::error_code>>
 TcpSocket::async_read_some(std::span<std::byte> out) {
+  spdlog::trace("[{}] aync_read_some", get_id());
+
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});
 
@@ -159,13 +205,18 @@ TcpSocket::async_read_some(std::span<std::byte> out) {
 
     std::size_t bytes_received = co_await socket_.async_read_some(
         buffer, asio::redirect_error(asio::use_awaitable, ec));
+    if (is_connection_closed(ec)) {
+      socket_.close();
+      co_return std::unexpected(ec);
+    }
     if (ec) {
       co_return std::unexpected(ec);
     }
 
     if (bytes_received == 0) {
       spdlog::warn(
-          "buffer empty, cant read any bytes and connection is closed");
+          "[{}] buffer empty, cant read any bytes and connection is closed",
+          get_id());
       co_return std::unexpected(asio::error::eof);
     }
     dyn_buf.commit(bytes_received);
@@ -176,6 +227,7 @@ TcpSocket::async_read_some(std::span<std::byte> out) {
 
 asio::awaitable<std::expected<std::size_t, std::error_code>>
 TcpSocket::async_read_exact(std::span<std::byte> out) {
+  spdlog::trace("[{}] aync_read_exact", get_id());
 
   std::ranges::fill(out, std::byte{0});
 
@@ -186,12 +238,17 @@ TcpSocket::async_read_exact(std::span<std::byte> out) {
 
     std::size_t read_bytes = co_await socket_.async_read_some(
         buffer, asio::redirect_error(asio::use_awaitable, ec));
+    if (is_connection_closed(ec)) {
+      socket_.close();
+      co_return std::unexpected(ec);
+    }
     if (ec) {
       co_return std::unexpected(ec);
     }
     if (read_bytes == 0) {
-      spdlog::warn(
-          "buffer not enough, cant read any bytes and connection is closed");
+      spdlog::warn("[{}] buffer not enough, cant read any bytes and connection "
+                   "is closed",
+                   get_id());
       co_return std::unexpected(asio::error::eof);
     }
     dyn_buf.commit(read_bytes);
@@ -202,7 +259,7 @@ TcpSocket::async_read_exact(std::span<std::byte> out) {
 
 asio::awaitable<std::expected<std::size_t, std::error_code>>
 TcpSocket::async_read_until(std::span<std::byte> out, std::string_view delim) {
-  std::ranges::fill(out, std::byte{0});
+  spdlog::trace("[{}] aync_read_until", get_id());
 
   auto delim_as_sv = std::as_bytes(std::span(delim));
 
@@ -212,7 +269,8 @@ TcpSocket::async_read_until(std::span<std::byte> out, std::string_view delim) {
     if (it != read_buffer_.end()) {
       std::size_t len = static_cast<std::size_t>(it - read_buffer_.begin() + 1);
       if (len > out.size()) {
-        spdlog::warn("result buffer has not enough space for result");
+        spdlog::warn("[{}] result buffer has not enough space for result",
+                     get_id());
         co_return std::unexpected(
             make_error_code(Network::Error::ProtocolError));
       }
@@ -225,12 +283,17 @@ TcpSocket::async_read_until(std::span<std::byte> out, std::string_view delim) {
 
     size_t read_bytes = co_await socket_.async_read_some(
         buffer, asio::redirect_error(asio::use_awaitable, ec));
+    if (is_connection_closed(ec)) {
+      socket_.close();
+      co_return std::unexpected(ec);
+    }
     if (ec) {
       co_return std::unexpected(ec);
     }
     if (read_bytes == 0) {
-      spdlog::warn(
-          "buffer not enough, cant read any bytes and connection is closed");
+      spdlog::warn("[{}] buffer not enough, cant read any bytes and connection "
+                   "is closed",
+                   get_id());
       co_return std::unexpected(asio::error::eof);
     }
     dyn_buf.commit(read_bytes);

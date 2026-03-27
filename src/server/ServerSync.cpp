@@ -12,7 +12,7 @@
 
 namespace Network {
 
-ServerSync::ServerSync(uint16_t port, asio::io_context& io_ctx)
+ServerSync::ServerSync(uint16_t port, asio::io_context &io_ctx)
     : ServerBase(port, io_ctx) {}
 
 std::expected<void, std::error_code> ServerSync::listen() {
@@ -63,8 +63,7 @@ void ServerSync::start_accept(
     return;
 
   if (is_stopped()) {
-    promise->set_value(
-        std::expected<void, std::error_code>{});
+    promise->set_value(std::expected<void, std::error_code>{});
     return;
   }
 
@@ -93,7 +92,6 @@ void ServerSync::start_accept(
 
     auto new_socket = std::make_unique<TcpSocket>(std::move(*socket));
     handle_client(std::move(new_socket));
-
     start_accept(std::move(promise));
   });
 }
@@ -109,4 +107,4 @@ void ServerSync::stop() {
   spdlog::info("server closed");
 }
 
-}
+} // namespace Network

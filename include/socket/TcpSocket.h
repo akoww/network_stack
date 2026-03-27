@@ -27,6 +27,7 @@ class TcpSocket : public SyncSocket, public AsyncSocket {
 private:
   asio::ip::tcp::socket socket_;
   std::vector<std::byte> read_buffer_;
+  unsigned int id_ = 0;
 
 public:
   /// @brief Construct with an io_context.
@@ -38,6 +39,8 @@ public:
   ~TcpSocket() override;
 
   bool is_connected() const noexcept override;
+
+  unsigned int get_id() const;
 
   // sync
 
