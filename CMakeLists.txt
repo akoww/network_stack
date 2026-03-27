@@ -166,6 +166,7 @@ set(TEST_SOURCES
     tests/test_sync_client_server.cpp
     tests/test_context_wrapper.cpp
     tests/test_ftp_integration.cpp
+    tests/test_async_client_server.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
