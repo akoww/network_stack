@@ -46,7 +46,7 @@ ClientSync::connect(Options /*opts*/) {
   spdlog::info("client connected to {}:{} successfully", host(), port());
   auto tcp_socket = std::make_unique<TcpSocket>(std::move(socket));
 
-  return std::move(tcp_socket);
+  return tcp_socket;
 }
 
 } // namespace Network

@@ -9,6 +9,7 @@ namespace Network {
 /// All socket classes must inherit from this interface to ensure consistent behavior.
 class SocketBase {
 public:
+
     virtual ~SocketBase() = default;
 
     /// @brief Check if the socket is currently connected to a remote endpoint.
