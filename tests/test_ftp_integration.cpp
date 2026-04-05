@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
-
 #include <spdlog/spdlog.h>
+
+#include "fixtures/FtpServerFixture.h"
 
 #include "core/Context.h"
 #include "core/ErrorCodes.h"
@@ -613,4 +614,26 @@ TEST(FtpIntegrationTest, WriteWithCallbackError) {
   io_ctx.stop();
 }
 
+namespace {
+
+class FtpEnvironment : public ::testing::Environment {
+public:
+  void SetUp() override { fixture_.start(); }
+
+  void TearDown() override { fixture_.stop(); }
+
+private:
+  Network::Test::FtpServerFixture fixture_;
+};
+
+} // namespace
+
 } // namespace Network::Test
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+
+  ::testing::AddGlobalTestEnvironment(new Network::Test::FtpEnvironment());
+
+  return RUN_ALL_TESTS();
+}
