@@ -49,7 +49,7 @@ inline std::span<const std::byte> to_bytes(std::string_view sv) {
 
 inline std::string_view to_string_view(std::span<const std::byte> bytes,
                                        std::size_t length) {
-  if (length >= bytes.size())
+  if (length > bytes.size())
     return "";
   return {reinterpret_cast<const char *>(bytes.data()), length};
 }
