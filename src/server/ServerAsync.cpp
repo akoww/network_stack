@@ -61,8 +61,8 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen() {
     co_await _acceptor.async_accept(
         socket, asio::redirect_error(asio::use_awaitable, ec));
 
-    if (is_stopped() && (ec == asio::error::operation_aborted ||
-                         ec == asio::error::bad_descriptor)) {
+    if (ec == asio::error::operation_aborted ||
+        ec == asio::error::bad_descriptor) {
       co_return std::expected<void, std::error_code>{};
     }
 
