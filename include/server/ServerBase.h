@@ -1,6 +1,5 @@
 #pragma once
 
-#include <atomic>
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
 

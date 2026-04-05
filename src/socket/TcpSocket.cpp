@@ -17,9 +17,6 @@
 #include <future>
 #include <memory>
 #include <spdlog/spdlog.h>
-
-#include <algorithm>
-#include <ranges>
 #include <system_error>
 
 namespace Network {
@@ -148,7 +145,7 @@ namespace {
 
 std::size_t
 move_data(std::vector<std::byte> &buffer, std::span<std::byte> out,
-          const std::size_t max_len = std::numeric_limits<std::size_t>::max()) {
+           const std::size_t max_len = std::numeric_limits<std::size_t>::max()) {
   // Limit max_bytes to avoid overflow
   std::size_t bytes_to_copy = std::min({max_len, buffer.size(), out.size()});
 

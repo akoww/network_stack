@@ -1,5 +1,4 @@
 #include "core/Context.h"
-
 #include <spdlog/spdlog.h>
 
 namespace Network {
@@ -26,7 +25,7 @@ void IoContextWrapper::start() {
   }
   std::lock_guard<std::mutex> lock(mutex_);
 
-   this->restart();
+   restart();
    work_guard_.emplace(this->get_executor());
    running_ = true;
    thread_ = std::thread([this]() {

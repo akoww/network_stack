@@ -1,6 +1,9 @@
 #pragma once
 
 #include <asio/io_context.hpp>
+#include <atomic>
+#include <mutex>
+#include <optional>
 #include <thread>
 
 namespace Network {

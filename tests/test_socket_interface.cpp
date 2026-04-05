@@ -1,7 +1,5 @@
-#include <gtest/gtest.h>
 #include "socket/TcpSocket.h"
-
-#include <asio.hpp>
+#include <gtest/gtest.h>
 
 namespace Network::Test
 {

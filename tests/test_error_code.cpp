@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "core/ErrorCodes.h"
+#include <gtest/gtest.h>
 
 TEST(NetworkErrorTest, NoErrorIsSuccess)
 {

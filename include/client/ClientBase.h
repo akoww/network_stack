@@ -2,7 +2,6 @@
 
 #include <asio/io_context.hpp>
 #include <chrono>
-#include <stdint.h>
 #include <string>
 
 namespace Network {

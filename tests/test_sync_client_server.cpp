@@ -2,11 +2,9 @@
 #include <asio.hpp>
 #include <atomic>
 #include <chrono>
+#include <expected>
 #include <gtest/gtest.h>
-#include <iostream>
-#include <numeric>
 #include <thread>
-#include <vector>
 
 #include "client/ClientSync.h"
 #include "fixtures/test_fixture_io_context.h"
@@ -130,15 +128,15 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
 }
 
 TEST_F(IoContextFixture, ConnectionRefused) {
-  ClientSync client("127.0.0.1", 59999, get_io_context());
-  auto connect_result = client.connect({});
-  EXPECT_TRUE(!connect_result.has_value());
+   ClientSync client("127.0.0.1", 59999, get_io_context());
+   auto connect_result = client.connect({});
+   EXPECT_FALSE(connect_result.has_value());
 }
 
 TEST_F(IoContextFixture, InvalidHost) {
-  ClientSync client("invalid.host.invalid", TEST_PORT, get_io_context());
-  auto connect_result = client.connect({});
-  EXPECT_TRUE(!connect_result.has_value());
+   ClientSync client("invalid.host.invalid", TEST_PORT, get_io_context());
+   auto connect_result = client.connect({});
+   EXPECT_FALSE(connect_result.has_value());
 }
 
 TEST_F(SyncClientServerFixture, SpecialCharacters) {

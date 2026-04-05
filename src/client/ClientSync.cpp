@@ -8,9 +8,8 @@
 #include <asio/ip/tcp.hpp>
 #include <memory>
 #include <spdlog/spdlog.h>
-#include <system_error>
-
 #include "socket/TcpSocket.h"
+#include <system_error>
 
 namespace Network {
 

@@ -1,10 +1,9 @@
 #include <array>
 #include <asio.hpp>
 #include <chrono>
+#include <expected>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <thread>
-#include <vector>
 
 #include "client/ClientAsync.h"
 #include "fixtures/test_fixture_async_client_server.h"
