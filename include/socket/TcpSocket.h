@@ -5,6 +5,7 @@
 
 #include <asio/ip/basic_resolver.hpp>
 #include <asio/ip/tcp.hpp>
+#include <optional>
 
 namespace Network {
 
@@ -43,59 +44,38 @@ public:
 
   // sync
 
-  /// @brief Send all data in the buffer via the socket.
-  /// @param buffer Span of data to send.
-  /// @return Number of bytes sent, or error code on failure.
   std::expected<std::size_t, std::error_code>
-  write_all(std::span<const std::byte> buffer) override;
+  write_all(std::span<const std::byte> buffer,
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive data from the socket without blocking indefinitely.
-  /// @param buffer Span to receive data into.
-  /// @return Number of bytes received, or error code on failure.
   std::expected<std::size_t, std::error_code>
-  read_some(std::span<std::byte> buffer) override;
+  read_some(std::span<std::byte> buffer,
+            std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive exactly buffer.size() bytes into the buffer.
-  /// @param buffer Span to receive data into.
-  /// @return Number of bytes received (always equals buffer size on success),
-  /// or error code on failure (timeout, connection closed, etc.).
   std::expected<std::size_t, std::error_code>
-  read_exact(std::span<std::byte> buffer) override;
+  read_exact(std::span<std::byte> buffer,
+             std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive data until delimiter is found.
-  /// @param buffer Span to receive data into.
-  /// @param delimiter Delimiter string to search for (e.g., "\\n").
-  /// @return Number of bytes received (including delimiter), or error code.
   std::expected<std::size_t, std::error_code>
-  read_until(std::span<std::byte> buffer, std::string_view delimiter) override;
+  read_until(std::span<std::byte> buffer, std::string_view delimiter,
+             std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   // async
 
-  /// @brief Send all data in the buffer via the socket asynchronously.
-  /// @param buffer Span of data to send.
-  /// @return Number of bytes sent, or error code on failure.
   asio::awaitable<std::expected<std::size_t, std::error_code>>
-  async_write_all(std::span<const std::byte> buffer) override;
+  async_write_all(std::span<const std::byte> buffer,
+                  std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive data from the socket asynchronously.
-  /// @param buffer Span to receive data into.
-  /// @return Number of bytes received, or error code on failure.
   asio::awaitable<std::expected<std::size_t, std::error_code>>
-  async_read_some(std::span<std::byte> buffer) override;
+  async_read_some(std::span<std::byte> buffer,
+                  std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive exactly buffer.size() bytes into the buffer asynchronously.
-  /// @param buffer Span to receive data into.
-  /// @return Number of bytes received (always equals buffer size on success),
-  /// or error code on failure (timeout, connection closed, etc.).
   asio::awaitable<std::expected<std::size_t, std::error_code>>
-  async_read_exact(std::span<std::byte> buffer) override;
+  async_read_exact(std::span<std::byte> buffer,
+                   std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  /// @brief Receive data until delimiter is found asynchronously.
-  /// @param buffer Span to receive data into.
-  /// @param delimiter Delimiter string to search for (e.g., "\\n").
-  /// @return Number of bytes received (including delimiter), or error code.
   asio::awaitable<std::expected<std::size_t, std::error_code>>
-  async_read_until(std::span<std::byte> buffer,
-                   std::string_view delimiter) override;
+  async_read_until(std::span<std::byte> buffer, std::string_view delimiter,
+                   std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };
 } // namespace Network
