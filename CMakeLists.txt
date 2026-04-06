@@ -164,10 +164,12 @@ set(TEST_SOURCES
     tests/test_socket_interface.cpp
     tests/test_sync_client_server.cpp
     tests/test_sync_client_server_edge_cases.cpp
+    tests/test_sync_timeouts.cpp
     tests/test_context_wrapper.cpp
     tests/test_ftp_integration.cpp
     tests/test_async_client_server.cpp
     tests/test_async_client_server_edge_cases.cpp
+    tests/test_async_timeouts.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
