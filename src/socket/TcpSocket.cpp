@@ -195,6 +195,11 @@ TcpSocket::async_read_some(std::span<std::byte> out) {
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});
 
+  // if buffer is empty, immediately return 0 bytes
+  if (out.empty()) {
+    co_return std::size_t{0};
+  }
+
   // if buffer is empty, we need to read some data
   if (read_buffer_.empty()) {
     auto dyn_buf = asio::dynamic_buffer(read_buffer_);

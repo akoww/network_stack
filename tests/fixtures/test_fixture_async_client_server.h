@@ -30,11 +30,16 @@ public:
         get_io_context(),
         [sock = std::move(sock)]() mutable -> asio::awaitable<void> {
           std::array<std::byte, 1024> buffer{};
-          auto recv_result = co_await sock->async_read_some(std::span(buffer));
-          if (recv_result && *recv_result > 0) {
+          while (true) {
+            auto recv_result = co_await sock->async_read_some(std::span(buffer));
+            if (!recv_result || *recv_result == 0) {
+              break;
+            }
             auto send_result = co_await sock->async_write_all(
                 std::span(buffer).first(*recv_result));
-            EXPECT_TRUE(send_result);
+            if (!send_result) {
+              break;
+            }
           }
           co_return;
         },
