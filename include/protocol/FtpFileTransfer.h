@@ -60,7 +60,8 @@ public:
     std::string username = "anonymous";
     std::string password = "anonymous@";
     std::chrono::milliseconds timeout = std::chrono::seconds(10);
-    bool use_passive = false; // Use PASV (true) or EPSP (false)
+    std::optional<std::chrono::milliseconds> data_timeout = std::nullopt;
+    bool use_passive = false;
   };
 
   /// @brief Construct with host, port, and io_context.
@@ -147,13 +148,16 @@ protected:
   // Static variants for data channel operations
 
   std::expected<void, std::error_code> sendCommand(SyncSocket &sock,
-                                                   std::string_view cmd);
-  std::expected<Answer, std::error_code> receiveResponse(SyncSocket &sock);
+                                                    std::string_view cmd,
+                                                    std::chrono::milliseconds timeout);
+  std::expected<Answer, std::error_code> receiveResponse(SyncSocket &sock,
+                                                          std::chrono::milliseconds timeout);
   std::expected<std::vector<std::byte>, std::error_code>
-  receiveRawResponse(SyncSocket &sock);
+  receiveRawResponse(SyncSocket &sock, std::chrono::milliseconds timeout);
 
   std::expected<Answer, std::error_code>
-  sendAndReceiveResponse(SyncSocket &sock, std::string_view cmd);
+  sendAndReceiveResponse(SyncSocket &sock, std::string_view cmd,
+                          std::chrono::milliseconds timeout);
 
   /// @brief Open FTP data connection (directory listing or file transfer).
   /// Uses PASV or EPSV based on server capabilities and configuration.
@@ -178,7 +182,10 @@ protected:
   /// @brief Check if path is directory using CWD.
   std::expected<bool, std::error_code> isDirectoryCwd(std::string_view name);
 
-private:
+  /// @brief Get data timeout (defaults to control timeout if not set).
+  std::chrono::milliseconds getDataTimeout() const noexcept;
+
+ private:
   std::string _host;
   uint16_t _port;
   DefaultFtpNavigator _navigator;

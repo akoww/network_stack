@@ -17,6 +17,7 @@ TEST(FtpIntegrationTest, ConnectAndDisconnect) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -39,6 +40,7 @@ TEST(FtpIntegrationTest, ExistsFile) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -70,6 +72,7 @@ TEST(FtpIntegrationTest, ListDirectory) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -110,6 +113,7 @@ TEST(FtpIntegrationTest, ExistsAndListCombined) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -141,6 +145,7 @@ TEST(FtpIntegrationTest, NestedDirectoriesNavigation) {
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -221,6 +226,7 @@ TEST(FtpIntegrationTest, WriteAndReadFile) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -274,6 +280,7 @@ TEST(FtpIntegrationTest, ReadExistingFile) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -310,6 +317,7 @@ TEST(FtpIntegrationTest, IsDirectory) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -373,6 +381,7 @@ TEST(FtpIntegrationTest, ReadWithCallback) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value())
@@ -428,6 +437,7 @@ TEST(FtpIntegrationTest, ReadWithCallbackError) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value());
@@ -459,6 +469,7 @@ TEST(FtpIntegrationTest, WriteWithCallback) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value());
@@ -536,6 +547,7 @@ TEST(FtpIntegrationTest, WriteWithCallbackMultipleChunks) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value());
@@ -589,6 +601,7 @@ TEST(FtpIntegrationTest, WriteWithCallbackError) {
   opts.username = "anonymous";
   opts.password = "";
   opts.timeout = std::chrono::seconds(10);
+  opts.data_timeout = std::chrono::seconds(30);
 
   auto ftp_result = openFtpConnection("127.0.0.1", 2121, io_ctx, opts);
   EXPECT_TRUE(ftp_result.has_value());
