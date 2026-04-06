@@ -12,6 +12,7 @@
 namespace Network {
 
 class TcpSocket;
+class SslSocket;
 
 /// @brief Synchronous server implementation.
 /// Uses blocking accept and client handling.
@@ -35,12 +36,21 @@ public:
   /// @note Blocks until listen() is called or server is stopped.
   std::expected<void, std::error_code> listen();
 
+  /// @brief Start accepting TLS connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note Blocks until listen() is called or server is stopped.
+  std::expected<void, std::error_code> listen_tls();
+
   /// @brief Stop accepting connections.
   /// Closes the acceptor and signals threads waiting on accept to wake up.
   void stop();
 
 protected:
   void start_accept(
+      std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
+          promise);
+
+  void start_accept_tls(
       std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
           promise);
 

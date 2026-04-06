@@ -1,6 +1,7 @@
 #pragma once
 
 #include <asio/io_context.hpp>
+#include <asio/ssl/context.hpp>
 #include <chrono>
 #include <string>
 
@@ -38,10 +39,15 @@ public:
   /// @brief Get the io_context reference.
   asio::io_context &get_io_context();
 
+  /// @brief Get the SSL context for TLS connections.
+  /// @return Shared pointer to SSL context.
+  std::shared_ptr<asio::ssl::context> get_ssl_context();
+
 private:
   std::string _host;
   uint16_t _port;
   asio::io_context &_io_ctx;
+  std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 
 } // namespace Network

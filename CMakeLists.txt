@@ -104,6 +104,11 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # ============================================================================
 find_package(spdlog REQUIRED)
 
+# ============================================================================
+# OpenSSL Dependency
+# ============================================================================
+find_package(OpenSSL REQUIRED)
+
 
 # ============================================================================
 # Library Target: network_stack_core
@@ -126,8 +131,10 @@ target_sources(network_stack_core
         src/core/Context.cpp
         src/core/ErrorCodes.cpp
 
+        src/socket/SocketBase.cpp
         src/socket/TcpSocket.cpp
         src/socket/TcpImpl.cpp
+        src/socket/SslSocket.cpp
 
         src/client/ClientAsync.cpp
         src/client/ClientBase.cpp
@@ -152,6 +159,8 @@ target_link_libraries(network_stack_core
     PUBLIC
         ASIO::ASIO 
         spdlog::spdlog
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
 
 # ============================================================================
@@ -167,9 +176,11 @@ set(TEST_SOURCES
     tests/test_sync_timeouts.cpp
     tests/test_context_wrapper.cpp
     tests/test_ftp_integration.cpp
+    tests/test_sync_tls.cpp
     tests/test_async_client_server.cpp
     tests/test_async_client_server_edge_cases.cpp
     tests/test_async_timeouts.cpp
+    tests/test_async_tls.cpp
 )
 
 add_separate_tests(TEST_SOURCES)

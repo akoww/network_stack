@@ -4,6 +4,7 @@
 
 #include "client/ClientAsync.h"
 #include "server/ServerAsync.h"
+#include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 #include "core/Context.h"
 
@@ -26,6 +27,27 @@ public:
   EchoServer(uint16_t port, asio::io_context &io_ctx)
       : ServerAsync(port, io_ctx) {}
   void handle_client(std::unique_ptr<TcpSocket> sock) override {
+    asio::co_spawn(
+        get_io_context(),
+        [sock = std::move(sock)]() mutable -> asio::awaitable<void> {
+          std::array<std::byte, 1024> buffer{};
+          while (true) {
+            auto recv_result = co_await sock->async_read_some(std::span(buffer));
+            if (!recv_result || *recv_result == 0) {
+              break;
+            }
+            auto send_result = co_await sock->async_write_all(
+                std::span(buffer).first(*recv_result));
+            if (!send_result) {
+              break;
+            }
+          }
+          co_return;
+        },
+        asio::detached);
+  }
+
+  void handle_client_tls(std::unique_ptr<SslSocket> sock) override {
     asio::co_spawn(
         get_io_context(),
         [sock = std::move(sock)]() mutable -> asio::awaitable<void> {

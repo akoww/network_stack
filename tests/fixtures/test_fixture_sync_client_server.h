@@ -5,6 +5,7 @@
 #include "client/ClientSync.h"
 #include "core/Context.h"
 #include "server/ServerSync.h"
+#include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
 #include <memory>
@@ -18,6 +19,21 @@ public:
   EchoServer(uint16_t port, asio::io_context &io_ctx)
       : ServerSync(port, io_ctx) {}
   void handle_client(std::unique_ptr<TcpSocket> sock) override {
+    _threads.emplace_back([sock = std::move(sock)]() {
+      std::array<std::byte, 1024> buffer{};
+      while (true) {
+        auto recv_result = sock->read_some(std::span(buffer));
+        if (!recv_result || *recv_result == 0)
+          break;
+        auto send_result =
+            sock->write_all(std::span(buffer).first(*recv_result));
+        if (!send_result)
+          break;
+      }
+    });
+  }
+
+  void handle_client_tls(std::unique_ptr<SslSocket> sock) override {
     _threads.emplace_back([sock = std::move(sock)]() {
       std::array<std::byte, 1024> buffer{};
       while (true) {

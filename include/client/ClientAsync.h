@@ -37,6 +37,12 @@ public:
   /// @return Socket on success, or error code on failure.
   asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
   connect(Options opts);
+
+  /// @brief Asynchronously connect to the remote endpoint using TLS.
+  /// @param opts Connection options including timeout.
+  /// @return TLS socket on success, or error code on failure.
+  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+  connect_tls(Options opts);
 };
 
 } // namespace Network

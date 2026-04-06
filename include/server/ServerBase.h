@@ -2,9 +2,11 @@
 
 #include <asio/io_context.hpp>
 #include <asio/ip/tcp.hpp>
+#include <asio/ssl/context.hpp>
 
 namespace Network {
 
+class SslSocket;
 class TcpSocket;
 
 /// @brief Base class for server implementations.
@@ -37,10 +39,19 @@ public:
   /// @brief Get the io_context reference.
   asio::io_context &get_io_context();
 
+  /// @brief Get the SSL context for TLS connections.
+  /// @return Shared pointer to SSL context.
+  std::shared_ptr<asio::ssl::context> get_ssl_context();
+
   /// @brief Handle a new client connection.
   /// Called when a client connects to the server.
   /// @param socket Connected TCP socket for the client.
   virtual void handle_client(std::unique_ptr<TcpSocket> socket) = 0;
+
+  /// @brief Handle a new client connection using TLS.
+  /// Called when a client connects to the server with TLS.
+  /// @param socket Connected TLS socket for the client.
+  virtual void handle_client_tls(std::unique_ptr<SslSocket> socket) = 0;
 
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
@@ -58,6 +69,7 @@ private:
   std::string _host;
   uint16_t _port;
   asio::io_context &_io_ctx;
+  std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 
 }

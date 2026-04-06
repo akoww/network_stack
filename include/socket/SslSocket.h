@@ -4,37 +4,19 @@
 #include "SyncSocketInterface.h"
 
 #include <asio/ip/tcp.hpp>
-#include <optional>
+#include <asio/ssl/stream.hpp>
+#include <memory>
 
 namespace Network {
 
-/// @brief TCP socket implementation using ASIO.
-/// Supports both synchronous and asynchronous operations.
-/// This class implements both SyncSocket and AsyncSocket interfaces,
-/// allowing seamless switching between blocking and non-blocking I/O.
-/// @section sync_usage Synchronous Usage
-/// ```cpp
-/// asio::io_context io_ctx;
-/// TcpSocket socket(io_ctx);
-/// auto result = socket.write_all(data);
-/// ```
-/// @section async_usage Asynchronous Usage
-/// ```cpp
-/// asio::co_spawn(io_ctx, async_operation(), asio::detached);
-/// ```
-class TcpSocket : public SyncSocket, public AsyncSocket {
+class SslSocket : public SyncSocket, public AsyncSocket {
 private:
-  asio::ip::tcp::socket socket_;
-  std::vector<std::byte> read_buffer_;
+  asio::ssl::stream<asio::ip::tcp::socket> _stream;
+  std::vector<std::byte> _read_buffer;
 
 public:
-  /// @brief Construct with an io_context.
-  explicit TcpSocket(asio::io_context &io_ctx);
-
-  /// @brief Construct by moving in an existing socket.
-  explicit TcpSocket(asio::ip::tcp::socket &&sock);
-
-  ~TcpSocket() override;
+  explicit SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
+  ~SslSocket() override;
 
   bool is_connected() const noexcept override;
 
@@ -43,10 +25,8 @@ public:
 
   bool is_connection_closed(const std::error_code &ec) const noexcept override;
 
-  asio::ip::tcp::socket &get_socket() { return socket_; }
-  std::vector<std::byte> &get_read_buffer() { return read_buffer_; }
-
-  // sync
+  asio::ssl::stream<asio::ip::tcp::socket> &get_socket() { return _stream; }
+  std::vector<std::byte> &get_read_buffer() { return _read_buffer; }
 
   std::expected<std::size_t, std::error_code> write_all(
       std::span<const std::byte> buffer,
@@ -64,8 +44,6 @@ public:
       std::span<std::byte> buffer, std::string_view delimiter,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  // async
-
   asio::awaitable<std::expected<std::size_t, std::error_code>> async_write_all(
       std::span<const std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
@@ -82,4 +60,5 @@ public:
       std::span<std::byte> buffer, std::string_view delimiter,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };
+
 } // namespace Network

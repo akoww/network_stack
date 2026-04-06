@@ -3,12 +3,15 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
 #include <asio/awaitable.hpp>
+#include <asio/ssl/context.hpp>
 
 #include "ServerBase.h"
 
 #include <expected>
 
 namespace Network {
+
+class SslSocket;
 
 /// @brief Asynchronous server implementation.
 /// Uses coroutines for async accept and client handling.
@@ -32,6 +35,11 @@ public:
   /// @return error_code on failure (e.g., port already in use).
   /// @note This coroutine will not complete until server is stopped.
   asio::awaitable<std::expected<void, std::error_code>> listen();
+
+  /// @brief Asynchronously start accepting TLS connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note This coroutine will not complete until server is stopped.
+  asio::awaitable<std::expected<void, std::error_code>> listen_tls();
 
   /// @brief Stop accepting connections.
   /// Closes the acceptor and signals any waiting async operations.
