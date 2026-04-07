@@ -20,44 +20,44 @@ class SyncSocket : public virtual SocketBase {
 public:
   virtual ~SyncSocket() = default;
 
-  /// @brief Receive data from the socket without blocking indefinitely.
-  /// @param buffer Span to receive data into.
-  /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
-  /// applied.
-  /// @return Number of bytes received, or error code on failure.
-  /// @note May return fewer bytes than buffer size.
-  virtual std::expected<std::size_t, std::error_code> read_some(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
+/// @brief Receive data from the socket without blocking indefinitely.
+   /// @param buffer Span to receive data into.
+   /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
+   /// applied.
+   /// @return Number of bytes received, or error code on failure.
+   /// @note May return fewer bytes than buffer size.
+   virtual std::expected<std::size_t, std::error_code> readSome(
+       std::span<std::byte> buffer,
+       std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
 
-  /// @brief Send all data in the buffer via the socket.
-  /// @param buffer Span of data to send.
-  /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
-  /// applied.
-  /// @return Number of bytes sent, or error code on failure.
-  virtual std::expected<std::size_t, std::error_code> write_all(
-      std::span<const std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
+   /// @brief Send all data in the buffer via the socket.
+   /// @param buffer Span of data to send.
+   /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
+   /// applied.
+   /// @return Number of bytes sent, or error code on failure.
+   virtual std::expected<std::size_t, std::error_code> writeAll(
+       std::span<const std::byte> buffer,
+       std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
 
-  /// @brief Receive exactly len bytes into the buffer.
-  /// @param buffer Span to receive data into.
-  /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
-  /// applied.
-  /// @return Number of bytes received (always equals buffer size on success),
-  /// or error code on failure (timeout, connection closed, etc.).
-  virtual std::expected<std::size_t, std::error_code> read_exact(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
+   /// @brief Receive exactly len bytes into the buffer.
+   /// @param buffer Span to receive data into.
+   /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
+   /// applied.
+   /// @return Number of bytes received (always equals buffer size on success),
+   /// or error code on failure (timeout, connection closed, etc.).
+   virtual std::expected<std::size_t, std::error_code> readExact(
+       std::span<std::byte> buffer,
+       std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
 
-  /// @brief Receive data until delimiter is found.
-  /// @param buffer Span to receive data into.
-  /// @param delimiter Delimiter string to search for (e.g., "\\n").
-  /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
-  /// applied.
-  /// @return Number of bytes received (including delimiter), or error code.
-  virtual std::expected<std::size_t, std::error_code> read_until(
-      std::span<std::byte> buffer, std::string_view delimiter,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
+   /// @brief Receive data until delimiter is found.
+   /// @param buffer Span to receive data into.
+   /// @param delimiter Delimiter string to search for (e.g., "\\n").
+   /// @param timeout Optional timeout duration. If std::nullopt, no timeout is
+   /// applied.
+   /// @return Number of bytes received (including delimiter), or error code.
+   virtual std::expected<std::size_t, std::error_code> readUntil(
+       std::span<std::byte> buffer, std::string_view delimiter,
+       std::optional<std::chrono::milliseconds> timeout = std::nullopt) = 0;
 };
 
 } // namespace Network

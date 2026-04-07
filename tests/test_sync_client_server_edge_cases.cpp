@@ -31,7 +31,7 @@ TEST_F(IoContextFixture, ZeroSizeWrite) {
   auto client_socket = std::move(*connect_result);
 
   std::span<const std::byte> empty_span{};
-  auto send_result = client_socket->write_all(empty_span);
+  auto send_result = client_socket->writeAll(empty_span);
   EXPECT_TRUE(send_result);
   if (send_result) {
     EXPECT_EQ(*send_result, 0);
@@ -56,7 +56,7 @@ TEST_F(IoContextFixture, ZeroSizeRead) {
   auto client_socket = std::move(*connect_result);
 
   std::span<std::byte> empty_span{};
-  auto recv_result = client_socket->read_some(empty_span);
+  auto recv_result = client_socket->readSome(empty_span);
   EXPECT_TRUE(recv_result);
   if (recv_result) {
     EXPECT_EQ(*recv_result, 0);
@@ -105,7 +105,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite) {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
-  auto send_result = client_socket->write_all(std::span(data));
+  auto send_result = client_socket->writeAll(std::span(data));
   if (send_result.has_value() && *send_result > 0) {
     server.stop();
   }
@@ -137,7 +137,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead) {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
-  auto send_result = client_socket->write_all(std::span(data));
+  auto send_result = client_socket->writeAll(std::span(data));
   (void)send_result;
 
   writer.join();
@@ -161,7 +161,7 @@ TEST_F(IoContextFixture, FragmentedWriteRead) {
   std::string message = "Hello, World!";
   for (char c : message) {
     std::array<std::byte, 1> send_buffer{std::byte(c)};
-    auto send_result = client_socket->write_all(std::span(send_buffer));
+    auto send_result = client_socket->writeAll(std::span(send_buffer));
     EXPECT_TRUE(send_result);
     if (!send_result) {
       break;
@@ -171,7 +171,7 @@ TEST_F(IoContextFixture, FragmentedWriteRead) {
   std::string received;
   while (received.size() < message.size()) {
     std::array<std::byte, 1> buffer{};
-    auto recv_result = client_socket->read_some(std::span(buffer));
+    auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (!recv_result || *recv_result == 0) {
       break;
@@ -204,7 +204,7 @@ TEST_F(IoContextFixture, LargeWriteThenRead) {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
-  auto send_result = client_socket->write_all(std::span(data));
+  auto send_result = client_socket->writeAll(std::span(data));
   EXPECT_TRUE(send_result);
   if (!send_result) {
     server.stop();
@@ -215,7 +215,7 @@ TEST_F(IoContextFixture, LargeWriteThenRead) {
   std::vector<std::byte> received;
   while (received.size() < data.size()) {
     std::array<std::byte, 4096> buffer{};
-    auto recv_result = client_socket->read_some(std::span(buffer));
+    auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (!recv_result || *recv_result == 0) {
       break;
@@ -254,13 +254,14 @@ TEST_F(IoContextFixture, MultipleClientsSameServer) {
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   for (size_t i = 0; i < sockets.size(); i++) {
-    auto send_result = sockets[i]->write_all(to_bytes("test" + std::to_string(i)));
+    auto send_result =
+        sockets[i]->writeAll(to_bytes("test" + std::to_string(i)));
     EXPECT_TRUE(send_result);
   }
 
   for (size_t i = 0; i < sockets.size(); i++) {
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = sockets[i]->read_some(std::span(buffer));
+    auto recv_result = sockets[i]->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
   }
 
@@ -290,7 +291,7 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket) {
     int i = 0;
     while (!done && i < 100) {
       std::string msg = "msg" + std::to_string(i);
-      auto send_result = client_socket->write_all(to_bytes(msg));
+      auto send_result = client_socket->writeAll(to_bytes(msg));
       if (send_result) {
         send_count++;
       }
@@ -303,7 +304,7 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket) {
     int i = 0;
     while (!done && i < 100) {
       std::array<std::byte, 1024> buffer{};
-      auto recv_result = client_socket->read_some(std::span(buffer));
+      auto recv_result = client_socket->readSome(std::span(buffer));
       if (recv_result && *recv_result > 0) {
         recv_count++;
       }

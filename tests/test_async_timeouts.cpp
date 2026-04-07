@@ -58,7 +58,8 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout) {
       _io_ctx,
       [&client_socket, data,
        promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_write_all(std::span(data), std::chrono::milliseconds(100));
+        auto result = co_await client_socket->asyncWriteAll(
+            std::span(data), std::chrono::milliseconds(100));
         promise.set_value(std::move(result));
       },
       asio::detached);
@@ -112,7 +113,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout) {
       _io_ctx,
       [&client_socket, &buffer,
        promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_read_some(std::span(buffer), std::chrono::milliseconds(100));
+        auto result = co_await client_socket->asyncReadSome(
+            std::span(buffer), std::chrono::milliseconds(100));
         promise.set_value(std::move(result));
       },
       asio::detached);
@@ -121,7 +123,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout) {
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(),
+            make_error_code(Network::Error::ConnectionTimeout));
 
   server.stop();
 }
@@ -164,7 +167,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout) {
       _io_ctx,
       [&client_socket, buffer,
        promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_read_exact(std::span(buffer), std::chrono::milliseconds(100));
+        auto result = co_await client_socket->asyncReadExact(
+            std::span(buffer), std::chrono::milliseconds(100));
         promise.set_value(std::move(result));
       },
       asio::detached);
@@ -173,7 +177,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout) {
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(),
+            make_error_code(Network::Error::ConnectionTimeout));
 
   server.stop();
 }
@@ -216,7 +221,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout) {
       _io_ctx,
       [&client_socket, buffer,
        promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_read_until(std::span(buffer), "\n", std::chrono::milliseconds(100));
+        auto result = co_await client_socket->asyncReadUntil(
+            std::span(buffer), "\n", std::chrono::milliseconds(100));
         promise.set_value(std::move(result));
       },
       asio::detached);
@@ -225,7 +231,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout) {
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(),
+            make_error_code(Network::Error::ConnectionTimeout));
 
   server.stop();
 }
@@ -269,7 +276,7 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout) {
       _io_ctx,
       [&client_socket, msg,
        promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_write_all(to_bytes(msg));
+        auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
         promise.set_value(std::move(result));
       },
       asio::detached);
@@ -287,7 +294,7 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout) {
       _io_ctx,
       [&client_socket, &buffer,
        promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client_socket->async_read_some(std::span(buffer));
+        auto result = co_await client_socket->asyncReadSome(std::span(buffer));
         promise.set_value(std::move(result));
       },
       asio::detached);

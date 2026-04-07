@@ -3,10 +3,10 @@
 #include <gtest/gtest.h>
 
 #include "client/ClientAsync.h"
+#include "core/Context.h"
 #include "server/ServerAsync.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
-#include "core/Context.h"
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
@@ -32,11 +32,11 @@ public:
         [sock = std::move(sock)]() mutable -> asio::awaitable<void> {
           std::array<std::byte, 1024> buffer{};
           while (true) {
-            auto recv_result = co_await sock->async_read_some(std::span(buffer));
+            auto recv_result = co_await sock->asyncReadSome(std::span(buffer));
             if (!recv_result || *recv_result == 0) {
               break;
             }
-            auto send_result = co_await sock->async_write_all(
+            auto send_result = co_await sock->asyncWriteAll(
                 std::span(buffer).first(*recv_result));
             if (!send_result) {
               break;
@@ -53,11 +53,11 @@ public:
         [sock = std::move(sock)]() mutable -> asio::awaitable<void> {
           std::array<std::byte, 1024> buffer{};
           while (true) {
-            auto recv_result = co_await sock->async_read_some(std::span(buffer));
+            auto recv_result = co_await sock->asyncReadSome(std::span(buffer));
             if (!recv_result || *recv_result == 0) {
               break;
             }
-            auto send_result = co_await sock->async_write_all(
+            auto send_result = co_await sock->asyncWriteAll(
                 std::span(buffer).first(*recv_result));
             if (!send_result) {
               break;
@@ -82,7 +82,6 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes,
 
 class AsyncClientServerFixture : public ::testing::Test {
 public:
-
   void SetUp() override { _io_ctx.start(); }
 
   void TearDown() override {}

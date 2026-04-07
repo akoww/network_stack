@@ -66,7 +66,7 @@ TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages) {
         _io_ctx,
         [&client_socket, msg,
          promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await client_socket->async_write_all(to_bytes(msg));
+          auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -85,7 +85,7 @@ TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages) {
         [&client_socket, &buffer,
          promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_read_some(std::span(buffer));
+              co_await client_socket->asyncReadSome(std::span(buffer));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -146,7 +146,7 @@ TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients) {
         _io_ctx,
         [&socket, msg,
          promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await socket.async_write_all(to_bytes(msg));
+          auto result = co_await socket.asyncWriteAll(to_bytes(msg));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -162,7 +162,7 @@ TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients) {
         _io_ctx,
         [msg, &socket, &buffer,
          promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await socket.async_read_some(std::span(buffer));
+          auto result = co_await socket.asyncReadSome(std::span(buffer));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -329,7 +329,7 @@ TEST_F(AsyncClientServerFixture, SpecialCharacters) {
         [&client_socket, &special,
          promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_write_all(to_bytes(special));
+              co_await client_socket->asyncWriteAll(to_bytes(special));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -347,7 +347,7 @@ TEST_F(AsyncClientServerFixture, SpecialCharacters) {
         [&client_socket, &buffer,
          promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_read_some(std::span(buffer));
+              co_await client_socket->asyncReadSome(std::span(buffer));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -405,7 +405,7 @@ TEST_F(AsyncClientServerFixture, BinaryData) {
         [&client_socket, &binary_data,
          promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_write_all(std::span(binary_data));
+              co_await client_socket->asyncWriteAll(std::span(binary_data));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -423,7 +423,7 @@ TEST_F(AsyncClientServerFixture, BinaryData) {
         [&client_socket, &buffer,
          promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_read_some(std::span(buffer));
+              co_await client_socket->asyncReadSome(std::span(buffer));
           promise.set_value(std::move(result));
         },
         asio::detached);

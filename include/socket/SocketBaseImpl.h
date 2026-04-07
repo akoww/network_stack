@@ -35,7 +35,7 @@ using namespace asio::experimental::awaitable_operators;
 
 namespace socket_detail {
 
-inline std::error_code make_timeout_error() {
+inline std::error_code makeTimeoutError() {
   return make_error_code(Network::Error::ConnectionTimeout);
 }
 
@@ -59,9 +59,9 @@ inline std::size_t move_data(std::vector<std::byte> &buffer,
 
 template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>>
-async_read_some_common(SocketType &socket, std::span<std::byte> out,
-                       std::optional<std::chrono::milliseconds> timeout) {
-  spdlog::trace("[{}] async_read_some", socket.get_id());
+asyncReadSomeCommon(SocketType &socket, std::span<std::byte> out,
+                    std::optional<std::chrono::milliseconds> timeout) {
+  spdlog::trace("[{}] asyncReadSome", socket.getId());
 
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});
@@ -73,11 +73,11 @@ async_read_some_common(SocketType &socket, std::span<std::byte> out,
     co_return std::size_t{0};
   }
 
-  auto &read_buffer = socket.get_read_buffer();
-  auto &underlaying_socket = socket.get_socket();
+  auto &readBuffer = socket.getReadBuffer();
+  auto &underlayingSocket = socket.getSocket();
 
-  if (read_buffer.empty()) {
-    auto dyn_buf = asio::dynamic_buffer(read_buffer);
+  if (readBuffer.empty()) {
+    auto dyn_buf = asio::dynamic_buffer(readBuffer);
     auto buffer = dyn_buf.prepare(out.size());
 
     auto executor = co_await asio::this_coro::executor;
@@ -88,17 +88,17 @@ async_read_some_common(SocketType &socket, std::span<std::byte> out,
     std::size_t bytes_received = 0;
 
     auto result = co_await (
-        underlaying_socket.async_read_some(
+        underlayingSocket.async_read_some(
             buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
         timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1) {
-      socket.cancel_socket();
-      co_return std::unexpected(make_timeout_error());
+      socket.cancelSocket();
+      co_return std::unexpected(makeTimeoutError());
     }
 
-    if (socket.is_connection_closed(ec1)) {
-      socket.close_socket();
+    if (socket.isConnectionClosed(ec1)) {
+      socket.closeSocket();
       co_return std::unexpected(ec1);
     }
     if (ec1) {
@@ -109,21 +109,20 @@ async_read_some_common(SocketType &socket, std::span<std::byte> out,
     if (bytes_received == 0) {
       spdlog::warn(
           "[{}] buffer empty, cant read any bytes and connection is closed",
-          socket.get_id());
+          socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
     dyn_buf.commit(bytes_received);
   }
 
-  co_return move_data(read_buffer, out,
-                      std::numeric_limits<std::size_t>::max());
+  co_return move_data(readBuffer, out, std::numeric_limits<std::size_t>::max());
 }
 
 template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>>
-async_read_exact_common(SocketType &socket, std::span<std::byte> out,
-                        std::optional<std::chrono::milliseconds> timeout) {
-  spdlog::trace("[{}] async_read_exact", socket.get_id());
+asyncReadExactCommon(SocketType &socket, std::span<std::byte> out,
+                     std::optional<std::chrono::milliseconds> timeout) {
+  spdlog::trace("[{}] asyncReadExact", socket.getId());
 
   std::ranges::fill(out, std::byte{0});
   if (!timeout)
@@ -133,114 +132,113 @@ async_read_exact_common(SocketType &socket, std::span<std::byte> out,
   auto timer = asio::steady_timer(executor);
   timer.expires_after(timeout.value());
 
-  auto &read_buffer = socket.get_read_buffer();
-  auto &underlaying_socket = socket.get_socket();
+  auto &readBuffer = socket.getReadBuffer();
+  auto &underlayingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
 
-  while (read_buffer.size() < out.size()) {
-    auto dyn_buf = asio::dynamic_buffer(read_buffer);
+  while (readBuffer.size() < out.size()) {
+    auto dyn_buf = asio::dynamic_buffer(readBuffer);
     auto buffer = dyn_buf.prepare(out.size());
 
-    std::size_t read_bytes = 0;
+    std::size_t readBytes = 0;
 
     auto result = co_await (
-        underlaying_socket.async_read_some(
+        underlayingSocket.async_read_some(
             buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
         timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1) {
-      socket.cancel_socket();
-      co_return std::unexpected(make_timeout_error());
+      socket.cancelSocket();
+      co_return std::unexpected(makeTimeoutError());
     }
 
-    if (socket.is_connection_closed(ec1)) {
-      socket.close_socket();
+    if (socket.isConnectionClosed(ec1)) {
+      socket.closeSocket();
       co_return std::unexpected(ec1);
     }
     if (ec1) {
       co_return std::unexpected(ec1);
     }
 
-    read_bytes = std::get<std::size_t>(result);
-    if (read_bytes == 0) {
+    readBytes = std::get<std::size_t>(result);
+    if (readBytes == 0) {
       spdlog::warn("[{}] buffer not enough, cant read any bytes and connection "
                    "is closed",
-                   socket.get_id());
+                   socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
-    dyn_buf.commit(read_bytes);
+    dyn_buf.commit(readBytes);
   }
 
-  co_return move_data(read_buffer, out,
-                      std::numeric_limits<std::size_t>::max());
+  co_return move_data(readBuffer, out, std::numeric_limits<std::size_t>::max());
 }
 
 template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>>
-async_read_until_common(SocketType &socket, std::span<std::byte> out,
-                        std::string_view delim,
-                        std::optional<std::chrono::milliseconds> timeout) {
-  spdlog::trace("[{}] async_read_until", socket.get_id());
+asyncReadUntilCommon(SocketType &socket, std::span<std::byte> out,
+                     std::string_view delim,
+                     std::optional<std::chrono::milliseconds> timeout) {
+  spdlog::trace("[{}] asyncReadUntil", socket.getId());
 
   if (!timeout)
     timeout = std::chrono::hours(24);
 
-  auto delim_as_sv = std::as_bytes(std::span(delim));
+  auto delimAsSv = std::as_bytes(std::span(delim));
 
   auto executor = co_await asio::this_coro::executor;
   auto timer = asio::steady_timer(executor);
   timer.expires_after(timeout.value());
 
-  auto &read_buffer = socket.get_read_buffer();
-  auto &underlaying_socket = socket.get_socket();
+  auto &readBuffer = socket.getReadBuffer();
+  auto &underlayingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
 
   while (true) {
-    auto it = std::search(read_buffer.begin(), read_buffer.end(),
-                          std::begin(delim_as_sv), std::end(delim_as_sv));
-    if (it != read_buffer.end()) {
-      std::size_t len = static_cast<std::size_t>(it - read_buffer.begin() + 1);
+    auto it = std::search(readBuffer.begin(), readBuffer.end(),
+                          std::begin(delimAsSv), std::end(delimAsSv));
+    if (it != readBuffer.end()) {
+      std::size_t len = static_cast<std::size_t>(it - readBuffer.begin() + 1);
       if (len > out.size()) {
         spdlog::warn("[{}] result buffer has not enough space for result",
-                     socket.get_id());
+                     socket.getId());
         co_return std::unexpected(
             make_error_code(Network::Error::ProtocolError));
       }
 
-      co_return move_data(read_buffer, out, len + 1);
+      co_return move_data(readBuffer, out, len + 1);
     }
-    std::size_t read_bytes = 0;
-    auto dyn_buf = asio::dynamic_buffer(read_buffer);
+    std::size_t readBytes = 0;
+    auto dyn_buf = asio::dynamic_buffer(readBuffer);
     auto buffer = dyn_buf.prepare(out.size());
 
     auto result = co_await (
-        underlaying_socket.async_read_some(
+        underlayingSocket.async_read_some(
             buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
         timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1) {
-      socket.cancel_socket();
-      co_return std::unexpected(make_timeout_error());
+      socket.cancelSocket();
+      co_return std::unexpected(makeTimeoutError());
     }
 
-    if (socket.is_connection_closed(ec1)) {
-      socket.close_socket();
+    if (socket.isConnectionClosed(ec1)) {
+      socket.closeSocket();
       co_return std::unexpected(ec1);
     }
     if (ec1) {
       co_return std::unexpected(ec1);
     }
 
-    read_bytes = std::get<std::size_t>(result);
-    if (read_bytes == 0) {
+    readBytes = std::get<std::size_t>(result);
+    if (readBytes == 0) {
       spdlog::warn("[{}] buffer not enough, cant read any bytes and connection "
                    "is closed",
-                   socket.get_id());
+                   socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
-    dyn_buf.commit(read_bytes);
+    dyn_buf.commit(readBytes);
   }
 
   co_return std::unexpected(make_error_code(Network::Error::ProtocolError));
@@ -248,9 +246,9 @@ async_read_until_common(SocketType &socket, std::span<std::byte> out,
 
 template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>>
-async_write_all_common(SocketType &socket, std::span<const std::byte> buffer,
-                       std::optional<std::chrono::milliseconds> timeout) {
-  spdlog::trace("[{}] async_write_all", socket.get_id());
+asyncWriteAllCommon(SocketType &socket, std::span<const std::byte> buffer,
+                    std::optional<std::chrono::milliseconds> timeout) {
+  spdlog::trace("[{}] async_writeAll", socket.getId());
 
   if (!timeout)
     timeout = std::chrono::hours(24);
@@ -259,32 +257,32 @@ async_write_all_common(SocketType &socket, std::span<const std::byte> buffer,
   auto timer = asio::steady_timer(executor);
   timer.expires_after(timeout.value());
 
-  auto &underlaying_socket = socket.get_socket();
+  auto &underlayingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
-  std::size_t bytes_transferred = 0;
+  std::size_t bytesTransferred = 0;
 
   auto result = co_await (
-      asio::async_write(underlaying_socket, asio::buffer(buffer),
+      asio::async_write(underlayingSocket, asio::buffer(buffer),
                         asio::redirect_error(asio::use_awaitable, ec1)) ||
       timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
   if (result.index() == 1) {
-    socket.cancel_socket();
-    co_return std::unexpected(make_timeout_error());
+    socket.cancelSocket();
+    co_return std::unexpected(makeTimeoutError());
   }
 
-  bytes_transferred = std::get<std::size_t>(result);
+  bytesTransferred = std::get<std::size_t>(result);
 
-  if (socket.is_connection_closed(ec1)) {
-    socket.close_socket();
+  if (socket.isConnectionClosed(ec1)) {
+    socket.closeSocket();
     co_return std::unexpected(ec1);
   }
   if (ec1) {
     co_return std::unexpected(ec1);
   }
 
-  co_return bytes_transferred;
+  co_return bytesTransferred;
 }
 
 } // namespace socket_detail

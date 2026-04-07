@@ -16,7 +16,7 @@ namespace Network {
 /// ```cpp
 /// asio::io_context io_ctx;
 /// TcpSocket socket(io_ctx);
-/// auto result = socket.write_all(data);
+/// auto result = socket.writeAll(data);
 /// ```
 /// @section async_usage Asynchronous Usage
 /// ```cpp
@@ -25,7 +25,7 @@ namespace Network {
 class TcpSocket : public SyncSocket, public AsyncSocket {
 private:
   asio::ip::tcp::socket socket_;
-  std::vector<std::byte> read_buffer_;
+  std::vector<std::byte> readBuffer_;
 
 public:
   /// @brief Construct with an io_context.
@@ -36,49 +36,49 @@ public:
 
   ~TcpSocket() override;
 
-  bool is_connected() const noexcept override;
+  bool isConnected() const noexcept override;
 
-  void close_socket() noexcept override;
-  void cancel_socket() noexcept override;
+  void closeSocket() noexcept override;
+  void cancelSocket() noexcept override;
 
-  bool is_connection_closed(const std::error_code &ec) const noexcept override;
+  bool isConnectionClosed(const std::error_code &ec) const noexcept override;
 
-  asio::ip::tcp::socket &get_socket() { return socket_; }
-  std::vector<std::byte> &get_read_buffer() { return read_buffer_; }
+  asio::ip::tcp::socket &getSocket() { return socket_; }
+  std::vector<std::byte> &getReadBuffer() { return readBuffer_; }
 
   // sync
 
-  std::expected<std::size_t, std::error_code> write_all(
+  std::expected<std::size_t, std::error_code> writeAll(
       std::span<const std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  std::expected<std::size_t, std::error_code> read_some(
+  std::expected<std::size_t, std::error_code> readSome(
       std::span<std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  std::expected<std::size_t, std::error_code> read_exact(
+  std::expected<std::size_t, std::error_code> readExact(
       std::span<std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  std::expected<std::size_t, std::error_code> read_until(
+  std::expected<std::size_t, std::error_code> readUntil(
       std::span<std::byte> buffer, std::string_view delimiter,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   // async
 
-  asio::awaitable<std::expected<std::size_t, std::error_code>> async_write_all(
+  asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAll(
       std::span<const std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  asio::awaitable<std::expected<std::size_t, std::error_code>> async_read_some(
+  asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSome(
       std::span<std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  asio::awaitable<std::expected<std::size_t, std::error_code>> async_read_exact(
+  asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExact(
       std::span<std::byte> buffer,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
-  asio::awaitable<std::expected<std::size_t, std::error_code>> async_read_until(
+  asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntil(
       std::span<std::byte> buffer, std::string_view delimiter,
       std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };

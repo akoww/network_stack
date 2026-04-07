@@ -72,10 +72,10 @@ TEST_F(SyncClientServerFixture, EchoServerMultipleMessages) {
   auto client_socket = std::move(*connect_result);
   const std::vector<std::string> messages = {"hello", "world", "test"};
   for (const auto &msg : messages) {
-    auto send_result = client_socket->write_all(to_bytes(msg));
+    auto send_result = client_socket->writeAll(to_bytes(msg));
     EXPECT_TRUE(send_result);
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = client_socket->read_some(std::span(buffer));
+    auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (recv_result) {
       auto response = to_string_view(buffer, *recv_result);
@@ -107,10 +107,10 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto send_recv = [&](SyncSocket &socket, const std::string &msg) {
-    auto send_result = socket.write_all(to_bytes(msg));
+    auto send_result = socket.writeAll(to_bytes(msg));
     EXPECT_TRUE(send_result);
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = socket.read_some(std::span(buffer));
+    auto recv_result = socket.readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (recv_result) {
       auto response = to_string_view(buffer, *recv_result);
@@ -128,15 +128,15 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients) {
 }
 
 TEST_F(IoContextFixture, ConnectionRefused) {
-   ClientSync client("127.0.0.1", 59999, get_io_context());
-   auto connect_result = client.connect({});
-   EXPECT_FALSE(connect_result.has_value());
+  ClientSync client("127.0.0.1", 59999, get_io_context());
+  auto connect_result = client.connect({});
+  EXPECT_FALSE(connect_result.has_value());
 }
 
 TEST_F(IoContextFixture, InvalidHost) {
-   ClientSync client("invalid.host.invalid", TEST_PORT, get_io_context());
-   auto connect_result = client.connect({});
-   EXPECT_FALSE(connect_result.has_value());
+  ClientSync client("invalid.host.invalid", TEST_PORT, get_io_context());
+  auto connect_result = client.connect({});
+  EXPECT_FALSE(connect_result.has_value());
 }
 
 TEST_F(SyncClientServerFixture, SpecialCharacters) {
@@ -154,10 +154,10 @@ TEST_F(SyncClientServerFixture, SpecialCharacters) {
 
   auto client_socket = std::move(*connect_result);
   std::string special = "Hello, World! @#$%^&*()_+-=\n\t";
-  auto send_result = client_socket->write_all(to_bytes(special));
+  auto send_result = client_socket->writeAll(to_bytes(special));
   EXPECT_TRUE(send_result);
   std::array<std::byte, 1024> buffer{};
-  auto recv_result = client_socket->read_some(std::span(buffer));
+  auto recv_result = client_socket->readSome(std::span(buffer));
   EXPECT_TRUE(recv_result);
   if (recv_result) {
     auto response = to_string_view(buffer, *recv_result);
@@ -185,10 +185,10 @@ TEST_F(SyncClientServerFixture, BinaryData) {
   std::vector<std::byte> binary_data(256);
   for (size_t i = 0; i < 256; i++)
     binary_data[i] = static_cast<std::byte>(i);
-  auto send_result = client_socket->write_all(std::span(binary_data));
+  auto send_result = client_socket->writeAll(std::span(binary_data));
   EXPECT_TRUE(send_result);
   std::array<std::byte, 512> buffer{};
-  auto recv_result = client_socket->read_some(std::span(buffer));
+  auto recv_result = client_socket->readSome(std::span(buffer));
   EXPECT_TRUE(recv_result);
   if (recv_result && size_t(*recv_result) == 256) {
     for (size_t i = 0; i < 256; i++)
@@ -219,7 +219,7 @@ TEST_F(SyncClientServerFixture, LongBinaryData) {
     b = static_cast<std::byte>(i);
 
   // write data
-  auto send_result = client_socket->write_all(std::span(binary_data));
+  auto send_result = client_socket->writeAll(std::span(binary_data));
   EXPECT_TRUE(send_result);
 
   std::vector<std::byte> received_data;
@@ -227,7 +227,7 @@ TEST_F(SyncClientServerFixture, LongBinaryData) {
   while (received_data.size() < binary_data.size()) {
 
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = client_socket->read_some(std::span(buffer));
+    auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (!recv_result)
       break; // break on error

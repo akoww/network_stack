@@ -17,9 +17,12 @@ constexpr uint16_t TEST_TLS_PORT = 12350;
 
 TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage) {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
-  server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-  server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key", asio::ssl::context::pem);
-  
+  server.get_ssl_context()->use_certificate_chain_file(
+      "/home/akoww/source/network_stack/tests/certs/server.crt");
+  server.get_ssl_context()->use_private_key_file(
+      "/home/akoww/source/network_stack/tests/certs/server.key",
+      asio::ssl::context::pem);
+
   asio::co_spawn(
       _io_ctx,
       [&server]() -> asio::awaitable<void> {
@@ -49,7 +52,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage) {
   if (connect_result) {
     auto client_socket = std::move(*connect_result);
     const std::string msg = "hello tls";
-    
+
     std::promise<std::expected<std::size_t, std::error_code>> send_promise;
     auto send_future = send_promise.get_future();
 
@@ -57,7 +60,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage) {
         _io_ctx,
         [&client_socket, msg,
          promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await client_socket->async_write_all(to_bytes(msg));
+          auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -76,7 +79,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage) {
         [&client_socket, &buffer,
          promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
           auto result =
-              co_await client_socket->async_read_some(std::span(buffer));
+              co_await client_socket->asyncReadSome(std::span(buffer));
           promise.set_value(std::move(result));
         },
         asio::detached);
@@ -95,9 +98,12 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage) {
 
 TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages) {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
-  server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-  server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key", asio::ssl::context::pem);
-  
+  server.get_ssl_context()->use_certificate_chain_file(
+      "/home/akoww/source/network_stack/tests/certs/server.crt");
+  server.get_ssl_context()->use_private_key_file(
+      "/home/akoww/source/network_stack/tests/certs/server.key",
+      asio::ssl::context::pem);
+
   asio::co_spawn(
       _io_ctx,
       [&server]() -> asio::awaitable<void> {
@@ -127,16 +133,16 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages) {
   if (connect_result) {
     auto client_socket = std::move(*connect_result);
     const std::vector<std::string> messages = {"hello", "world", "tls test"};
-    
+
     for (const auto &msg : messages) {
       std::promise<std::expected<std::size_t, std::error_code>> send_promise;
       auto send_future = send_promise.get_future();
 
       asio::co_spawn(
           _io_ctx,
-          [&client_socket, msg,
-           promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-            auto result = co_await client_socket->async_write_all(to_bytes(msg));
+          [&client_socket, msg, promise = std::move(send_promise)]() mutable
+              -> asio::awaitable<void> {
+            auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
             promise.set_value(std::move(result));
           },
           asio::detached);
@@ -151,10 +157,10 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages) {
       std::array<std::byte, 1024> buffer{};
       asio::co_spawn(
           _io_ctx,
-          [&client_socket, &buffer,
-           promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
+          [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable
+              -> asio::awaitable<void> {
             auto result =
-                co_await client_socket->async_read_some(std::span(buffer));
+                co_await client_socket->asyncReadSome(std::span(buffer));
             promise.set_value(std::move(result));
           },
           asio::detached);
@@ -175,7 +181,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages) {
 TEST_F(IoContextFixture, TlsConnectionRefused) {
   ClientAsync client("127.0.0.1", 59997, get_io_context());
   client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
-  
+
   std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
       promise;
   auto future = promise.get_future();

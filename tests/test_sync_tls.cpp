@@ -19,8 +19,11 @@ constexpr uint16_t TEST_TLS_PORT = 12347;
 TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage) {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
   std::thread server_thread([&server]() {
-    server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-    server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key", asio::ssl::context::pem);
+    server.get_ssl_context()->use_certificate_chain_file(
+        "/home/akoww/source/network_stack/tests/certs/server.crt");
+    server.get_ssl_context()->use_private_key_file(
+        "/home/akoww/source/network_stack/tests/certs/server.key",
+        asio::ssl::context::pem);
     auto listen_result = server.listen_tls();
     EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
   });
@@ -34,11 +37,11 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage) {
 
   auto client_socket = std::move(*connect_result);
   const std::string msg = "hello tls";
-  auto send_result = client_socket->write_all(to_bytes(msg));
+  auto send_result = client_socket->writeAll(to_bytes(msg));
   EXPECT_TRUE(send_result);
 
   std::array<std::byte, 1024> buffer{};
-  auto recv_result = client_socket->read_some(std::span(buffer));
+  auto recv_result = client_socket->readSome(std::span(buffer));
   EXPECT_TRUE(recv_result);
   if (recv_result) {
     auto response = to_string_view(buffer, *recv_result);
@@ -52,8 +55,11 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage) {
 TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages) {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
   std::thread server_thread([&server]() {
-    server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-    server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key", asio::ssl::context::pem);
+    server.get_ssl_context()->use_certificate_chain_file(
+        "/home/akoww/source/network_stack/tests/certs/server.crt");
+    server.get_ssl_context()->use_private_key_file(
+        "/home/akoww/source/network_stack/tests/certs/server.key",
+        asio::ssl::context::pem);
     auto listen_result = server.listen_tls();
     EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
   });
@@ -68,11 +74,11 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages) {
   auto client_socket = std::move(*connect_result);
   const std::vector<std::string> messages = {"hello", "world", "tls test"};
   for (const auto &msg : messages) {
-    auto send_result = client_socket->write_all(to_bytes(msg));
+    auto send_result = client_socket->writeAll(to_bytes(msg));
     EXPECT_TRUE(send_result);
 
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = client_socket->read_some(std::span(buffer));
+    auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
     if (recv_result) {
       auto response = to_string_view(buffer, *recv_result);

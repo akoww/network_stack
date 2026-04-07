@@ -66,7 +66,7 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 - **Classes/Structs**: `PascalCase` (e.g., `TcpSocket`, `IoContextWrapper`)
 - **Interfaces**: End with `Interface` (e.g., `AsyncSocketInterface`, `SyncSocketInterface`)
 - **Variables/Members**: `_prefixed_lower_snake_case` (e.g., `_host`, `_port`)
-- **Functions**: `snake_case` (e.g., `is_connected`, `async_send`)
+- **Functions**: `snake_case` (e.g., `isConnected`, `async_send`)
 - **Constants/Enums**: `PascalCase` (e.g., `Error::ConnectionTimeout`)
 - **Namespaces**: `snake_case` (e.g., `Network`, `asio`)
 

@@ -8,13 +8,13 @@ Defines socket interfaces (sync/async) and common base functionality. This is th
 
 ### Interfaces
 
-- **`SyncSocketInterface.h`**: `SyncSocket` interface with blocking operations (`read_some`, `write_all`, `read_exact`, `read_until`)
+- **`SyncSocketInterface.h`**: `SyncSocket` interface with blocking operations (`readSome`, `writeAll`, `readExact`, `readUntil`)
 - **`AsyncSocketInterface.h`**: `AsyncSocket` interface with coroutine-based operations (returns `asio::awaitable<std::expected<...>>`)
 - **Both**: Inherit from `SocketBase` and provide optional timeout support
 
 ### Base Classes
 
-- **`SocketBase.h`**: Common interface with `get_id()`, `is_connected()`, `close_socket()`, `cancel_socket()`, `is_connection_closed()`
+- **`SocketBase.h`**: Common interface with `get_id()`, `isConnected()`, `closeSocket()`, `cancelSocket()`, `isConnectionClosed()`
 - **`SocketBase.cpp`**: Implements `_id_counter` and `get_id()`
 
 ### Implementations
@@ -26,7 +26,7 @@ Defines socket interfaces (sync/async) and common base functionality. This is th
 ### HelperHeaders
 
 - **`SocketBaseImpl.h`**: **Implementation detail, not public interface** - contains common coroutine logic for async reads/writes
-- Defines `socket_detail::async_read_some_common()`, `async_read_exact_common()`, `async_read_until_common()`, `async_write_all_common()`
+- Defines `socket_detail::asyncReadSome_common()`, `asyncReadExact_common()`, `asyncReadUntil_common()`, `asyncWriteAllCommon()`
 - Used by `TcpSocket` and `SslSocket` implementations
 
 ## Conventions
@@ -40,4 +40,4 @@ Defines socket interfaces (sync/async) and common base functionality. This is th
 
 - `SocketBaseImpl.h` is a **helper implementation file**, not a public interface
 - `TcpSocket` can be used with both sync and async operations (mixed usage supported)
-- `is_connection_closed()` checks for ASIO connection reset errors: `eof`, `connection_reset`, `broken_pipe`, `not_connected`
+- `isConnectionClosed()` checks for ASIO connection reset errors: `eof`, `connection_reset`, `broken_pipe`, `not_connected`

@@ -109,7 +109,7 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
 
   // Wait for FTP server greeting (220 response)
   std::array<std::byte, 512> buffer{};
-  auto recv_result = _socket->read_until(std::span(buffer), "\r\n");
+  auto recv_result = _socket->readUntil(std::span(buffer), "\r\n");
 
   if (!recv_result) {
     spdlog::error("Failed to receive FTP greeting: {}",
@@ -180,7 +180,7 @@ FtpFileTransfer::connect(const ConnectOptions &opts) {
 }
 
 bool FtpFileTransfer::isAlive() const noexcept {
-  return _socket && _socket->is_connected();
+  return _socket && _socket->isConnected();
 }
 
 namespace {
@@ -257,9 +257,9 @@ FtpFileTransfer::sendAndReceiveResponse(std::string_view cmd) {
 
 std::expected<void, std::error_code>
 FtpFileTransfer::sendCommand(SyncSocket &sock, std::string_view cmd,
-                              std::chrono::milliseconds timeout) {
+                             std::chrono::milliseconds timeout) {
   const std::string command = std::format("{}\r\n", cmd);
-  if (auto r = sock.write_all(as_byte_span(command), timeout); !r) {
+  if (auto r = sock.writeAll(as_byte_span(command), timeout); !r) {
     spdlog::error("Failed to send command '{}': {}", cmd, r.error().message());
     return std::unexpected(r.error());
   }
@@ -268,13 +268,13 @@ FtpFileTransfer::sendCommand(SyncSocket &sock, std::string_view cmd,
 
 std::expected<FtpFileTransfer::Answer, std::error_code>
 FtpFileTransfer::receiveResponse(SyncSocket &sock,
-                                  std::chrono::milliseconds timeout) {
+                                 std::chrono::milliseconds timeout) {
 
   std::string buf;
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
-    auto r = sock.read_until(std::span(tmp), "\r\n", timeout);
+    auto r = sock.readUntil(std::span(tmp), "\r\n", timeout);
     if (!r) {
       spdlog::error("Failed to receive FTP response: {}", r.error().message());
       return std::unexpected(r.error());
@@ -301,13 +301,13 @@ FtpFileTransfer::receiveResponse(SyncSocket &sock,
 
 std::expected<std::vector<std::byte>, std::error_code>
 FtpFileTransfer::receiveRawResponse(SyncSocket &sock,
-                                     std::chrono::milliseconds timeout) {
+                                    std::chrono::milliseconds timeout) {
 
   std::vector<std::byte> buf;
   std::array<std::byte, 1024> tmp{};
 
   while (true) {
-    auto r = sock.read_some(std::span(tmp), timeout);
+    auto r = sock.readSome(std::span(tmp), timeout);
     if (!r) {
       if (r.error() == asio::error::eof) // not an error
       {
@@ -326,8 +326,7 @@ FtpFileTransfer::receiveRawResponse(SyncSocket &sock,
 }
 
 std::expected<FtpFileTransfer::Answer, std::error_code>
-FtpFileTransfer::sendAndReceiveResponse(SyncSocket &sock,
-                                        std::string_view cmd,
+FtpFileTransfer::sendAndReceiveResponse(SyncSocket &sock, std::string_view cmd,
                                         std::chrono::milliseconds timeout) {
 
   if (auto send_result = sendCommand(sock, cmd, timeout); !send_result) {
@@ -703,7 +702,8 @@ FtpFileTransfer::read(const std::filesystem::path &path) {
   }
 
   std::vector<std::byte> buffer;
-  if (auto receive_result = receiveRawResponse(*data_socket, getDataTimeout()); !receive_result) {
+  if (auto receive_result = receiveRawResponse(*data_socket, getDataTimeout());
+      !receive_result) {
     spdlog::error("RETR read data failed: {}",
                   receive_result.error().message());
     return std::unexpected(receive_result.error());
@@ -761,7 +761,8 @@ FtpFileTransfer::read(const std::filesystem::path &path,
   std::size_t total_bytes = 0;
 
   while (true) {
-    auto read_result = data_socket->read_some(std::span(buffer), getDataTimeout());
+    auto read_result =
+        data_socket->readSome(std::span(buffer), getDataTimeout());
     if (!read_result) {
       if (read_result.error() == asio::error::eof) {
         break;
@@ -841,22 +842,22 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
     return std::unexpected(make_error_code(Network::Error::ProtocolError));
   }
 
-   auto buffer = as_byte_span(data);
-   auto send_result = data_socket->write_all(buffer, getDataTimeout());
-   if (!send_result) {
-     spdlog::error("Failed to send file data: {}",
-                   send_result.error().message());
-     return std::unexpected(send_result.error());
-   }
+  auto buffer = as_byte_span(data);
+  auto send_result = data_socket->writeAll(buffer, getDataTimeout());
+  if (!send_result) {
+    spdlog::error("Failed to send file data: {}",
+                  send_result.error().message());
+    return std::unexpected(send_result.error());
+  }
 
-   data_socket.reset();
+  data_socket.reset();
 
-   auto response = receiveResponse(*_socket, _options.timeout);
-   if (!response) {
-     spdlog::error("Failed to receive STOR completion response: {}",
-                   response.error().message());
-     return std::unexpected(response.error());
-   }
+  auto response = receiveResponse(*_socket, _options.timeout);
+  if (!response) {
+    spdlog::error("Failed to receive STOR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
 
   if (response->code != 226) {
     spdlog::error("STOR completion returned unexpected code: {}",
@@ -925,7 +926,7 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
       break;
     }
 
-    auto send_result = data_socket->write_all(chunk, getDataTimeout());
+    auto send_result = data_socket->writeAll(chunk, getDataTimeout());
     if (!send_result) {
       spdlog::error("Failed to send file data: {}",
                     send_result.error().message());
@@ -933,16 +934,16 @@ FtpFileTransfer::write(const std::filesystem::path &remote_dst_path,
     }
 
     total_bytes += *send_result;
-   }
+  }
 
-   data_socket.reset();
+  data_socket.reset();
 
-   auto response = receiveResponse(*_socket, _options.timeout);
-   if (!response) {
-     spdlog::error("Failed to receive STOR completion response: {}",
-                   response.error().message());
-     return std::unexpected(response.error());
-   }
+  auto response = receiveResponse(*_socket, _options.timeout);
+  if (!response) {
+    spdlog::error("Failed to receive STOR completion response: {}",
+                  response.error().message());
+    return std::unexpected(response.error());
+  }
 
   if (response->code != 226) {
     spdlog::error("STOR completion returned unexpected code: {}",

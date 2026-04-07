@@ -22,11 +22,11 @@ public:
     _threads.emplace_back([sock = std::move(sock)]() {
       std::array<std::byte, 1024> buffer{};
       while (true) {
-        auto recv_result = sock->read_some(std::span(buffer));
+        auto recv_result = sock->readSome(std::span(buffer));
         if (!recv_result || *recv_result == 0)
           break;
         auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
+            sock->writeAll(std::span(buffer).first(*recv_result));
         if (!send_result)
           break;
       }
@@ -37,11 +37,11 @@ public:
     _threads.emplace_back([sock = std::move(sock)]() {
       std::array<std::byte, 1024> buffer{};
       while (true) {
-        auto recv_result = sock->read_some(std::span(buffer));
+        auto recv_result = sock->readSome(std::span(buffer));
         if (!recv_result || *recv_result == 0)
           break;
         auto send_result =
-            sock->write_all(std::span(buffer).first(*recv_result));
+            sock->writeAll(std::span(buffer).first(*recv_result));
         if (!send_result)
           break;
       }
@@ -62,7 +62,6 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes,
 
 class SyncClientServerFixture : public ::testing::Test {
 public:
-
   void SetUp() override { _io_ctx.start(); }
 
   void TearDown() override {}
