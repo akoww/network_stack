@@ -1,0 +1,22 @@
+BasedOnStyle: Chromium
+ 
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+AccessModifierOffset: -2
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+BreakBeforeBraces: Allman
+ColumnLimit: 120
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+DeriveLineEnding: false
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: true
+LambdaBodyIndentation: Signature
+SortIncludes: false
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: -1
+Standard: c++17
+TabWidth: 2
+WhitespaceSensitiveMacros: ["translate"]

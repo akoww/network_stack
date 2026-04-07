@@ -8,7 +8,8 @@
 
 #include <expected>
 
-namespace Network {
+namespace Network
+{
 
 class AsyncSocket;
 
@@ -27,22 +28,21 @@ class AsyncSocket;
 ///   }
 /// }, asio::detached);
 /// ```
-class ClientAsync : public ClientBase {
+class ClientAsync : public ClientBase
+{
 public:
   /// @brief Construct with host, port, and io_context.
-  ClientAsync(std::string_view host, uint16_t port, asio::io_context &io_ctx);
+  ClientAsync(std::string_view host, uint16_t port, asio::io_context& io_ctx);
 
   /// @brief Asynchronously connect to the remote endpoint.
   /// @param opts Connection options including timeout.
   /// @return Socket on success, or error code on failure.
-  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-  connect(Options opts);
+  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> connect(Options opts);
 
   /// @brief Asynchronously connect to the remote endpoint using TLS.
   /// @param opts Connection options including timeout.
   /// @return TLS socket on success, or error code on failure.
-  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-  connect_tls(Options opts);
+  asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> connect_tls(Options opts);
 };
 
-} // namespace Network
+}  // namespace Network

@@ -4,7 +4,8 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/ssl/context.hpp>
 
-namespace Network {
+namespace Network
+{
 
 class SslSocket;
 class TcpSocket;
@@ -21,14 +22,15 @@ class TcpSocket;
 /// };
 /// asio::co_spawn(io_ctx, MyServer(port, io_ctx).listen(), asio::detached);
 /// ```
-class ServerBase {
+class ServerBase
+{
 public:
   virtual ~ServerBase() = default;
 
   /// @brief Construct with port and io_context.
   /// @param port Port to bind to (0 for dynamic assignment).
   /// @param io_ctx ASIO io_context for async operations.
-  explicit ServerBase(uint16_t port, asio::io_context &io_ctx);
+  explicit ServerBase(uint16_t port, asio::io_context& io_ctx);
 
   /// @brief Get the bound host.
   std::string_view host() const;
@@ -37,7 +39,7 @@ public:
   uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  asio::io_context &get_io_context();
+  asio::io_context& get_io_context();
 
   /// @brief Get the SSL context for TLS connections.
   /// @return Shared pointer to SSL context.
@@ -68,8 +70,8 @@ protected:
 private:
   std::string _host;
   uint16_t _port;
-  asio::io_context &_io_ctx;
+  asio::io_context& _io_ctx;
   std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 
-}
+}  // namespace Network

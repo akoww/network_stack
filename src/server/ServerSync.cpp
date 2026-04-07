@@ -12,45 +12,51 @@
 #include <spdlog/spdlog.h>
 #include <system_error>
 
-namespace Network {
+namespace Network
+{
 
-ServerSync::ServerSync(uint16_t port, asio::io_context &io_ctx)
-    : ServerBase(port, io_ctx) {}
+ServerSync::ServerSync(uint16_t port, asio::io_context& io_ctx) : ServerBase(port, io_ctx)
+{
+}
 
-std::expected<void, std::error_code> ServerSync::listen() {
+std::expected<void, std::error_code> ServerSync::listen()
+{
   spdlog::info("server listening on {}:{}", host(), port());
 
   std::error_code ec;
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
   _acceptor.open(endpoint.protocol(), ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to open acceptor: {}", ec.message());
     return std::unexpected(ec);
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to set reuse_address: {}", ec.message());
     return std::unexpected(ec);
   }
 
   _acceptor.bind(endpoint, ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to bind to {}:{}", host(), port());
     return std::unexpected(ec);
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to start listening: {}", ec.message());
     return std::unexpected(ec);
   }
 
   spdlog::info("server started successfully on {}:{}", host(), port());
 
-  auto promise =
-      std::make_shared<std::promise<std::expected<void, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<void, std::error_code>>>();
 
   auto future = promise->get_future();
   start_accept(std::move(promise));
@@ -58,40 +64,44 @@ std::expected<void, std::error_code> ServerSync::listen() {
   return future.get();
 }
 
-std::expected<void, std::error_code> ServerSync::listen_tls() {
+std::expected<void, std::error_code> ServerSync::listen_tls()
+{
   spdlog::info("server listening on {}:{} with TLS", host(), port());
 
   std::error_code ec;
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
   _acceptor.open(endpoint.protocol(), ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to open acceptor: {}", ec.message());
     return std::unexpected(ec);
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to set reuse_address: {}", ec.message());
     return std::unexpected(ec);
   }
 
   _acceptor.bind(endpoint, ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to bind to {}:{}", host(), port());
     return std::unexpected(ec);
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::error("failed to start listening: {}", ec.message());
     return std::unexpected(ec);
   }
 
   spdlog::info("server TLS started successfully on {}:{}", host(), port());
 
-  auto promise =
-      std::make_shared<std::promise<std::expected<void, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<void, std::error_code>>>();
 
   auto future = promise->get_future();
   start_accept_tls(std::move(promise));
@@ -99,106 +109,118 @@ std::expected<void, std::error_code> ServerSync::listen_tls() {
   return future.get();
 }
 
-void ServerSync::start_accept(
-    std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
-        promise) {
+void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, std::error_code>>> promise)
+{
   if (!promise)
+  {
     return;
+  }
 
-  if (is_stopped()) {
+  if (is_stopped())
+  {
     promise->set_value(std::expected<void, std::error_code>{});
     return;
   }
 
   auto socket = std::make_unique<asio::ip::tcp::socket>(get_io_context());
 
-  _acceptor.async_accept(*socket, [&, this, socket = std::move(socket),
-                                   promise](std::error_code ec) mutable {
-    if (is_stopped()) {
-      promise->set_value(std::expected<void, std::error_code>{});
-      return;
-    }
+  _acceptor.async_accept(*socket,
+                         [&, this, socket = std::move(socket), promise](std::error_code ec) mutable
+                         {
+                           if (is_stopped())
+                           {
+                             promise->set_value(std::expected<void, std::error_code>{});
+                             return;
+                           }
 
-    if (ec == asio::error::operation_aborted ||
-        ec == asio::error::bad_descriptor) {
-      promise->set_value(std::unexpected(ec));
-      return;
-    }
+                           if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
+                           {
+                             promise->set_value(std::unexpected(ec));
+                             return;
+                           }
 
-    if (ec) {
-      spdlog::warn("accept error: {}, retrying...", ec.message());
-      start_accept(std::move(promise));
-      return;
-    }
+                           if (ec)
+                           {
+                             spdlog::warn("accept error: {}, retrying...", ec.message());
+                             start_accept(std::move(promise));
+                             return;
+                           }
 
-    spdlog::info("new connection accepted");
+                           spdlog::info("new connection accepted");
 
-    auto new_socket = std::make_unique<TcpSocket>(std::move(*socket));
-    handle_client(std::move(new_socket));
-    start_accept(std::move(promise));
-  });
+                           auto new_socket = std::make_unique<TcpSocket>(std::move(*socket));
+                           handle_client(std::move(new_socket));
+                           start_accept(std::move(promise));
+                         });
 }
 
-void ServerSync::start_accept_tls(
-    std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
-        promise) {
+void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<void, std::error_code>>> promise)
+{
   if (!promise)
+  {
     return;
+  }
 
-  if (is_stopped()) {
+  if (is_stopped())
+  {
     promise->set_value(std::expected<void, std::error_code>{});
     return;
   }
 
   auto socket = std::make_unique<asio::ip::tcp::socket>(get_io_context());
 
-  _acceptor.async_accept(*socket, [&, this, socket = std::move(socket),
-                                   promise](std::error_code ec) mutable {
-    if (is_stopped()) {
-      promise->set_value(std::expected<void, std::error_code>{});
-      return;
-    }
+  _acceptor.async_accept(*socket,
+                         [&, this, socket = std::move(socket), promise](std::error_code ec) mutable
+                         {
+                           if (is_stopped())
+                           {
+                             promise->set_value(std::expected<void, std::error_code>{});
+                             return;
+                           }
 
-    if (ec == asio::error::operation_aborted ||
-        ec == asio::error::bad_descriptor) {
-      promise->set_value(std::unexpected(ec));
-      return;
-    }
+                           if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
+                           {
+                             promise->set_value(std::unexpected(ec));
+                             return;
+                           }
 
-    if (ec) {
-      spdlog::warn("TLS accept error: {}, retrying...", ec.message());
-      start_accept_tls(std::move(promise));
-      return;
-    }
+                           if (ec)
+                           {
+                             spdlog::warn("TLS accept error: {}, retrying...", ec.message());
+                             start_accept_tls(std::move(promise));
+                             return;
+                           }
 
-    spdlog::info("new TLS connection accepted");
+                           spdlog::info("new TLS connection accepted");
 
-    asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(
-        std::move(*socket), *get_ssl_context());
+                           asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(*socket), *get_ssl_context());
 
-    ssl_stream.handshake(asio::ssl::stream_base::server, ec);
+                           ssl_stream.handshake(asio::ssl::stream_base::server, ec);
 
-    if (ec) {
-      spdlog::error("TLS handshake failed: {}", ec.message());
-      start_accept_tls(std::move(promise));
-      return;
-    }
+                           if (ec)
+                           {
+                             spdlog::error("TLS handshake failed: {}", ec.message());
+                             start_accept_tls(std::move(promise));
+                             return;
+                           }
 
-    auto new_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
-    handle_client_tls(std::move(new_socket));
-    start_accept_tls(std::move(promise));
-  });
+                           auto new_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
+                           handle_client_tls(std::move(new_socket));
+                           start_accept_tls(std::move(promise));
+                         });
 }
 
-void ServerSync::stop() {
+void ServerSync::stop()
+{
   spdlog::info("closing server...");
   ServerBase::stop();
   std::error_code ec;
   _acceptor.cancel(ec);
-  if (ec) {
+  if (ec)
+  {
     spdlog::warn("acceptor cancel error: {}", ec.message());
   }
   spdlog::info("server closed");
 }
 
-} // namespace Network
+}  // namespace Network

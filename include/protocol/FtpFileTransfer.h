@@ -10,27 +10,28 @@
 #include <memory>
 #include <string>
 
-namespace Network {
+namespace Network
+{
 
 // fwd
 class FtpFileTransfer;
 
 /// @brief Default navigator implementation for FtpFileTransfer.
 /// Implements FTP directory navigation by issuing CWD and PASV commands.
-class DefaultFtpNavigator : public Utility::SmartDirectoryNavigator {
+class DefaultFtpNavigator : public Utility::SmartDirectoryNavigator
+{
 public:
   /// @brief Construct with parent FtpFileTransfer instance.
-  explicit DefaultFtpNavigator(FtpFileTransfer *parent);
+  explicit DefaultFtpNavigator(FtpFileTransfer* parent);
 
   /// @brief Issue FTP CWD command to change directory.
-  std::expected<void, std::error_code> ftpCd(const std::string &dir) override;
+  std::expected<void, std::error_code> ftpCd(const std::string& dir) override;
 
   /// @brief Issue FTP command to select drive/root (Windows-specific).
-  std::expected<void, std::error_code>
-  ftpSelectDrive(const std::string &drive) override;
+  std::expected<void, std::error_code> ftpSelectDrive(const std::string& drive) override;
 
 private:
-  FtpFileTransfer *_parent;
+  FtpFileTransfer* _parent;
 };
 
 /// @brief FTP implementation of IAbstractFileTransfer interface.
@@ -53,10 +54,12 @@ private:
 /// The class automatically detects server capabilities via FEAT command and
 /// uses advanced commands (MLST, EPSV) when available, falling back to
 /// standard commands (LIST, PASV) otherwise.
-class FtpFileTransfer : public IAbstractFileTransfer {
+class FtpFileTransfer : public IAbstractFileTransfer
+{
 public:
   /// @brief FTP connection options.
-  struct ConnectOptions {
+  struct ConnectOptions
+  {
     std::string username = "anonymous";
     std::string password = "anonymous@";
     std::chrono::milliseconds timeout = std::chrono::seconds(10);
@@ -68,71 +71,63 @@ public:
   /// @param host FTP server hostname or IP address.
   /// @param port FTP server control port (default 21).
   /// @param io_ctx ASIO io_context for async operations.
-  explicit FtpFileTransfer(std::string_view host, uint16_t port,
-                           IoContextWrapper &io_ctx);
+  explicit FtpFileTransfer(std::string_view host, uint16_t port, IoContextWrapper& io_ctx);
   ~FtpFileTransfer() override;
 
   /// @brief Connect to FTP server and perform initial setup.
   /// @param opts Connection options (credentials, timeout, mode).
   /// @return Success on connection and feature detection, error on failure.
-  std::expected<void, std::error_code> connect(const ConnectOptions &opts);
+  std::expected<void, std::error_code> connect(const ConnectOptions& opts);
 
   bool isAlive() const noexcept override;
 
-  std::expected<std::vector<FileListData>, std::error_code>
-  list(const std::filesystem::path &path) override;
+  std::expected<std::vector<FileListData>, std::error_code> list(const std::filesystem::path& path) override;
 
-  std::expected<void, std::error_code>
-  createDir(const std::filesystem::path &path) override;
+  std::expected<void, std::error_code> createDir(const std::filesystem::path& path) override;
 
-  std::expected<bool, std::error_code>
-  exists(const std::filesystem::path &remote_path) override;
+  std::expected<bool, std::error_code> exists(const std::filesystem::path& remote_path) override;
 
-  std::expected<void, std::error_code>
-  remove(const std::filesystem::path &remote_path) override;
+  std::expected<void, std::error_code> remove(const std::filesystem::path& remote_path) override;
 
-  std::expected<std::vector<std::byte>, std::error_code>
-  read(const std::filesystem::path &path) override;
+  std::expected<std::vector<std::byte>, std::error_code> read(const std::filesystem::path& path) override;
 
-  std::expected<std::size_t, std::error_code>
-  read(const std::filesystem::path &path, ReadCallback callback) override;
+  std::expected<std::size_t, std::error_code> read(const std::filesystem::path& path, ReadCallback callback) override;
 
-  std::expected<FileListData, std::error_code>
-  write(const std::filesystem::path &remote_dst_path,
-        std::span<const std::byte> data) override;
+  std::expected<FileListData, std::error_code> write(const std::filesystem::path& remote_dst_path,
+                                                     std::span<const std::byte> data) override;
 
-  std::expected<FileListData, std::error_code>
-  write(const std::filesystem::path &remote_dst_path,
-        WriteCallback next) override;
+  std::expected<FileListData, std::error_code> write(const std::filesystem::path& remote_dst_path,
+                                                     WriteCallback next) override;
 
-  std::expected<bool, std::error_code>
-  isDirectory(const std::filesystem::path &path) override;
+  std::expected<bool, std::error_code> isDirectory(const std::filesystem::path& path) override;
 
   /// @brief FTP server capabilities detected during connect.
   /// These indicate which FTP commands the server supports.
-  struct FtpCapabilities {
+  struct FtpCapabilities
+  {
     // Listing commands
-    bool mlst = false; // MLST - modern directory listing
-    bool nlst = false; // NLST - simple name listing
-    bool list = true;  // LIST - standard listing (assume fallback)
+    bool mlst = false;  // MLST - modern directory listing
+    bool nlst = false;  // NLST - simple name listing
+    bool list = true;   // LIST - standard listing (assume fallback)
 
     // File info commands
-    bool size = false; // SIZE - get file size
-    bool mdtm = false; // MDTM - get modification time
+    bool size = false;  // SIZE - get file size
+    bool mdtm = false;  // MDTM - get modification time
 
     // File operations
-    bool rename = false; // RNFR/RNTO - rename file
+    bool rename = false;  // RNFR/RNTO - rename file
 
     // Connection modes
-    bool epsv = false; // EPSV - extended passive mode
-    bool pasv = true;  // PASV - passive mode
+    bool epsv = false;  // EPSV - extended passive mode
+    bool pasv = true;   // PASV - passive mode
 
     // Server management
-    bool feat = false; // FEAT - feature list
+    bool feat = false;  // FEAT - feature list
   };
 
 protected:
-  struct Answer {
+  struct Answer
+  {
     std::string full_msg;
     int code;
   };
@@ -142,30 +137,27 @@ protected:
   /// @brief Receive response from control connection.
   std::expected<Answer, std::error_code> receiveResponse();
 
-  std::expected<Answer, std::error_code>
-  sendAndReceiveResponse(std::string_view cmd);
+  std::expected<Answer, std::error_code> sendAndReceiveResponse(std::string_view cmd);
 
   // Static variants for data channel operations
 
-  std::expected<void, std::error_code> sendCommand(SyncSocket &sock,
-                                                    std::string_view cmd,
-                                                    std::chrono::milliseconds timeout);
-  std::expected<Answer, std::error_code> receiveResponse(SyncSocket &sock,
+  static std::expected<void, std::error_code> sendCommand(SyncSocket& sock,
+                                                          std::string_view cmd,
                                                           std::chrono::milliseconds timeout);
-  std::expected<std::vector<std::byte>, std::error_code>
-  receiveRawResponse(SyncSocket &sock, std::chrono::milliseconds timeout);
+  static std::expected<Answer, std::error_code> receiveResponse(SyncSocket& sock, std::chrono::milliseconds timeout);
+  static std::expected<std::vector<std::byte>, std::error_code> receiveRawResponse(SyncSocket& sock,
+                                                                                   std::chrono::milliseconds timeout);
 
-  std::expected<Answer, std::error_code>
-  sendAndReceiveResponse(SyncSocket &sock, std::string_view cmd,
-                          std::chrono::milliseconds timeout);
+  static std::expected<Answer, std::error_code> sendAndReceiveResponse(SyncSocket& sock,
+                                                                       std::string_view cmd,
+                                                                       std::chrono::milliseconds timeout);
 
   /// @brief Open FTP data connection (directory listing or file transfer).
   /// Uses PASV or EPSV based on server capabilities and configuration.
-  std::expected<std::unique_ptr<SyncSocket>, std::error_code>
-  openDataConnection();
+  std::expected<std::unique_ptr<SyncSocket>, std::error_code> openDataConnection();
 
   /// @brief Navigate to directory using navigator.
-  void navigateToDirectory(const std::filesystem::path &path);
+  void navigateToDirectory(const std::filesystem::path& path);
 
   /// @brief Parse FEAT response to detect server capabilities.
   void parseFeatures(std::string_view feat_response);
@@ -185,12 +177,12 @@ protected:
   /// @brief Get data timeout (defaults to control timeout if not set).
   std::chrono::milliseconds getDataTimeout() const noexcept;
 
- private:
+private:
   std::string _host;
   uint16_t _port;
   DefaultFtpNavigator _navigator;
 
-  IoContextWrapper &_io_context;
+  IoContextWrapper& _io_context;
   std::unique_ptr<SyncSocket> _socket;
   ConnectOptions _options;
   FtpCapabilities _capabilities;
@@ -204,9 +196,7 @@ protected:
 /// @param io_ctx ASIO io_context for async operations.
 /// @param opts Connection options (credentials, timeout, mode).
 /// @return Unique pointer to IAbstractFileTransfer, or error code on failure.
-std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code>
-openFtpConnection(std::string_view host, uint16_t port,
-                  IoContextWrapper &io_ctx,
-                  const FtpFileTransfer::ConnectOptions &opts = {});
+std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code> openFtpConnection(
+  std::string_view host, uint16_t port, IoContextWrapper& io_ctx, const FtpFileTransfer::ConnectOptions& opts = {});
 
-} // namespace Network
+}  // namespace Network

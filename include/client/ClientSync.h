@@ -5,7 +5,8 @@
 #include <expected>
 #include <memory>
 
-namespace Network {
+namespace Network
+{
 
 class SyncSocket;
 
@@ -23,27 +24,25 @@ class SyncSocket;
 ///   // handle error...
 /// }
 /// ```
-class ClientSync : public ClientBase {
+class ClientSync : public ClientBase
+{
 public:
   /// @brief Construct with host, port, and io_context.
-  explicit ClientSync(std::string_view host, uint16_t port,
-                      asio::io_context &io_ctx);
+  explicit ClientSync(std::string_view host, uint16_t port, asio::io_context& io_ctx);
 
   /// @brief Connect to the remote endpoint.
   /// @param opts Connection options including timeout.
   /// @return Socket on success, or error code on failure.
   /// @note Blocks until connection is established or times out.
-  std::expected<std::unique_ptr<SyncSocket>, std::error_code>
-  connect(Options opts);
+  std::expected<std::unique_ptr<SyncSocket>, std::error_code> connect(Options opts);
 
   /// @brief Connect to the remote endpoint using TLS.
   /// @param opts Connection options including timeout.
   /// @return TLS socket on success, or error code on failure.
   /// @note Blocks until connection is established or times out.
-  std::expected<std::unique_ptr<SyncSocket>, std::error_code>
-  connect_tls(Options opts);
+  std::expected<std::unique_ptr<SyncSocket>, std::error_code> connect_tls(Options opts);
 
 private:
 };
 
-} // namespace Network
+}  // namespace Network

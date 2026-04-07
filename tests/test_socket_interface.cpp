@@ -1,9 +1,11 @@
 #include "socket/TcpSocket.h"
 #include <gtest/gtest.h>
 
-namespace Network::Test {
+namespace Network::Test
+{
 
-TEST(AsioTcpSocketTest, MinimalConstructor) {
+TEST(AsioTcpSocketTest, MinimalConstructor)
+{
   asio::io_context io_ctx;
 
   // Construct the socket
@@ -13,4 +15,4 @@ TEST(AsioTcpSocketTest, MinimalConstructor) {
   EXPECT_FALSE(socket.isConnected());
 }
 
-} // namespace Network::Test
+}  // namespace Network::Test

@@ -25,160 +25,185 @@
 
 using namespace asio::experimental::awaitable_operators;
 
-namespace Network {
+namespace Network
+{
 
-namespace {} // namespace
+namespace
+{
+}  // namespace
 
-TcpSocket::TcpSocket(asio::io_context &io_ctx) : socket_(io_ctx) {}
+TcpSocket::TcpSocket(asio::io_context& io_ctx) : socket_(io_ctx)
+{
+}
 
-TcpSocket::TcpSocket(asio::ip::tcp::socket &&sock) : socket_(std::move(sock)) {}
+TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : socket_(std::move(sock))
+{
+}
 
-TcpSocket::~TcpSocket() { closeSocket(); }
+TcpSocket::~TcpSocket()
+{
+  closeSocket();
+}
 
-void TcpSocket::closeSocket() noexcept {
-  if (socket_.is_open()) {
+void TcpSocket::closeSocket() noexcept
+{
+  if (socket_.is_open())
+  {
     std::error_code ec;
     socket_.close(ec);
   }
 }
 
-void TcpSocket::cancelSocket() noexcept {
-  if (socket_.is_open()) {
+void TcpSocket::cancelSocket() noexcept
+{
+  if (socket_.is_open())
+  {
     std::error_code ec;
     socket_.cancel(ec);
   }
 }
 
-bool TcpSocket::isConnected() const noexcept { return socket_.is_open(); }
-
-bool TcpSocket::isConnectionClosed(const std::error_code &ec) const noexcept {
-  return (ec == asio::error::eof || ec == asio::error::connection_reset ||
-          ec == asio::error::broken_pipe || ec == asio::error::not_connected);
+bool TcpSocket::isConnected() const noexcept
+{
+  return socket_.is_open();
 }
 
-std::expected<std::size_t, std::error_code>
-TcpSocket::writeAll(std::span<const std::byte> buffer,
-                    std::optional<std::chrono::milliseconds> timeout) {
+bool TcpSocket::isConnectionClosed(const std::error_code& ec) const noexcept
+{
+  return (ec == asio::error::eof || ec == asio::error::connection_reset || ec == asio::error::broken_pipe ||
+          ec == asio::error::not_connected);
+}
+
+std::expected<std::size_t, std::error_code> TcpSocket::writeAll(std::span<const std::byte> in_buffer,
+                                                                std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] writeAll", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      socket_.get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncWriteAll(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    socket_.get_executor(),
+    [this, in_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncWriteAll(in_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-TcpSocket::readSome(std::span<std::byte> buffer,
-                    std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> TcpSocket::readSome(std::span<std::byte> out_buffer,
+                                                                std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readSome", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      socket_.get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadSome(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    socket_.get_executor(),
+    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadSome(out_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-TcpSocket::readExact(std::span<std::byte> buffer,
-                     std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> TcpSocket::readExact(std::span<std::byte> out_buffer,
+                                                                 std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readExact", getId());
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      socket_.get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadExact(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    socket_.get_executor(),
+    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadExact(out_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-TcpSocket::readUntil(std::span<std::byte> buffer, std::string_view delimiter,
-                     std::optional<std::chrono::milliseconds> timeout) {
-
+std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::byte> out_buffer,
+                                                                 std::string_view delimiter,
+                                                                 std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readUntil", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      socket_.get_executor(),
-      [this, buffer, delimiter, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadUntil(buffer, delimiter, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    socket_.get_executor(),
+    [this, out_buffer, delimiter, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadUntil(out_buffer, delimiter, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-TcpSocket::asyncWriteAll(std::span<const std::byte> buffer,
-                         std::optional<std::chrono::milliseconds> timeout) {
-
-  return socket_detail::asyncWriteAllCommon(*this, buffer, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> TcpSocket::asyncWriteAll(
+  std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncWriteAllCommon(*this, in_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-TcpSocket::asyncReadSome(std::span<std::byte> out,
-                         std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadSomeCommon(*this, out, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> TcpSocket::asyncReadSome(
+  std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadSomeCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-TcpSocket::asyncReadExact(std::span<std::byte> out,
-                          std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadExactCommon(*this, out, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> TcpSocket::asyncReadExact(
+  std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadExactCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-TcpSocket::asyncReadUntil(std::span<std::byte> out, std::string_view delim,
-                          std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadUntilCommon(*this, out, delim, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> TcpSocket::asyncReadUntil(
+  std::span<std::byte> out_buffer, std::string_view delim, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadUntilCommon(*this, out_buffer, delim, timeout);
 }
 
-} // namespace Network
+}  // namespace Network

@@ -27,159 +27,178 @@
 
 using namespace asio::experimental::awaitable_operators;
 
-namespace Network {
+namespace Network
+{
 
-SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream)
-    : SocketBase(), _stream(std::move(stream)) {}
+SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
+{
+}
 
-SslSocket::~SslSocket() { closeSocket(); }
+SslSocket::~SslSocket()
+{
+  closeSocket();
+}
 
-void SslSocket::closeSocket() noexcept {
-  if (_stream.next_layer().is_open()) {
+void SslSocket::closeSocket() noexcept
+{
+  if (_stream.next_layer().is_open())
+  {
     std::error_code ec;
     _stream.shutdown(ec);
     _stream.next_layer().close(ec);
   }
 }
 
-void SslSocket::cancelSocket() noexcept {
-  if (_stream.next_layer().is_open()) {
+void SslSocket::cancelSocket() noexcept
+{
+  if (_stream.next_layer().is_open())
+  {
     std::error_code ec;
     _stream.next_layer().cancel(ec);
   }
 }
 
-bool SslSocket::isConnected() const noexcept {
+bool SslSocket::isConnected() const noexcept
+{
   return _stream.next_layer().is_open();
 }
 
-bool SslSocket::isConnectionClosed(const std::error_code &ec) const noexcept {
-  return (ec == asio::error::eof || ec == asio::error::connection_reset ||
-          ec == asio::error::broken_pipe || ec == asio::error::not_connected ||
-          ec == asio::ssl::error::stream_truncated);
+bool SslSocket::isConnectionClosed(const std::error_code& ec) const noexcept
+{
+  return (ec == asio::error::eof || ec == asio::error::connection_reset || ec == asio::error::broken_pipe ||
+          ec == asio::error::not_connected || ec == asio::ssl::error::stream_truncated);
 }
 
-std::expected<std::size_t, std::error_code>
-SslSocket::writeAll(std::span<const std::byte> buffer,
-                    std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const std::byte> in_buffer,
+                                                                std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] writeAll", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      _stream.next_layer().get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncWriteAll(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    _stream.next_layer().get_executor(),
+    [this, in_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncWriteAll(in_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-SslSocket::readSome(std::span<std::byte> buffer,
-                    std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::byte> out_buffer,
+                                                                std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readSome", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      _stream.next_layer().get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadSome(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    _stream.next_layer().get_executor(),
+    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadSome(out_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-SslSocket::readExact(std::span<std::byte> buffer,
-                     std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::byte> out_buffer,
+                                                                 std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readExact", getId());
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      _stream.next_layer().get_executor(),
-      [this, buffer, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadExact(buffer, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    _stream.next_layer().get_executor(),
+    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadExact(out_buffer, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-std::expected<std::size_t, std::error_code>
-SslSocket::readUntil(std::span<std::byte> buffer, std::string_view delimiter,
-                     std::optional<std::chrono::milliseconds> timeout) {
+std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::byte> out_buffer,
+                                                                 std::string_view delimiter,
+                                                                 std::optional<std::chrono::milliseconds> timeout)
+{
   spdlog::trace("[{}] readUntil", getId());
 
-  auto promise = std::make_shared<
-      std::promise<std::expected<std::size_t, std::error_code>>>();
+  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
   auto future = promise->get_future();
 
   asio::co_spawn(
-      _stream.next_layer().get_executor(),
-      [this, buffer, delimiter, promise = std::move(promise),
-       timeout]() -> asio::awaitable<void> {
-        auto result = co_await asyncReadUntil(buffer, delimiter, timeout);
-        promise->set_value(result);
-      },
-      asio::detached);
+    _stream.next_layer().get_executor(),
+    [this, out_buffer, delimiter, promise = std::move(promise), timeout]() -> asio::awaitable<void>
+    {
+      auto result = co_await asyncReadUntil(out_buffer, delimiter, timeout);
+      promise->set_value(result);
+    },
+    asio::detached);
 
-  try {
+  try
+  {
     return future.get();
-  } catch (...) {
+  }
+  catch (...)
+  {
     return std::unexpected(std::make_error_code(std::errc::operation_canceled));
   }
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-SslSocket::asyncWriteAll(std::span<const std::byte> buffer,
-                         std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncWriteAllCommon(*this, buffer, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncWriteAll(
+  std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncWriteAllCommon(*this, in_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-SslSocket::asyncReadSome(std::span<std::byte> out,
-                         std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadSomeCommon(*this, out, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadSome(
+  std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadSomeCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-SslSocket::asyncReadExact(std::span<std::byte> out,
-                          std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadExactCommon(*this, out, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadExact(
+  std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadExactCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>>
-SslSocket::asyncReadUntil(std::span<std::byte> out, std::string_view delim,
-                          std::optional<std::chrono::milliseconds> timeout) {
-  return socket_detail::asyncReadUntilCommon(*this, out, delim, timeout);
+asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadUntil(
+  std::span<std::byte> out_buffer, std::string_view delim, std::optional<std::chrono::milliseconds> timeout)
+{
+  return socket_detail::asyncReadUntilCommon(*this, out_buffer, delim, timeout);
 }
 
-} // namespace Network
+}  // namespace Network

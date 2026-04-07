@@ -2,10 +2,12 @@
 
 #include <system_error>
 
-namespace Network {
+namespace Network
+{
 /// @brief Network error codes used throughout the stack.
 /// 0 is intentionally reserved for 'no error'.
-enum class Error {
+enum class Error
+{
   NoError = 0,
   ConnectionRefused,
   ConnectionTimeout,
@@ -16,24 +18,29 @@ enum class Error {
 
 /// @brief Custom error category for Network error codes.
 /// Integrates with std::error_code for proper error handling.
-class ErrorCategory : public std::error_category {
+class ErrorCategory : public std::error_category
+{
 public:
   /// @brief Returns the name of the error category.
-  const char *name() const noexcept override;
+  const char* name() const noexcept override;
 
   /// @brief Returns a human-readable message for the given error code.
   std::string message(int ev) const override;
 };
 
 /// @brief Returns the singleton instance of the network error category.
-const ErrorCategory &getNetworkCategory();
+const ErrorCategory& getNetworkCategory();
 
 /// @brief Creates an std::error_code from a Network::Error value.
 std::error_code make_error_code(Network::Error err);
-} // namespace Network
+}  // namespace Network
 
-namespace std {
+namespace std
+{
 /// @brief Specialization to enable implicit conversion from Network::Error to
 /// std::error_code.
-template <> struct is_error_code_enum<Network::Error> : true_type {};
-} // namespace std
+template <>
+struct is_error_code_enum<Network::Error> : true_type
+{
+};
+}  // namespace std

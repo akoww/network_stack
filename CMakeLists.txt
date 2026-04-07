@@ -109,6 +109,25 @@ find_package(spdlog REQUIRED)
 # ============================================================================
 find_package(OpenSSL REQUIRED)
 
+# ============================================================================
+# Clang Tidy
+# ============================================================================
+option(ENABLE_CLANG_TIDY_FIX "Enable clang-tidy auto-fixes" OFF)
+
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+
+if(CLANG_TIDY_EXE)
+  set(CLANG_TIDY_ARGS
+    ${CLANG_TIDY_EXE};
+    --config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
+  )
+
+  if(ENABLE_CLANG_TIDY_FIX)
+    list(APPEND CLANG_TIDY_ARGS -fix)
+  endif()
+
+  set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_ARGS})
+endif()
 
 # ============================================================================
 # Library Target: network_stack_core

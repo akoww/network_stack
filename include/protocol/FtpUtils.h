@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 
-namespace Network::Utility {
+namespace Network::Utility
+{
 
 /// @brief Path navigator for changing directories incrementally.
 /// This class translates absolute paths into incremental navigation commands
@@ -32,12 +33,13 @@ namespace Network::Utility {
 ///   }
 /// };
 /// ```
-class SmartDirectoryNavigator {
+class SmartDirectoryNavigator
+{
 public:
   /// @brief Construct with initial location.
   /// @param startPath Initial path. May be absolute or relative.
   ///                  Path is lexically normalized and stored as current location.
-  explicit SmartDirectoryNavigator(const std::filesystem::path &startPath);
+  explicit SmartDirectoryNavigator(const std::filesystem::path& startPath);
   virtual ~SmartDirectoryNavigator() = default;
 
   /// @brief Navigate from current path to target path using incremental steps.
@@ -51,8 +53,7 @@ public:
   ///   to common ancestor, then ftpCd() for each remaining component to target.
   ///
   /// The internal current path is updated to the normalized targetPath.
-  std::expected<void, std::error_code>
-  changeDirectory(const std::filesystem::path &targetPath);
+  std::expected<void, std::error_code> changeDirectory(const std::filesystem::path& targetPath);
 
 protected:
   /// @brief Issue a single directory change on the underlying protocol.
@@ -61,8 +62,7 @@ protected:
   ///
   /// Called with exactly one component at a time. Implementations should
   /// perform "cd" into dir or handle ".." to move up one level.
-  virtual std::expected<void, std::error_code>
-  ftpCd(const std::string &dir) = 0;
+  virtual std::expected<void, std::error_code> ftpCd(const std::string& dir) = 0;
 
   /// @brief Switch session to a different drive/root when needed (Windows).
   /// @param drive Drive/root identifier, e.g., "D:".
@@ -70,8 +70,7 @@ protected:
   ///
   /// Called when changeDirectory detects target.root_name() differs from
   /// current root and target.root_name() is non-empty.
-  virtual std::expected<void, std::error_code>
-  ftpSelectDrive(const std::string &drive) = 0;
+  virtual std::expected<void, std::error_code> ftpSelectDrive(const std::string& drive) = 0;
 
 private:
   std::filesystem::path current;
@@ -79,13 +78,12 @@ private:
   /// @brief Lexically normalize a path without touching the filesystem.
   /// @param p Input path.
   /// @return Normalized path with "." and ".." segments removed.
-  static std::filesystem::path normalize(const std::filesystem::path &p);
+  static std::filesystem::path normalize(const std::filesystem::path& p);
 
   /// @brief Split a path into components, filtering out "." and "..".
   /// @param p Path to split.
   /// @return Vector of non-dot path elements.
-  static std::vector<std::filesystem::path>
-  split(const std::filesystem::path &p);
+  static std::vector<std::filesystem::path> split(const std::filesystem::path& p);
 
   /// @brief Descend from root into target by issuing ftpCd per component.
   /// @param target Absolute target path.
@@ -93,8 +91,7 @@ private:
   ///
   /// Used after a root/drive change. Iterates target.relative_path() and
   /// calls ftpCd for each element in order.
-  std::expected<void, std::error_code>
-  descendFromRoot(const std::filesystem::path &target);
+  std::expected<void, std::error_code> descendFromRoot(const std::filesystem::path& target);
 };
 
-} // namespace Network::Utility
+}  // namespace Network::Utility

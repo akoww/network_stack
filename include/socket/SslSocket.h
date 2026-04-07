@@ -7,9 +7,11 @@
 #include <asio/ssl/stream.hpp>
 #include <memory>
 
-namespace Network {
+namespace Network
+{
 
-class SslSocket : public SyncSocket, public AsyncSocket {
+class SslSocket : public SyncSocket, public AsyncSocket
+{
 private:
   asio::ssl::stream<asio::ip::tcp::socket> _stream;
   std::vector<std::byte> _read_buffer;
@@ -23,42 +25,38 @@ public:
   void closeSocket() noexcept override;
   void cancelSocket() noexcept override;
 
-  bool isConnectionClosed(const std::error_code &ec) const noexcept override;
+  bool isConnectionClosed(const std::error_code& ec) const noexcept override;
 
-  asio::ssl::stream<asio::ip::tcp::socket> &getSocket() { return _stream; }
-  std::vector<std::byte> &getReadBuffer() { return _read_buffer; }
+  asio::ssl::stream<asio::ip::tcp::socket>& getSocket() { return _stream; }
+  std::vector<std::byte>& getReadBuffer() { return _read_buffer; }
 
   std::expected<std::size_t, std::error_code> writeAll(
-      std::span<const std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   std::expected<std::size_t, std::error_code> readSome(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   std::expected<std::size_t, std::error_code> readExact(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   std::expected<std::size_t, std::error_code> readUntil(
-      std::span<std::byte> buffer, std::string_view delimiter,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer,
+    std::string_view delimiter,
+    std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAll(
-      std::span<const std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSome(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExact(
-      std::span<std::byte> buffer,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> bufout_fer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntil(
-      std::span<std::byte> buffer, std::string_view delimiter,
-      std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer,
+    std::string_view delimiter,
+    std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };
 
-} // namespace Network
+}  // namespace Network

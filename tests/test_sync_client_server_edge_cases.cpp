@@ -12,16 +12,20 @@
 #include "server/ServerSync.h"
 #include "socket/TcpSocket.h"
 
-namespace Network::Test {
+namespace Network::Test
+{
 
 constexpr uint16_t TEST_PORT = 12347;
 
-TEST_F(IoContextFixture, ZeroSizeWrite) {
+TEST_F(IoContextFixture, ZeroSizeWrite)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -33,7 +37,8 @@ TEST_F(IoContextFixture, ZeroSizeWrite) {
   std::span<const std::byte> empty_span{};
   auto send_result = client_socket->writeAll(empty_span);
   EXPECT_TRUE(send_result);
-  if (send_result) {
+  if (send_result)
+  {
     EXPECT_EQ(*send_result, 0);
   }
 
@@ -41,12 +46,15 @@ TEST_F(IoContextFixture, ZeroSizeWrite) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, ZeroSizeRead) {
+TEST_F(IoContextFixture, ZeroSizeRead)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -58,7 +66,8 @@ TEST_F(IoContextFixture, ZeroSizeRead) {
   std::span<std::byte> empty_span{};
   auto recv_result = client_socket->readSome(empty_span);
   EXPECT_TRUE(recv_result);
-  if (recv_result) {
+  if (recv_result)
+  {
     EXPECT_EQ(*recv_result, 0);
   }
 
@@ -66,18 +75,23 @@ TEST_F(IoContextFixture, ZeroSizeRead) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, RapidConnectDisconnect) {
+TEST_F(IoContextFixture, RapidConnectDisconnect)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 100; i++)
+  {
     ClientSync client("127.0.0.1", server.port(), get_io_context());
     auto connect_result = client.connect({});
-    if (connect_result.has_value()) {
+    if (connect_result.has_value())
+    {
       auto client_socket = std::move(*connect_result);
     }
   }
@@ -86,12 +100,15 @@ TEST_F(IoContextFixture, RapidConnectDisconnect) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite) {
+TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -101,24 +118,29 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite) {
   auto client_socket = std::move(*connect_result);
 
   std::vector<std::byte> data(1024);
-  for (size_t i = 0; i < 1024; i++) {
+  for (size_t i = 0; i < 1024; i++)
+  {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
   auto send_result = client_socket->writeAll(std::span(data));
-  if (send_result.has_value() && *send_result > 0) {
+  if (send_result.has_value() && *send_result > 0)
+  {
     server.stop();
   }
 
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead) {
+TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -127,13 +149,16 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead) {
 
   auto client_socket = std::move(*connect_result);
 
-  std::thread writer([&server]() {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    server.stop();
-  });
+  std::thread writer(
+    [&server]()
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      server.stop();
+    });
 
   std::vector<std::byte> data(1024);
-  for (size_t i = 0; i < 1024; i++) {
+  for (size_t i = 0; i < 1024; i++)
+  {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
@@ -144,12 +169,15 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, FragmentedWriteRead) {
+TEST_F(IoContextFixture, FragmentedWriteRead)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -159,21 +187,25 @@ TEST_F(IoContextFixture, FragmentedWriteRead) {
   auto client_socket = std::move(*connect_result);
 
   std::string message = "Hello, World!";
-  for (char c : message) {
+  for (char c : message)
+  {
     std::array<std::byte, 1> send_buffer{std::byte(c)};
     auto send_result = client_socket->writeAll(std::span(send_buffer));
     EXPECT_TRUE(send_result);
-    if (!send_result) {
+    if (!send_result)
+    {
       break;
     }
   }
 
   std::string received;
-  while (received.size() < message.size()) {
+  while (received.size() < message.size())
+  {
     std::array<std::byte, 1> buffer{};
     auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
-    if (!recv_result || *recv_result == 0) {
+    if (!recv_result || *recv_result == 0)
+    {
       break;
     }
     received.push_back(static_cast<char>(buffer[0]));
@@ -185,12 +217,15 @@ TEST_F(IoContextFixture, FragmentedWriteRead) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, LargeWriteThenRead) {
+TEST_F(IoContextFixture, LargeWriteThenRead)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -200,32 +235,36 @@ TEST_F(IoContextFixture, LargeWriteThenRead) {
   auto client_socket = std::move(*connect_result);
 
   std::vector<std::byte> data(1024 * 64);
-  for (size_t i = 0; i < data.size(); i++) {
+  for (size_t i = 0; i < data.size(); i++)
+  {
     data[i] = static_cast<std::byte>(i % 256);
   }
 
   auto send_result = client_socket->writeAll(std::span(data));
   EXPECT_TRUE(send_result);
-  if (!send_result) {
+  if (!send_result)
+  {
     server.stop();
     server_thread.join();
     return;
   }
 
   std::vector<std::byte> received;
-  while (received.size() < data.size()) {
+  while (received.size() < data.size())
+  {
     std::array<std::byte, 4096> buffer{};
     auto recv_result = client_socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
-    if (!recv_result || *recv_result == 0) {
+    if (!recv_result || *recv_result == 0)
+    {
       break;
     }
-    received.insert(received.end(), buffer.begin(),
-                    buffer.begin() + *recv_result);
+    received.insert(received.end(), buffer.begin(), buffer.begin() + *recv_result);
   }
 
   EXPECT_EQ(received.size(), data.size());
-  for (size_t i = 0; i < data.size(); i++) {
+  for (size_t i = 0; i < data.size(); i++)
+  {
     EXPECT_EQ(received[i], data[i]);
   }
 
@@ -233,35 +272,41 @@ TEST_F(IoContextFixture, LargeWriteThenRead) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, MultipleClientsSameServer) {
+TEST_F(IoContextFixture, MultipleClientsSameServer)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::vector<std::unique_ptr<SyncSocket>> sockets;
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 10; i++)
+  {
     ClientSync client("127.0.0.1", server.port(), get_io_context());
     auto connect_result = client.connect({});
-    if (connect_result.has_value()) {
+    if (connect_result.has_value())
+    {
       sockets.push_back(std::move(*connect_result));
     }
   }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  for (size_t i = 0; i < sockets.size(); i++) {
-    auto send_result =
-        sockets[i]->writeAll(to_bytes("test" + std::to_string(i)));
+  for (size_t i = 0; i < sockets.size(); i++)
+  {
+    auto send_result = sockets[i]->writeAll(to_bytes("test" + std::to_string(i)));
     EXPECT_TRUE(send_result);
   }
 
-  for (size_t i = 0; i < sockets.size(); i++) {
+  for (const auto& socket : sockets)
+  {
     std::array<std::byte, 1024> buffer{};
-    auto recv_result = sockets[i]->readSome(std::span(buffer));
+    auto recv_result = socket->readSome(std::span(buffer));
     EXPECT_TRUE(recv_result);
   }
 
@@ -269,12 +314,15 @@ TEST_F(IoContextFixture, MultipleClientsSameServer) {
   server_thread.join();
 }
 
-TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket) {
+TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket)
+{
   EchoServer server(TEST_PORT, get_io_context());
-  std::thread server_thread([&server]() {
-    auto listen_result = server.listen();
-    EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
-  });
+  std::thread server_thread(
+    [&server]()
+    {
+      auto listen_result = server.listen();
+      EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
+    });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), get_io_context());
@@ -287,32 +335,40 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket) {
   std::atomic<int> send_count = 0;
   std::atomic<int> recv_count = 0;
 
-  std::thread sender([&]() {
-    int i = 0;
-    while (!done && i < 100) {
-      std::string msg = "msg" + std::to_string(i);
-      auto send_result = client_socket->writeAll(to_bytes(msg));
-      if (send_result) {
-        send_count++;
+  std::thread sender(
+    [&]()
+    {
+      int i = 0;
+      while (!done && i < 100)
+      {
+        std::string msg = "msg" + std::to_string(i);
+        auto send_result = client_socket->writeAll(to_bytes(msg));
+        if (send_result)
+        {
+          send_count++;
+        }
+        i++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      i++;
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  });
+    });
 
-  std::thread receiver([&]() {
-    int i = 0;
-    while (!done && i < 100) {
-      std::array<std::byte, 1024> buffer{};
-      auto recv_result = client_socket->readSome(std::span(buffer));
-      if (recv_result && *recv_result > 0) {
-        recv_count++;
+  std::thread receiver(
+    [&]()
+    {
+      int i = 0;
+      while (!done && i < 100)
+      {
+        std::array<std::byte, 1024> buffer{};
+        auto recv_result = client_socket->readSome(std::span(buffer));
+        if (recv_result && *recv_result > 0)
+        {
+          recv_count++;
+        }
+        i++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
-      i++;
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-    done = true;
-  });
+      done = true;
+    });
 
   sender.join();
   receiver.join();
@@ -324,4 +380,4 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket) {
   server_thread.join();
 }
 
-} // namespace Network::Test
+}  // namespace Network::Test

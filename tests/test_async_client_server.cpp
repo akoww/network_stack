@@ -11,65 +11,69 @@
 #include "server/ServerAsync.h"
 #include "socket/TcpSocket.h"
 
-namespace Network::Test {
+namespace Network::Test
+{
 
 constexpr uint16_t TEST_PORT = 12346;
 
-TEST_F(AsyncClientServerFixture, MinimalConstructor) {
-
+TEST_F(AsyncClientServerFixture, MinimalConstructor)
+{
   ClientAsync client("127.0.0.1", 12345, _io_ctx);
   EXPECT_EQ(client.host(), "127.0.0.1");
   EXPECT_EQ(client.port(), 12345);
 }
 
-TEST_F(AsyncClientServerFixture, MinimalConstructorServer) {
-
+TEST_F(AsyncClientServerFixture, MinimalConstructorServer)
+{
   EchoServer server(12345, _io_ctx);
   EXPECT_EQ(server.host(), "0.0.0.0");
   EXPECT_EQ(server.port(), 12345);
 }
 
-TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages) {
+TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages)
+{
   EchoServer server(TEST_PORT, _io_ctx);
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
-        (void)listen_result;
-      },
-      asio::detached);
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
+      (void)listen_result;
+    },
+    asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      _io_ctx,
-      [this, &promise]() -> asio::awaitable<void> {
-        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    _io_ctx,
+    [this, &promise]() -> asio::awaitable<void>
+    {
+      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
 
-  if (connect_result) {
+  if (connect_result)
+  {
     auto client_socket = std::move(*connect_result);
     const std::string msg = "hello";
     std::promise<std::expected<std::size_t, std::error_code>> send_promise;
     auto send_future = send_promise.get_future();
 
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, msg,
-         promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, msg, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto send_result = send_future.get();
@@ -81,19 +85,19 @@ TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages) {
 
     std::array<std::byte, 1024> buffer{};
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &buffer,
-         promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-          auto result =
-              co_await client_socket->asyncReadSome(std::span(buffer));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncReadSome(std::span(buffer));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto recv_result = recv_future.get();
     EXPECT_TRUE(recv_result);
-    if (recv_result) {
+    if (recv_result)
+    {
       auto response = to_string_view(buffer, *recv_result);
       EXPECT_EQ(msg, response);
     }
@@ -102,54 +106,57 @@ TEST_F(AsyncClientServerFixture, EchoServerMultipleMessages) {
   server.stop();
 }
 
-TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients) {
-
+TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients)
+{
   EchoServer server(TEST_PORT, _io_ctx);
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
 
-        (void)listen_result;
-      },
-      asio::detached);
+      (void)listen_result;
+    },
+    asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::vector<std::unique_ptr<AsyncSocket>> sockets;
-  for (int i = 0; i < 3; i++) {
-    std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-        promise;
+  for (int i = 0; i < 3; i++)
+  {
+    std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
     auto future = promise.get_future();
 
     asio::co_spawn(
-        _io_ctx,
-        [this, &promise]() -> asio::awaitable<void> {
-          ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-          auto result = co_await client.connect({});
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [this, &promise]() -> asio::awaitable<void>
+      {
+        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
+        auto result = co_await client.connect({});
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto connect_result = future.get();
-    if (connect_result) {
-
+    if (connect_result)
+    {
       sockets.emplace_back(std::move(*connect_result));
     }
   }
 
-  auto send_recv = [&](AsyncSocket &socket, const std::string &msg) {
+  auto send_recv = [&](AsyncSocket& socket, const std::string& msg)
+  {
     std::promise<std::expected<std::size_t, std::error_code>> send_promise;
     auto send_future = send_promise.get_future();
 
     asio::co_spawn(
-        _io_ctx,
-        [&socket, msg,
-         promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await socket.asyncWriteAll(to_bytes(msg));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&socket, msg, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await socket.asyncWriteAll(to_bytes(msg));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     auto send_result = send_future.get();
     EXPECT_TRUE(send_result);
@@ -159,17 +166,18 @@ TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients) {
 
     std::array<std::byte, 1024> buffer{};
     asio::co_spawn(
-        _io_ctx,
-        [msg, &socket, &buffer,
-         promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-          auto result = co_await socket.asyncReadSome(std::span(buffer));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [msg, &socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await socket.asyncReadSome(std::span(buffer));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     auto recv_result = recv_future.get();
     EXPECT_TRUE(recv_result);
-    if (recv_result) {
+    if (recv_result)
+    {
       auto response = to_string_view(buffer, *recv_result);
       EXPECT_EQ(msg, response);
     }
@@ -182,38 +190,41 @@ TEST_F(AsyncClientServerFixture, EchoServerConcurrentClients) {
   server.stop();
 }
 
-TEST_F(AsyncClientServerFixture, ServerRestart) {
-
+TEST_F(AsyncClientServerFixture, ServerRestart)
+{
   EchoServer server(TEST_PORT, _io_ctx);
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
-        (void)listen_result;
-      },
-      asio::detached);
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
+      (void)listen_result;
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      _io_ctx,
-      [this, &promise]() -> asio::awaitable<void> {
-        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    _io_ctx,
+    [this, &promise]() -> asio::awaitable<void>
+    {
+      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
 
   std::unique_ptr<AsyncSocket> client_socket;
   if (connect_result)
+  {
     client_socket = std::move(*connect_result);
+  }
 
   server.stop();
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -221,27 +232,28 @@ TEST_F(AsyncClientServerFixture, ServerRestart) {
   _io_ctx.start();
 
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
-        (void)listen_result;
-      },
-      asio::detached);
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
+      (void)listen_result;
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientAsync client2("127.0.0.1", TEST_PORT, _io_ctx);
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise2;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise2;
   auto future2 = promise2.get_future();
 
   asio::co_spawn(
-      _io_ctx,
-      [&client2, &promise2]() -> asio::awaitable<void> {
-        auto result = co_await client2.connect({});
-        promise2.set_value(std::move(result));
-      },
-      asio::detached);
+    _io_ctx,
+    [&client2, &promise2]() -> asio::awaitable<void>
+    {
+      auto result = co_await client2.connect({});
+      promise2.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result2 = future2.get();
@@ -250,89 +262,90 @@ TEST_F(AsyncClientServerFixture, ServerRestart) {
   server.stop();
 }
 
-TEST_F(IoContextFixture, ConnectionRefused) {
+TEST_F(IoContextFixture, ConnectionRefused)
+{
   ClientAsync client("127.0.0.1", 59999, get_io_context());
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      get_io_context(),
-      [&client,
-       promise = std::move(promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    get_io_context(),
+    [&client, promise = std::move(promise)]() mutable -> asio::awaitable<void>
+    {
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
   EXPECT_TRUE(!connect_result.has_value());
 }
 
-TEST_F(IoContextFixture, InvalidHost) {
+TEST_F(IoContextFixture, InvalidHost)
+{
   ClientAsync client("invalid.host.invalid", 12345, get_io_context());
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      get_io_context(),
-      [&client,
-       promise = std::move(promise)]() mutable -> asio::awaitable<void> {
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    get_io_context(),
+    [&client, promise = std::move(promise)]() mutable -> asio::awaitable<void>
+    {
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
   EXPECT_TRUE(!connect_result.has_value());
 }
 
-TEST_F(AsyncClientServerFixture, SpecialCharacters) {
-
+TEST_F(AsyncClientServerFixture, SpecialCharacters)
+{
   EchoServer server(TEST_PORT, _io_ctx);
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
-        (void)listen_result;
-      },
-      asio::detached);
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
+      (void)listen_result;
+    },
+    asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      _io_ctx,
-      [this, &promise]() -> asio::awaitable<void> {
-        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    _io_ctx,
+    [this, &promise]() -> asio::awaitable<void>
+    {
+      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
 
-  if (connect_result) {
+  if (connect_result)
+  {
     auto client_socket = std::move(*connect_result);
     std::string special = "Hello, World! @#$%^&*()_+-=\n\t";
     std::promise<std::expected<std::size_t, std::error_code>> send_promise;
     auto send_future = send_promise.get_future();
 
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &special,
-         promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result =
-              co_await client_socket->asyncWriteAll(to_bytes(special));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, &special, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncWriteAll(to_bytes(special));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto send_result = send_future.get();
@@ -343,19 +356,19 @@ TEST_F(AsyncClientServerFixture, SpecialCharacters) {
 
     std::array<std::byte, 1024> buffer{};
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &buffer,
-         promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-          auto result =
-              co_await client_socket->asyncReadSome(std::span(buffer));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncReadSome(std::span(buffer));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto recv_result = recv_future.get();
     EXPECT_TRUE(recv_result);
-    if (recv_result) {
+    if (recv_result)
+    {
       auto response = to_string_view(buffer, *recv_result);
       EXPECT_EQ(special, response);
     }
@@ -364,51 +377,54 @@ TEST_F(AsyncClientServerFixture, SpecialCharacters) {
   server.stop();
 }
 
-TEST_F(AsyncClientServerFixture, BinaryData) {
-
+TEST_F(AsyncClientServerFixture, BinaryData)
+{
   EchoServer server(TEST_PORT, _io_ctx);
   asio::co_spawn(
-      _io_ctx,
-      [&server]() -> asio::awaitable<void> {
-        auto listen_result = co_await server.listen();
-        (void)listen_result;
-      },
-      asio::detached);
+    _io_ctx,
+    [&server]() -> asio::awaitable<void>
+    {
+      auto listen_result = co_await server.listen();
+      (void)listen_result;
+    },
+    asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-      promise;
+  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
   auto future = promise.get_future();
 
   asio::co_spawn(
-      _io_ctx,
-      [this, &promise]() -> asio::awaitable<void> {
-        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-        auto result = co_await client.connect({});
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    _io_ctx,
+    [this, &promise]() -> asio::awaitable<void>
+    {
+      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
+      auto result = co_await client.connect({});
+      promise.set_value(std::move(result));
+    },
+    asio::detached);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = future.get();
 
-  if (connect_result) {
+  if (connect_result)
+  {
     auto client_socket = std::move(*connect_result);
     std::vector<std::byte> binary_data(256);
     for (size_t i = 0; i < 256; i++)
+    {
       binary_data[i] = static_cast<std::byte>(i);
+    }
     std::promise<std::expected<std::size_t, std::error_code>> send_promise;
     auto send_future = send_promise.get_future();
 
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &binary_data,
-         promise = std::move(send_promise)]() mutable -> asio::awaitable<void> {
-          auto result =
-              co_await client_socket->asyncWriteAll(std::span(binary_data));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, &binary_data, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncWriteAll(std::span(binary_data));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto send_result = send_future.get();
@@ -419,25 +435,27 @@ TEST_F(AsyncClientServerFixture, BinaryData) {
 
     std::array<std::byte, 512> buffer{};
     asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &buffer,
-         promise = std::move(recv_promise)]() mutable -> asio::awaitable<void> {
-          auto result =
-              co_await client_socket->asyncReadSome(std::span(buffer));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      _io_ctx,
+      [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
+      {
+        auto result = co_await client_socket->asyncReadSome(std::span(buffer));
+        promise.set_value(std::move(result));
+      },
+      asio::detached);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto recv_result = recv_future.get();
     EXPECT_TRUE(recv_result);
-    if (recv_result && size_t(*recv_result) == 256) {
+    if (recv_result && size_t(*recv_result) == 256)
+    {
       for (size_t i = 0; i < 256; i++)
+      {
         EXPECT_EQ(binary_data[i], buffer[i]);
+      }
     }
   }
 
   server.stop();
 }
 
-} // namespace Network::Test
+}  // namespace Network::Test

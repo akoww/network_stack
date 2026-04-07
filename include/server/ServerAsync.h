@@ -9,7 +9,8 @@
 
 #include <expected>
 
-namespace Network {
+namespace Network
+{
 
 class SslSocket;
 
@@ -26,10 +27,11 @@ class SslSocket;
 ///   }
 /// }(), asio::detached);
 /// ```
-class ServerAsync : public ServerBase {
+class ServerAsync : public ServerBase
+{
 public:
   /// @brief Construct with port and io_context.
-  ServerAsync(uint16_t port, asio::io_context &io_ctx);
+  ServerAsync(uint16_t port, asio::io_context& io_ctx);
 
   /// @brief Asynchronously start accepting connections.
   /// @return error_code on failure (e.g., port already in use).
@@ -48,4 +50,4 @@ public:
 private:
 };
 
-}
+}  // namespace Network

@@ -9,7 +9,8 @@
 #include <future>
 #include <memory>
 
-namespace Network {
+namespace Network
+{
 
 class TcpSocket;
 class SslSocket;
@@ -26,7 +27,8 @@ class SslSocket;
 /// server.stop();
 /// t.join();
 /// ```
-class ServerSync : public ServerBase {
+class ServerSync : public ServerBase
+{
 public:
   /// @brief Construct with port and io_context.
   explicit ServerSync(uint16_t port, asio::io_context& io_ctx);
@@ -46,15 +48,11 @@ public:
   void stop();
 
 protected:
-  void start_accept(
-      std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
-          promise);
+  void start_accept(std::shared_ptr<std::promise<std::expected<void, std::error_code>>> promise);
 
-  void start_accept_tls(
-      std::shared_ptr<std::promise<std::expected<void, std::error_code>>>
-          promise);
+  void start_accept_tls(std::shared_ptr<std::promise<std::expected<void, std::error_code>>> promise);
 
 private:
 };
 
-} // namespace Network
+}  // namespace Network
