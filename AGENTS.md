@@ -24,6 +24,12 @@ cd build && cmake .. && cmake --build .
 cmake -DCMAKE_BUILD_TYPE=Debug ..  # or Release
 ```
 
+### Build with clang-tidy autofix
+
+```bash
+cmake -DENABLE_CLANG_TIDY_FIX=ON ..
+```
+
 ### Build and Run Tests
 
 ```bash
@@ -43,7 +49,7 @@ cmake .. && cmake --build . --target test_error_code
 
 ```bash
 clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
-  --checks='-*,modernize-*,bugprone-*,performance-*,readability-*,misc-*'
+  --config-file=.clang-tidy
 ```
 
 ## General

@@ -509,7 +509,7 @@ TEST_F(AsyncClientServerFixture, LargeWriteThenRead)
     auto recv_result = recv_future.get();
 
     EXPECT_TRUE(recv_result.has_value());
-    if (!recv_result || (*recv_result == 0u))
+    if (!recv_result || (*recv_result == 0U))
     {
       break;
     }

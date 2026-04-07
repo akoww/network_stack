@@ -413,9 +413,9 @@ std::chrono::system_clock::time_point parseFtpTimestamp(const std::string& month
   std::tm tm_now = *std::localtime(&now_time_t);
   int currentYear = tm_now.tm_year + 1900;
 
-  int year;
-  int hour;
-  int minute;
+  int year = 0;
+  int hour = 0;
+  int minute = 0;
 
   // Determine if we have time (HH:MM) or year (YYYY)
   if (time_or_year.find(':') != std::string::npos)
