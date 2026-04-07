@@ -113,6 +113,7 @@ find_package(OpenSSL REQUIRED)
 # Clang Tidy
 # ============================================================================
 option(ENABLE_CLANG_TIDY_FIX "Enable clang-tidy auto-fixes" OFF)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
 
 find_program(CLANG_TIDY_EXE NAMES clang-tidy)
 
@@ -126,7 +127,9 @@ if(CLANG_TIDY_EXE)
     list(APPEND CLANG_TIDY_ARGS -fix)
   endif()
 
-  set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_ARGS})
+  if(ENABLE_CLANG_TIDY)
+    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_ARGS})
+  endif()
 endif()
 
 # ============================================================================
