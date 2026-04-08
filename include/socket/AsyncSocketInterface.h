@@ -8,8 +8,6 @@
 #include <span>
 #include <system_error>
 
-#include "SocketBase.h"
-
 namespace Network
 {
 
@@ -17,7 +15,7 @@ namespace Network
 /// Provides coroutine-based async send and receive operations.
 /// All asynchronous socket implementations must inherit from this interface.
 /// @note Operations return asio::awaitable and must be co_awaited.
-class AsyncSocket : public virtual SocketBase
+class AsyncSocket
 {
 public:
   virtual ~AsyncSocket() = default;

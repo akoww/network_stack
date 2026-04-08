@@ -8,6 +8,7 @@
 #include <asio/detached.hpp>
 #include <asio/error.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
+#include <asio/io_context.hpp>
 #include <asio/read.hpp>
 #include <asio/read_until.hpp>
 #include <asio/redirect_error.hpp>
@@ -30,12 +31,18 @@ using namespace asio::experimental::awaitable_operators;
 namespace Network
 {
 
+SslSocket::SslSocket(asio::io_context& context, asio::ssl::context& ssl_context)
+  : _stream(asio::ip::tcp::socket{context}, ssl_context)
+{
+}
+
 SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {
 }
 
 SslSocket::~SslSocket()
 {
+  cancelSocket();
   closeSocket();
 }
 

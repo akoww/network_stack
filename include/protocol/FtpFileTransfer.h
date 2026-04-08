@@ -3,7 +3,7 @@
 #include "FileTransfer.h"
 #include "FtpUtils.h"
 #include "core/Context.h"
-#include "socket/SyncSocketInterface.h"
+#include "socket/SocketBase.h"
 
 #include <expected>
 #include <filesystem>
@@ -183,7 +183,7 @@ private:
   DefaultFtpNavigator _navigator;
 
   IoContextWrapper& _io_context;
-  std::unique_ptr<SyncSocket> _socket;
+  std::unique_ptr<BasicSocket> _socket;
   ConnectOptions _options;
   FtpCapabilities _capabilities;
 

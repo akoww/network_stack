@@ -1,7 +1,6 @@
 #pragma once
 
-#include "AsyncSocketInterface.h"
-#include "SyncSocketInterface.h"
+#include "SocketBase.h"
 
 #include <asio/ip/tcp.hpp>
 #include <optional>
@@ -23,7 +22,7 @@ namespace Network
 /// ```cpp
 /// asio::co_spawn(io_ctx, async_operation(), asio::detached);
 /// ```
-class TcpSocket : public SyncSocket, public AsyncSocket
+class TcpSocket : public BasicSocket
 {
 private:
   asio::ip::tcp::socket socket_;

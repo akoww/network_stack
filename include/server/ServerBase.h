@@ -7,8 +7,7 @@
 namespace Network
 {
 
-class SslSocket;
-class TcpSocket;
+class BasicSocket;
 
 /// @brief Base class for server implementations.
 /// Provides common server functionality including acceptor management,
@@ -25,6 +24,8 @@ class TcpSocket;
 class ServerBase
 {
 public:
+  using ClientHandler = std::function<void(std::unique_ptr<BasicSocket>)>;
+
   virtual ~ServerBase() = default;
 
   /// @brief Construct with port and io_context.
@@ -48,12 +49,7 @@ public:
   /// @brief Handle a new client connection.
   /// Called when a client connects to the server.
   /// @param socket Connected TCP socket for the client.
-  virtual void handle_client(std::unique_ptr<TcpSocket> socket) = 0;
-
-  /// @brief Handle a new client connection using TLS.
-  /// Called when a client connects to the server with TLS.
-  /// @param socket Connected TLS socket for the client.
-  virtual void handle_client_tls(std::unique_ptr<SslSocket> socket) = 0;
+  virtual void handle_client(std::unique_ptr<BasicSocket> socket) = 0;
 
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
@@ -66,6 +62,8 @@ public:
 protected:
   std::atomic<bool> _stop_requested{false};
   asio::ip::tcp::acceptor _acceptor;
+
+  ClientHandler _handler;
 
 private:
   std::string _host;

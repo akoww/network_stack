@@ -34,15 +34,20 @@ namespace
 
 TcpSocket::TcpSocket(asio::io_context& io_ctx) : socket_(io_ctx)
 {
+  spdlog::info("[{}] created", getId());
 }
 
 TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : socket_(std::move(sock))
 {
+  spdlog::info("[{}] created", getId());
 }
 
 TcpSocket::~TcpSocket()
 {
+  spdlog::info("[{}] close", getId());
+  cancelSocket();
   closeSocket();
+  spdlog::info("[{}] closed", getId());
 }
 
 void TcpSocket::closeSocket() noexcept

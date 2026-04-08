@@ -122,10 +122,10 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
     return;
   }
 
-  auto socket = std::make_unique<asio::ip::tcp::socket>(get_io_context());
-
-  _acceptor.async_accept(*socket,
-                         [&, this, socket = std::move(socket), promise](std::error_code ec) mutable
+  auto new_socket = std::make_unique<TcpSocket>(get_io_context());
+  auto& socket = new_socket->getSocket();
+  _acceptor.async_accept(socket,
+                         [&, this, new_socket = std::move(new_socket), promise](std::error_code ec) mutable
                          {
                            if (is_stopped())
                            {
@@ -148,7 +148,6 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
 
                            spdlog::info("new connection accepted");
 
-                           auto new_socket = std::make_unique<TcpSocket>(std::move(*socket));
                            handle_client(std::move(new_socket));
                            start_accept(std::move(promise));
                          });
@@ -167,10 +166,13 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
     return;
   }
 
-  auto socket = std::make_unique<asio::ip::tcp::socket>(get_io_context());
+  auto new_socket = std::make_unique<SslSocket>(get_io_context(), *get_ssl_context());
 
-  _acceptor.async_accept(*socket,
-                         [&, this, socket = std::move(socket), promise](std::error_code ec) mutable
+  auto& stream = new_socket->getSocket();
+  auto& socket = stream.next_layer();
+
+  _acceptor.async_accept(socket,
+                         [&, this, new_socket = std::move(new_socket), promise](std::error_code ec) mutable
                          {
                            if (is_stopped())
                            {
@@ -193,8 +195,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
 
                            spdlog::info("new TLS connection accepted");
 
-                           asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(*socket), *get_ssl_context());
-
+                           auto& ssl_stream = new_socket->getSocket();
                            ssl_stream.handshake(asio::ssl::stream_base::server, ec);
 
                            if (ec)
@@ -204,8 +205,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
                              return;
                            }
 
-                           auto new_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
-                           handle_client_tls(std::move(new_socket));
+                           handle_client(std::move(new_socket));
                            start_accept_tls(std::move(promise));
                          });
 }

@@ -7,8 +7,6 @@
 #include <span>
 #include <system_error>
 
-#include "SocketBase.h"
-
 namespace Network
 {
 
@@ -17,7 +15,7 @@ namespace Network
 /// All synchronous socket implementations must inherit from this interface.
 /// @note Operations block until completion or error; use async versions for
 /// non-blocking behavior.
-class SyncSocket : public virtual SocketBase
+class SyncSocket
 {
 public:
   virtual ~SyncSocket() = default;

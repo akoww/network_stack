@@ -24,7 +24,7 @@ ClientAsync::ClientAsync(std::string_view host, uint16_t port, asio::io_context&
 {
 }
 
-asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
+asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
 {
   spdlog::info("client async connecting to {}:{}...", host(), port());
 
@@ -57,7 +57,7 @@ asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> Cl
   co_return std::move(tcp_socket);
 }
 
-asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> ClientAsync::connect_tls(Options /*opts*/)
+asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> ClientAsync::connect_tls(Options /*opts*/)
 {
   spdlog::info("client async connecting to {}:{} using TLS...", host(), port());
 

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "AsyncSocketInterface.h"
-#include "SyncSocketInterface.h"
+#include "SocketBase.h"
 
 #include <asio/ip/tcp.hpp>
 #include <asio/ssl/stream.hpp>
@@ -10,13 +9,14 @@
 namespace Network
 {
 
-class SslSocket : public SyncSocket, public AsyncSocket
+class SslSocket : public BasicSocket
 {
 private:
   asio::ssl::stream<asio::ip::tcp::socket> _stream;
   std::vector<std::byte> _read_buffer;
 
 public:
+  explicit SslSocket(asio::io_context& context, asio::ssl::context& ssl_context);
   explicit SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
   ~SslSocket() override;
 

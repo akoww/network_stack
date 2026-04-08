@@ -348,7 +348,7 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket)
           send_count++;
         }
         i++;
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
     });
 

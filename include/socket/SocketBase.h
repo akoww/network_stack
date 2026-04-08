@@ -1,6 +1,8 @@
 #pragma once
 
 #include <expected>
+#include "SyncSocketInterface.h"
+#include "AsyncSocketInterface.h"
 #include <system_error>
 
 namespace Network
@@ -30,6 +32,12 @@ public:
   virtual bool isConnectionClosed(const std::error_code& ec) const noexcept = 0;
 
   unsigned int getId() const;
+};
+
+class BasicSocket : public SocketBase, public AsyncSocket, public SyncSocket
+{
+public:
+  virtual ~BasicSocket() = default;
 };
 
 }  // namespace Network

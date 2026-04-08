@@ -19,7 +19,7 @@ ClientSync::ClientSync(std::string_view host, uint16_t port, asio::io_context& i
 {
 }
 
-std::expected<std::unique_ptr<SyncSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
+std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
 {
   spdlog::info("client connecting to {}:{}...", host(), port());
 
@@ -51,7 +51,7 @@ std::expected<std::unique_ptr<SyncSocket>, std::error_code> ClientSync::connect(
   return tcp_socket;
 }
 
-std::expected<std::unique_ptr<SyncSocket>, std::error_code> ClientSync::connect_tls(Options /*opts*/)
+std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect_tls(Options /*opts*/)
 {
   spdlog::info("client connecting to {}:{} using TLS...", host(), port());
 

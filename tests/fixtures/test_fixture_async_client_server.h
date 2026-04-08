@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <spdlog/spdlog.h>
 
 #include "client/ClientAsync.h"
 #include "core/Context.h"
@@ -26,33 +27,10 @@ namespace Network::Test
 class EchoServer : public ServerAsync
 {
 public:
-  EchoServer(uint16_t port, asio::io_context& io_ctx) : ServerAsync(port, io_ctx) {}
-  void handle_client(std::unique_ptr<TcpSocket> sock) override
-  {
-    asio::co_spawn(
-      get_io_context(),
-      [sock = std::move(sock)]() mutable -> asio::awaitable<void>
-      {
-        std::array<std::byte, 1024> buffer{};
-        while (true)
-        {
-          auto recv_result = co_await sock->asyncReadSome(std::span(buffer));
-          if (!recv_result || *recv_result == 0)
-          {
-            break;
-          }
-          auto send_result = co_await sock->asyncWriteAll(std::span(buffer).first(*recv_result));
-          if (!send_result)
-          {
-            break;
-          }
-        }
-        co_return;
-      },
-      asio::detached);
-  }
+  EchoServer(uint16_t port, asio::io_context& io_ctx) : ServerAsync(port, io_ctx) { spdlog::info("created server"); }
+  ~EchoServer() override { spdlog::info("stopped server"); }
 
-  void handle_client_tls(std::unique_ptr<SslSocket> sock) override
+  void handle_client(std::unique_ptr<BasicSocket> sock) override
   {
     asio::co_spawn(
       get_io_context(),

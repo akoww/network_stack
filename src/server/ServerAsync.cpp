@@ -62,6 +62,9 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 
   spdlog::info("server async started on {}:{}", host(), port());
 
+  // auto new_socket = std::make_unique<TcpSocket>(get_io_context());
+  // auto& socket = new_socket->getSocket();
+
   asio::ip::tcp::socket socket(get_io_context());
 
   while (!is_stopped())
@@ -81,7 +84,6 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
     }
 
     spdlog::info("new async connection accepted");
-
     auto new_socket = std::make_unique<TcpSocket>(std::move(socket));
 
     asio::co_spawn(
@@ -173,7 +175,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
       get_io_context(),
       [this, socket = std::move(new_socket)]() mutable -> asio::awaitable<void>
       {
-        handle_client_tls(std::move(socket));
+        handle_client(std::move(socket));
         co_return;
       },
       asio::detached);
