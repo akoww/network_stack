@@ -11,6 +11,8 @@
 #include <asio/detached.hpp>
 #include <asio/error.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
+#include <asio/experimental/cancellation_condition.hpp>
+#include <asio/experimental/parallel_group.hpp>
 #include <asio/read.hpp>
 #include <asio/read_until.hpp>
 #include <asio/redirect_error.hpp>
@@ -25,7 +27,7 @@
 #include <chrono>
 #include <expected>
 #include <future>
-#include <memory>
+#include <tuple>
 #include <spdlog/spdlog.h>
 #include <system_error>
 #include <type_traits>
@@ -85,23 +87,23 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
     auto buffer = dyn_buf.prepare(out.size());
 
     auto executor = co_await asio::this_coro::executor;
-    auto timer = asio::steady_timer(executor);
-    timer.expires_after(timeout.value());
+    auto timer = asio::steady_timer(executor, timeout.value());
 
     std::error_code ec1, ec2;
     std::size_t bytes_received = 0;
 
-    auto result = co_await(underlayingSocket.async_read_some(
-                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
-                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
-                           timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
+    auto [order, results] =
+      co_await asio::experimental::make_parallel_group(
+        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
+        .async_wait(asio::experimental::wait_for_one(),
+                    asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
 
-    if (result.index() == 1)
+    if (order[0] == 1)
     {
       socket.cancelSocket();
       co_return std::unexpected(makeTimeoutError());
     }
-
     if (socket.isConnectionClosed(ec1))
     {
       socket.closeSocket();
@@ -112,7 +114,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
       co_return std::unexpected(ec1);
     }
 
-    bytes_received = std::get<std::size_t>(result);
+    bytes_received = results;
     if (bytes_received == 0)
     {
       spdlog::warn("[{}] buffer empty, cant read any bytes and connection is closed", socket.getId());
@@ -135,8 +137,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
     timeout = std::chrono::hours(24);
 
   auto executor = co_await asio::this_coro::executor;
-  auto timer = asio::steady_timer(executor);
-  timer.expires_after(timeout.value());
+  auto timer = asio::steady_timer(executor, timeout.value());
 
   auto& readBuffer = socket.getReadBuffer();
   auto& underlayingSocket = socket.getSocket();
@@ -150,12 +151,14 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
 
     std::size_t readBytes = 0;
 
-    auto result = co_await(underlayingSocket.async_read_some(
-                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
-                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
-                           timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
+    auto [order, result] =
+      co_await asio::experimental::make_parallel_group(
+        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
+        .async_wait(asio::experimental::wait_for_one(),
+                    asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
 
-    if (result.index() == 1)
+    if (order[0] == 1)
     {
       socket.cancelSocket();
       co_return std::unexpected(makeTimeoutError());
@@ -171,7 +174,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
       co_return std::unexpected(ec1);
     }
 
-    readBytes = std::get<std::size_t>(result);
+    readBytes = result;
     if (readBytes == 0)
     {
       spdlog::warn(
@@ -227,12 +230,14 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
     auto dyn_buf = asio::dynamic_buffer(readBuffer);
     auto buffer = dyn_buf.prepare(out.size());
 
-    auto result = co_await(underlayingSocket.async_read_some(
-                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
-                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
-                           timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
+    auto [order, result] =
+      co_await asio::experimental::make_parallel_group(
+        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
+        .async_wait(asio::experimental::wait_for_one(),
+                    asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
 
-    if (result.index() == 1)
+    if (order[0] == 1)
     {
       socket.cancelSocket();
       co_return std::unexpected(makeTimeoutError());
@@ -248,7 +253,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
       co_return std::unexpected(ec1);
     }
 
-    readBytes = std::get<std::size_t>(result);
+    readBytes = result;
     if (readBytes == 0)
     {
       spdlog::warn(
@@ -281,19 +286,20 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   std::error_code ec1, ec2;
   std::size_t bytesTransferred = 0;
 
-  auto result =
-    co_await(asio::async_write(underlayingSocket, asio::buffer(buffer),
-                               asio::bind_cancellation_slot(socket.cancelSignal().slot(),
-                                                            asio::redirect_error(asio::use_awaitable, ec1))) ||
-             timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
+  auto [order, result] =
+    co_await asio::experimental::make_parallel_group(
+      asio::async_write(underlayingSocket, asio::buffer(buffer), asio::redirect_error(asio::deferred, ec1)),
+      timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
+      .async_wait(asio::experimental::wait_for_one(),
+                  asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
 
-  if (result.index() == 1)
+  if (order[0] == 1)
   {
     socket.cancelSocket();
     co_return std::unexpected(makeTimeoutError());
   }
 
-  bytesTransferred = std::get<std::size_t>(result);
+  bytesTransferred = result;
 
   if (socket.isConnectionClosed(ec1))
   {
