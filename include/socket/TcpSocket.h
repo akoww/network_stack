@@ -26,7 +26,6 @@ class TcpSocket : public BasicSocket
 {
 private:
   asio::ip::tcp::socket socket_;
-  std::vector<std::byte> readBuffer_;
 
 public:
   /// @brief Construct with an io_context.
@@ -45,7 +44,6 @@ public:
   bool isConnectionClosed(const std::error_code& ec) const noexcept override;
 
   asio::ip::tcp::socket& getSocket() { return socket_; }
-  std::vector<std::byte>& getReadBuffer() { return readBuffer_; }
 
   // sync
 

@@ -11,6 +11,7 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/redirect_error.hpp>
 #include <asio/ssl/context.hpp>
+#include <asio/this_coro.hpp>
 #include <asio/use_awaitable.hpp>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -19,7 +20,8 @@
 namespace Network
 {
 
-ServerAsync::ServerAsync(uint16_t port, asio::io_context& io_ctx) : ServerBase(port, io_ctx)
+ServerAsync::ServerAsync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+  : ServerBase(port, io_ctx, std::move(handler))
 {
   spdlog::info("server async created on port {}", port);
 }
@@ -87,15 +89,15 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
     auto new_socket = std::make_unique<TcpSocket>(std::move(socket));
 
     asio::co_spawn(
-      get_io_context(),
-      [this, socket = std::move(new_socket)]() mutable -> asio::awaitable<void>
+      co_await asio::this_coro::executor,
+      [socket = std::move(new_socket), handler = ClientHandler()]() mutable -> asio::awaitable<void>
       {
-        handle_client(std::move(socket));
+        handler(std::move(socket));
         co_return;
       },
       asio::detached);
 
-    socket = asio::ip::tcp::socket(get_io_context());
+    socket = asio::ip::tcp::socket(co_await asio::this_coro::executor);
   }
 
   co_return std::expected<void, std::error_code>{};
@@ -172,10 +174,10 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
     auto new_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
 
     asio::co_spawn(
-      get_io_context(),
-      [this, socket = std::move(new_socket)]() mutable -> asio::awaitable<void>
+      co_await asio::this_coro::executor,
+      [socket = std::move(new_socket), handler = ClientHandler()]() mutable -> asio::awaitable<void>
       {
-        handle_client(std::move(socket));
+        handler(std::move(socket));
         co_return;
       },
       asio::detached);

@@ -15,7 +15,8 @@
 namespace Network
 {
 
-ServerSync::ServerSync(uint16_t port, asio::io_context& io_ctx) : ServerBase(port, io_ctx)
+ServerSync::ServerSync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+  : ServerBase(port, io_ctx, std::move(handler))
 {
 }
 
@@ -125,14 +126,14 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
   auto new_socket = std::make_unique<TcpSocket>(get_io_context());
   auto& socket = new_socket->getSocket();
   _acceptor.async_accept(socket,
-                         [&, this, new_socket = std::move(new_socket), promise](std::error_code ec) mutable
+                         [&, new_socket = std::move(new_socket), promise = std::move(promise),
+                          handler = clientHandler()](std::error_code ec) mutable
                          {
                            if (is_stopped())
                            {
                              promise->set_value(std::expected<void, std::error_code>{});
                              return;
                            }
-
                            if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
                            {
                              promise->set_value(std::unexpected(ec));
@@ -146,9 +147,10 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
                              return;
                            }
 
-                           spdlog::info("new connection accepted");
+                           auto sock_id = new_socket->getSocket().lowest_layer().native_handle();
+                           spdlog::info("[{}]new connection accepted {}", new_socket->getId(), sock_id);
 
-                           handle_client(std::move(new_socket));
+                           handler(std::move(new_socket));
                            start_accept(std::move(promise));
                          });
 }
@@ -172,7 +174,8 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
   auto& socket = stream.next_layer();
 
   _acceptor.async_accept(socket,
-                         [&, this, new_socket = std::move(new_socket), promise](std::error_code ec) mutable
+                         [&, new_socket = std::move(new_socket), promise = std::move(promise),
+                          handler = ClientHandler()](std::error_code ec) mutable
                          {
                            if (is_stopped())
                            {
@@ -205,7 +208,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
                              return;
                            }
 
-                           handle_client(std::move(new_socket));
+                           handler(std::move(new_socket));
                            start_accept_tls(std::move(promise));
                          });
 }

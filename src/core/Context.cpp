@@ -6,11 +6,13 @@ namespace Network
 
 IoContextWrapper::IoContextWrapper() : running_(false)
 {
+  spdlog::trace("start context");
 }
 
 IoContextWrapper::~IoContextWrapper()
 {
   stop();
+  spdlog::trace("stopped io context");
 }
 
 IoContextWrapper& IoContextWrapper::instance()

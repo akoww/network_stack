@@ -2,15 +2,18 @@
 #include <asio/ssl/context.hpp>
 #include <spdlog/spdlog.h>
 
-#include "socket/SslSocket.h"
-
 namespace Network
 {
 
-ServerBase::ServerBase(uint16_t port, asio::io_context& io_ctx)
-  : _acceptor(io_ctx), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx),
+ServerBase::ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+  : _acceptor(io_ctx), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler)),
     _ssl_context(std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server))
 {
+}
+
+ServerBase::ClientHandler ServerBase::clientHandler()
+{
+  return _handler;
 }
 
 std::string_view ServerBase::host() const

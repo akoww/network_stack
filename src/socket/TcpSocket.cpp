@@ -6,6 +6,7 @@
 #include <asio/buffer.hpp>
 #include <asio/co_spawn.hpp>
 #include <asio/detached.hpp>
+#include <asio/use_future.hpp>
 #include <asio/error.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/read.hpp>
@@ -34,20 +35,19 @@ namespace
 
 TcpSocket::TcpSocket(asio::io_context& io_ctx) : socket_(io_ctx)
 {
-  spdlog::info("[{}] created", getId());
+  spdlog::trace("[{}] new socket", getId());
 }
 
 TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : socket_(std::move(sock))
 {
-  spdlog::info("[{}] created", getId());
+  spdlog::trace("[{}] new socket", getId());
 }
 
 TcpSocket::~TcpSocket()
 {
-  spdlog::info("[{}] close", getId());
   cancelSocket();
   closeSocket();
-  spdlog::info("[{}] closed", getId());
+  spdlog::trace("[{}] closed socket", getId());
 }
 
 void TcpSocket::closeSocket() noexcept
@@ -61,6 +61,7 @@ void TcpSocket::closeSocket() noexcept
 
 void TcpSocket::cancelSocket() noexcept
 {
+  SocketBase::cancelSocket();
   if (socket_.is_open())
   {
     std::error_code ec;
@@ -84,17 +85,9 @@ std::expected<std::size_t, std::error_code> TcpSocket::writeAll(std::span<const 
 {
   spdlog::trace("[{}] writeAll", getId());
 
-  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
-  auto future = promise->get_future();
-
-  asio::co_spawn(
-    socket_.get_executor(),
-    [this, in_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
-    {
-      auto result = co_await asyncWriteAll(in_buffer, timeout);
-      promise->set_value(result);
-    },
-    asio::detached);
+  auto future = asio::co_spawn(
+    socket_.get_executor(), [this, in_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return asyncWriteAll(in_buffer, timeout); }, asio::use_future);
 
   try
   {
@@ -111,17 +104,10 @@ std::expected<std::size_t, std::error_code> TcpSocket::readSome(std::span<std::b
 {
   spdlog::trace("[{}] readSome", getId());
 
-  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
-  auto future = promise->get_future();
-
-  asio::co_spawn(
+  auto future = asio::co_spawn(
     socket_.get_executor(),
-    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
-    {
-      auto result = co_await asyncReadSome(out_buffer, timeout);
-      promise->set_value(result);
-    },
-    asio::detached);
+    [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return asyncReadSome(out_buffer, timeout); }, asio::use_future);
 
   try
   {
@@ -137,17 +123,11 @@ std::expected<std::size_t, std::error_code> TcpSocket::readExact(std::span<std::
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] readExact", getId());
-  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
-  auto future = promise->get_future();
 
-  asio::co_spawn(
+  auto future = asio::co_spawn(
     socket_.get_executor(),
-    [this, out_buffer, promise = std::move(promise), timeout]() -> asio::awaitable<void>
-    {
-      auto result = co_await asyncReadExact(out_buffer, timeout);
-      promise->set_value(result);
-    },
-    asio::detached);
+    [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return asyncReadExact(out_buffer, timeout); }, asio::use_future);
 
   try
   {
@@ -165,17 +145,10 @@ std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::
 {
   spdlog::trace("[{}] readUntil", getId());
 
-  auto promise = std::make_shared<std::promise<std::expected<std::size_t, std::error_code>>>();
-  auto future = promise->get_future();
-
-  asio::co_spawn(
+  auto future = asio::co_spawn(
     socket_.get_executor(),
-    [this, out_buffer, delimiter, promise = std::move(promise), timeout]() -> asio::awaitable<void>
-    {
-      auto result = co_await asyncReadUntil(out_buffer, delimiter, timeout);
-      promise->set_value(result);
-    },
-    asio::detached);
+    [this, out_buffer, delimiter, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return asyncReadUntil(out_buffer, delimiter, timeout); }, asio::use_future);
 
   try
   {

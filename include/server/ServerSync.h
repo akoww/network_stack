@@ -31,7 +31,7 @@ class ServerSync : public ServerBase
 {
 public:
   /// @brief Construct with port and io_context.
-  explicit ServerSync(uint16_t port, asio::io_context& io_ctx);
+  explicit ServerSync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
 
   /// @brief Start accepting connections.
   /// @return error_code on failure (e.g., port already in use).

@@ -1,6 +1,5 @@
 #include <array>
 #include <asio.hpp>
-#include <atomic>
 #include <chrono>
 #include <expected>
 #include <gtest/gtest.h>
@@ -9,8 +8,8 @@
 #include "client/ClientSync.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
-#include "server/ServerSync.h"
-#include "socket/TcpSocket.h"
+
+#include <spdlog/spdlog.h>
 
 namespace Network::Test
 {
@@ -54,6 +53,8 @@ TEST_F(IoContextFixture, MultipleClientsConcurrent)
   client1.join();
   client2.join();
   client3.join();
+
+  spdlog::info("debug: all clients connected");
 
   server.stop();
   server_thread.join();

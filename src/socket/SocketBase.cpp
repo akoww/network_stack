@@ -19,4 +19,9 @@ unsigned int SocketBase::getId() const
   return _id;
 }
 
+void SocketBase::cancelSocket()
+{
+  cancel_signal_.emit(asio::cancellation_type_t::all);
+}
+
 }  // namespace Network

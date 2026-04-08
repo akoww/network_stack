@@ -31,7 +31,8 @@ public:
   /// @brief Construct with port and io_context.
   /// @param port Port to bind to (0 for dynamic assignment).
   /// @param io_ctx ASIO io_context for async operations.
-  explicit ServerBase(uint16_t port, asio::io_context& io_ctx);
+  /// @param handler callback function for new incoming clients
+  explicit ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
 
   /// @brief Get the bound host.
   std::string_view host() const;
@@ -46,11 +47,6 @@ public:
   /// @return Shared pointer to SSL context.
   std::shared_ptr<asio::ssl::context> get_ssl_context();
 
-  /// @brief Handle a new client connection.
-  /// Called when a client connects to the server.
-  /// @param socket Connected TCP socket for the client.
-  virtual void handle_client(std::unique_ptr<BasicSocket> socket) = 0;
-
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
   void stop();
@@ -59,16 +55,17 @@ public:
   /// @return true if server has been stopped, false otherwise.
   bool is_stopped() const noexcept;
 
+  ClientHandler clientHandler();
+
 protected:
   std::atomic<bool> _stop_requested{false};
   asio::ip::tcp::acceptor _acceptor;
-
-  ClientHandler _handler;
 
 private:
   std::string _host;
   uint16_t _port;
   asio::io_context& _io_ctx;
+  ClientHandler _handler;
   std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 

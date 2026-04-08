@@ -8,6 +8,7 @@
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
+#include <asio/io_context.hpp>
 #include <memory>
 
 namespace Network::Test
@@ -15,26 +16,97 @@ namespace Network::Test
 
 class EchoServer : public ServerSync
 {
-  std::vector<std::jthread> _threads;
+  struct Clients
+  {
+    unsigned int id;
+    std::thread tr;
+    std::unique_ptr<BasicSocket> sock;
+  };
+
+  mutable std::mutex mutex;
+  std::vector<Clients> clients;
 
 public:
-  EchoServer(uint16_t port, asio::io_context& io_ctx) : ServerSync(port, io_ctx) {}
-  void handle_client(std::unique_ptr<BasicSocket> sock) override
+  void handle_client(std::unique_ptr<BasicSocket> sock)
   {
-    _threads.emplace_back(
-      [sock = std::move(sock)]()
+    if (!sock)
+      return;
+
+    Clients entry;
+    entry.id = sock->getId();
+    entry.sock = std::move(sock);
+    BasicSocket* sock_ptr = entry.sock.get();  // Pointer for the thread to use
+
+    // Lock to add to vector
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      clients.push_back(std::move(entry));
+    }
+
+    clients.back().tr = std::thread(
+      [sock_ptr, client_id = clients.back().id]()
       {
         std::array<std::byte, 1024> buffer{};
-        while (true)
+        bool running = true;
+
+        try
         {
-          auto recv_result = sock->readSome(std::span(buffer));
-          if (!recv_result || *recv_result == 0)
-            break;
-          auto send_result = sock->writeAll(std::span(buffer).first(*recv_result));
-          if (!send_result)
-            break;
+          while (running)
+          {
+            // Read data
+            auto recv_result = sock_ptr->readSome(std::span(buffer));
+
+            // If disconnect or error, stop
+            if (!recv_result || *recv_result == 0)
+            {
+              running = false;
+              break;
+            }
+
+            // Echo data back
+            auto send_result = sock_ptr->writeAll(std::span(buffer).first(*recv_result));
+            if (!send_result)
+            {
+              running = false;
+              break;
+            }
+          }
+        }
+        catch (const std::exception& e)
+        {
+          std::cerr << "Client " << client_id << " Error: " << e.what() << std::endl;
+          running = false;
         }
       });
+  }
+
+  EchoServer(uint16_t port, asio::io_context& io_ctx)
+    : ServerSync(port, io_ctx, [this](std::unique_ptr<BasicSocket> sock) { handle_client(std::move(sock)); })
+  {
+  }
+  ~EchoServer()
+  {
+    std::vector<Clients> to_join;
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      // Move all clients to a temporary vector to release the lock before joining
+      for (auto& c : clients)
+      {
+        if (c.tr.joinable())
+          to_join.push_back(std::move(c));
+      }
+      clients.clear();
+    }
+
+    // Cancel sockets and join threads outside of the main lock
+    for (auto& c : to_join)
+    {
+      if (c.sock)
+        c.sock->cancelSocket();
+
+      if (c.tr.joinable())
+        c.tr.join();
+    }
   }
 };
 

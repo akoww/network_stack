@@ -17,6 +17,8 @@
 #include <asio/steady_timer.hpp>
 #include <asio/use_awaitable.hpp>
 #include <asio/write.hpp>
+#include <asio/bind_cancellation_slot.hpp>
+
 #ifdef ASIO_HAS_STD_SSL
   #include <asio/ssl/error.hpp>
 #endif
@@ -60,7 +62,11 @@ template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon(
   SocketType& socket, std::span<std::byte> out, std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] asyncReadSome", socket.getId());
+  auto& readBuffer = socket.getReadBuffer();
+  auto& underlayingSocket = socket.getSocket();
+
+  auto sock_id = underlayingSocket.lowest_layer().native_handle();
+  spdlog::info("[{}] asyncReadSome {}", socket.getId(), sock_id);
 
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});
@@ -72,9 +78,6 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   {
     co_return std::size_t{0};
   }
-
-  auto& readBuffer = socket.getReadBuffer();
-  auto& underlayingSocket = socket.getSocket();
 
   if (readBuffer.empty())
   {
@@ -88,7 +91,9 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
     std::error_code ec1, ec2;
     std::size_t bytes_received = 0;
 
-    auto result = co_await(underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
+    auto result = co_await(underlayingSocket.async_read_some(
+                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
+                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
                            timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1)
@@ -145,7 +150,9 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
 
     std::size_t readBytes = 0;
 
-    auto result = co_await(underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
+    auto result = co_await(underlayingSocket.async_read_some(
+                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
+                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
                            timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1)
@@ -220,7 +227,9 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
     auto dyn_buf = asio::dynamic_buffer(readBuffer);
     auto buffer = dyn_buf.prepare(out.size());
 
-    auto result = co_await(underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::use_awaitable, ec1)) ||
+    auto result = co_await(underlayingSocket.async_read_some(
+                             buffer, asio::bind_cancellation_slot(socket.cancelSignal().slot(),
+                                                                  asio::redirect_error(asio::use_awaitable, ec1))) ||
                            timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
     if (result.index() == 1)
@@ -272,9 +281,11 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   std::error_code ec1, ec2;
   std::size_t bytesTransferred = 0;
 
-  auto result = co_await(
-    asio::async_write(underlayingSocket, asio::buffer(buffer), asio::redirect_error(asio::use_awaitable, ec1)) ||
-    timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
+  auto result =
+    co_await(asio::async_write(underlayingSocket, asio::buffer(buffer),
+                               asio::bind_cancellation_slot(socket.cancelSignal().slot(),
+                                                            asio::redirect_error(asio::use_awaitable, ec1))) ||
+             timer.async_wait(asio::redirect_error(asio::use_awaitable, ec2)));
 
   if (result.index() == 1)
   {

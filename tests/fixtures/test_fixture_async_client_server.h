@@ -27,13 +27,12 @@ namespace Network::Test
 class EchoServer : public ServerAsync
 {
 public:
-  EchoServer(uint16_t port, asio::io_context& io_ctx) : ServerAsync(port, io_ctx) { spdlog::info("created server"); }
   ~EchoServer() override { spdlog::info("stopped server"); }
 
-  void handle_client(std::unique_ptr<BasicSocket> sock) override
+  static void handle_client(asio::io_context& context, std::unique_ptr<BasicSocket> sock)
   {
     asio::co_spawn(
-      get_io_context(),
+      context,
       [sock = std::move(sock)]() mutable -> asio::awaitable<void>
       {
         std::array<std::byte, 1024> buffer{};
@@ -53,6 +52,12 @@ public:
         co_return;
       },
       asio::detached);
+  }
+  EchoServer(uint16_t port, asio::io_context& io_ctx)
+    : ServerAsync(
+        port, io_ctx, [&](std::unique_ptr<BasicSocket> sock) { EchoServer::handle_client(io_ctx, std::move(sock)); })
+  {
+    spdlog::info("created server");
   }
 };
 
