@@ -19,13 +19,13 @@ ClientSync::ClientSync(std::string_view host, uint16_t port, asio::io_context& i
 {
 }
 
-std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
+std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
 {
   spdlog::info("client connecting to {}:{}...", host(), port());
 
   std::error_code ec;
 
-  asio::ip::tcp::resolver resolver(get_io_context());
+  asio::ip::tcp::resolver resolver(getIoContext());
 
   auto endpoints = resolver.resolve(host(), std::to_string(port()), ec);
 
@@ -35,7 +35,7 @@ std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect
     return std::unexpected(ec);
   }
 
-  asio::ip::tcp::socket socket(get_io_context());
+  asio::ip::tcp::socket socket(getIoContext());
 
   asio::connect(socket, endpoints, ec);
 
@@ -51,13 +51,13 @@ std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect
   return tcp_socket;
 }
 
-std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect_tls(Options /*opts*/)
+std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_tls(Options /*opts*/)
 {
   spdlog::info("client connecting to {}:{} using TLS...", host(), port());
 
   std::error_code ec;
 
-  asio::ip::tcp::resolver resolver(get_io_context());
+  asio::ip::tcp::resolver resolver(getIoContext());
 
   auto endpoints = resolver.resolve(host(), std::to_string(port()), ec);
 
@@ -67,7 +67,7 @@ std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect
     return std::unexpected(ec);
   }
 
-  asio::ip::tcp::socket socket(get_io_context());
+  asio::ip::tcp::socket socket(getIoContext());
 
   asio::connect(socket, endpoints, ec);
 
@@ -77,7 +77,7 @@ std::expected<std::unique_ptr<BasicSocket>, std::error_code> ClientSync::connect
     return std::unexpected(ec);
   }
 
-  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *get_ssl_context());
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
 
   ssl_stream.set_verify_mode(asio::ssl::verify_none, ec);
   if (ec)

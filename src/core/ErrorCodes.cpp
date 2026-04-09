@@ -12,22 +12,22 @@ std::string ErrorCategory::message(int ev) const
 {
   switch (static_cast<Error>(ev))
   {
-    case Error::NoError:
+    case Error::NO_ERROR:
       return "No error";
 
-    case Error::ConnectionRefused:
+    case Error::CONNECTION_REFUSED:
       return "Connection was refused by the remote host";
 
-    case Error::ConnectionTimeout:
+    case Error::CONNECTION_TIMEOUT:
       return "Connection attempt timed out";
 
-    case Error::ConnectionLost:
+    case Error::CONNECTION_LOST:
       return "Connection was lost during communication";
 
-    case Error::DnsFailure:
+    case Error::DNS_FAILURE:
       return "Failed to resolve host name (DNS failure)";
 
-    case Error::ProtocolError:
+    case Error::PROTOCOL_ERROR:
       return "Protocol error occurred while communicating with the server";
   }
   return "Unknown network error";

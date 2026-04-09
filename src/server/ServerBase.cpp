@@ -24,11 +24,11 @@ uint16_t ServerBase::port() const
 {
   return _port;
 }
-asio::io_context& ServerBase::get_io_context()
+asio::io_context& ServerBase::getIoContext()
 {
   return _io_ctx;
 }
-std::shared_ptr<asio::ssl::context> ServerBase::get_ssl_context()
+std::shared_ptr<asio::ssl::context> ServerBase::getSslContext()
 {
   return _ssl_context;
 }
@@ -39,7 +39,7 @@ void ServerBase::stop()
   _stop_requested.store(true);
 }
 
-bool ServerBase::is_stopped() const noexcept
+bool ServerBase::isStopped() const noexcept
 {
   return _stop_requested.load();
 }

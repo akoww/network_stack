@@ -8,10 +8,10 @@ High-level client connection orchestration: resolves DNS, establishes connection
 
 ### ClientBase.h
 
-- **Shared configuration**: `host()`, `port()`, `get_io_context()`, `get_ssl_context()`
+- **Shared configuration**: `host()`, `port()`, `getIoContext()`, `getSslContext()`
 - **Options struct**: `timeout` field for connection timeouts
 - **Constructor**: `ClientBase(std::string_view host, uint16_t port, asio::io_context&)`
-- **SSL context**: lazily-created with `get_ssl_context()`
+- **SSL context**: lazily-created with `getSslContext()`
 
 ### ClientSync.h
 
@@ -31,7 +31,7 @@ High-level client connection orchestration: resolves DNS, establishes connection
 
 - All client classes inherit from `ClientBase`
 - Connection timeout must be explicitly provided (no default)
-- TLS connections use same `get_ssl_context()` from base class
+- TLS connections use same `getSslContext()` from base class
 - Sockets ownership transferred to caller via `std::unique_ptr`
 
 ## Important Notes

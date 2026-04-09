@@ -9,7 +9,7 @@
 namespace Network
 {
 
-class SslSocket : public BasicSocket
+class SslSocket : public DualSocket
 {
 private:
   asio::ssl::stream<asio::ip::tcp::socket> _stream;
@@ -49,7 +49,7 @@ public:
     std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExact(
-    std::span<std::byte> bufout_fer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
+    std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 
   asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntil(
     std::span<std::byte> out_buffer,

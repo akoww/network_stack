@@ -52,7 +52,7 @@ fs::path stripWindowsDrive(const fs::path& p)
 
 }  // namespace
 
-SmartDirectoryNavigator::SmartDirectoryNavigator(const fs::path& startPath) : current(normalize(startPath))
+SmartDirectoryNavigator::SmartDirectoryNavigator(const fs::path& startPath) : _current(normalize(startPath))
 {
 }
 
@@ -62,16 +62,16 @@ std::expected<void, std::error_code> SmartDirectoryNavigator::changeDirectory(co
 
   fs::path target = normalize(targetPath);
 
-  bool currentHasDrive = hasWindowsDrive(current);
+  bool currentHasDrive = hasWindowsDrive(_current);
   bool targetHasDrive = hasWindowsDrive(target);
 
-  bool currentIsPosixRoot = isPosixAbsolute(current);
+  bool currentIsPosixRoot = isPosixAbsolute(_current);
   bool targetIsPosixRoot = isPosixAbsolute(target);
 
   // Windows drive change
   if (currentHasDrive || targetHasDrive)
   {
-    std::string currentDrive = extractWindowsDrive(current);
+    std::string currentDrive = extractWindowsDrive(_current);
     std::string targetDrive = extractWindowsDrive(target);
 
     if (currentDrive != targetDrive)
@@ -88,7 +88,7 @@ std::expected<void, std::error_code> SmartDirectoryNavigator::changeDirectory(co
       {
         return std::unexpected(result.error());
       }
-      current = target;
+      _current = target;
       return {};
     }
   }
@@ -100,11 +100,11 @@ std::expected<void, std::error_code> SmartDirectoryNavigator::changeDirectory(co
     {
       return std::unexpected(result.error());
     }
-    current = target;
+    _current = target;
     return {};
   }
 
-  auto currentParts = split(current.relative_path());
+  auto currentParts = split(_current.relative_path());
   auto targetParts = split(target.relative_path());
 
   size_t common = 0;
@@ -129,7 +129,7 @@ std::expected<void, std::error_code> SmartDirectoryNavigator::changeDirectory(co
     }
   }
 
-  current = target;
+  _current = target;
   return {};
 }
 

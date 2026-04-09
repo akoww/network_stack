@@ -11,8 +11,8 @@ Server connection handling: accepts connections and dispatches them to handler m
 - **Abstract base**: Defines virtual handler methods, not meant for direct use
 - **`handle_client(std::unique_ptr<TcpSocket>)`**: Override to handle TCP clients
 - **`handle_client_tls(std::unique_ptr<SslSocket>)`**: Override to handle TLS clients
-- **Server lifecycle**: `stop()`, `is_stopped()`, acceptor management
-- **Configuration**: `host()`, `port()`, `get_io_context()`, `get_ssl_context()`
+- **Server lifecycle**: `stop()`, `isStopped()`, acceptor management
+- **Configuration**: `host()`, `port()`, `getIoContext()`, `getSslContext()`
 
 ### ServerSync.h
 
@@ -41,4 +41,4 @@ Server connection handling: accepts connections and dispatches them to handler m
 - **Blocking servers require threads** - `listen()` blocks until stopped
 - **Async servers require co_spawn** - use `asio::co_spawn(io_ctx, server.listen(), asio::detached)`
 - **Stop signal**: Call `stop()` to terminate accept loop gracefully
-- **SSL context**: Must be configured via `get_ssl_context()` before calling `listen_tls()`
+- **SSL context**: Must be configured via `getSslContext()` before calling `listen_tls()`

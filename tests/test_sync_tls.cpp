@@ -23,9 +23,9 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
   std::thread server_thread(
     [&server]()
     {
-      server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-      server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                                     asio::ssl::context::pem);
+      server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
+      server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
+                                                   asio::ssl::context::pem);
       auto listen_result = server.listen_tls();
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });
@@ -33,7 +33,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
-  client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
+  client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
   auto connect_result = client.connect_tls({});
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client with TLS";
 
@@ -61,9 +61,9 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
   std::thread server_thread(
     [&server]()
     {
-      server.get_ssl_context()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-      server.get_ssl_context()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                                     asio::ssl::context::pem);
+      server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
+      server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
+                                                   asio::ssl::context::pem);
       auto listen_result = server.listen_tls();
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });
@@ -71,7 +71,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
-  client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
+  client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
   auto connect_result = client.connect_tls({});
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client with TLS";
 
@@ -99,7 +99,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
 TEST_F(SyncClientServerFixture, TlsConnectionRefused)
 {
   ClientSync client("127.0.0.1", 59998, _io_ctx);
-  client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
+  client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
   auto connect_result = client.connect_tls({});
   EXPECT_FALSE(connect_result.has_value());
 }

@@ -22,10 +22,10 @@ namespace Network
 /// ```cpp
 /// asio::co_spawn(io_ctx, async_operation(), asio::detached);
 /// ```
-class TcpSocket : public BasicSocket
+class TcpSocket : public DualSocket
 {
 private:
-  asio::ip::tcp::socket socket_;
+  asio::ip::tcp::socket _socket;
 
 public:
   /// @brief Construct with an io_context.
@@ -43,7 +43,7 @@ public:
 
   bool isConnectionClosed(const std::error_code& ec) const noexcept override;
 
-  asio::ip::tcp::socket& getSocket() { return socket_; }
+  asio::ip::tcp::socket& getSocket() { return _socket; }
 
   // sync
 

@@ -104,7 +104,7 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
 }
@@ -146,7 +146,7 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
 }
@@ -189,7 +189,7 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
   auto recv_result = recv_future.get();
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
 }

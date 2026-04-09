@@ -20,14 +20,14 @@ class EchoServer : public ServerSync
   {
     unsigned int id;
     std::thread tr;
-    std::unique_ptr<BasicSocket> sock;
+    std::unique_ptr<DualSocket> sock;
   };
 
   mutable std::mutex mutex;
   std::vector<Clients> clients;
 
 public:
-  void handle_client(std::unique_ptr<BasicSocket> sock)
+  void handle_client(std::unique_ptr<DualSocket> sock)
   {
     if (!sock)
       return;
@@ -35,7 +35,7 @@ public:
     Clients entry;
     entry.id = sock->getId();
     entry.sock = std::move(sock);
-    BasicSocket* sock_ptr = entry.sock.get();  // Pointer for the thread to use
+    DualSocket* sock_ptr = entry.sock.get();  // Pointer for the thread to use
 
     // Lock to add to vector
     {
@@ -81,7 +81,7 @@ public:
   }
 
   EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerSync(port, io_ctx, [this](std::unique_ptr<BasicSocket> sock) { handle_client(std::move(sock)); })
+    : ServerSync(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
   ~EchoServer()
@@ -129,7 +129,7 @@ public:
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& get_io_context() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
 
 protected:
   Network::IoContextWrapper _io_ctx;

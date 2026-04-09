@@ -73,7 +73,7 @@ protected:
   virtual std::expected<void, std::error_code> ftpSelectDrive(const std::string& drive) = 0;
 
 private:
-  std::filesystem::path current;
+  std::filesystem::path _current;
 
   /// @brief Lexically normalize a path without touching the filesystem.
   /// @param p Input path.

@@ -212,10 +212,9 @@ TEST_F(AsyncClientServerFixture, ServerRestart)
 
 TEST_F(IoContextFixture, ConnectionRefused)
 {
-  ClientAsync client("127.0.0.1", 59999, get_io_context());
+  ClientAsync client("127.0.0.1", 59999, getIoContext());
   auto connect_future = asio::co_spawn(
-    get_io_context(),
-    [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+    getIoContext(), [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     { co_return co_await client.connect({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -225,10 +224,9 @@ TEST_F(IoContextFixture, ConnectionRefused)
 
 TEST_F(IoContextFixture, InvalidHost)
 {
-  ClientAsync client("invalid.host.invalid", 12345, get_io_context());
+  ClientAsync client("invalid.host.invalid", 12345, getIoContext());
   auto connect_future = asio::co_spawn(
-    get_io_context(),
-    [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+    getIoContext(), [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     { co_return co_await client.connect({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

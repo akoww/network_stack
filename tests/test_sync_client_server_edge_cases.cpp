@@ -19,7 +19,7 @@ constexpr uint16_t TEST_PORT = 12347;
 
 TEST_F(IoContextFixture, ZeroSizeWrite)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -28,7 +28,7 @@ TEST_F(IoContextFixture, ZeroSizeWrite)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -48,7 +48,7 @@ TEST_F(IoContextFixture, ZeroSizeWrite)
 
 TEST_F(IoContextFixture, ZeroSizeRead)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -57,7 +57,7 @@ TEST_F(IoContextFixture, ZeroSizeRead)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -77,7 +77,7 @@ TEST_F(IoContextFixture, ZeroSizeRead)
 
 TEST_F(IoContextFixture, RapidConnectDisconnect)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -88,7 +88,7 @@ TEST_F(IoContextFixture, RapidConnectDisconnect)
 
   for (int i = 0; i < 100; i++)
   {
-    ClientSync client("127.0.0.1", server.port(), get_io_context());
+    ClientSync client("127.0.0.1", server.port(), getIoContext());
     auto connect_result = client.connect({});
     if (connect_result.has_value())
     {
@@ -102,7 +102,7 @@ TEST_F(IoContextFixture, RapidConnectDisconnect)
 
 TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -111,7 +111,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -134,7 +134,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringWrite)
 
 TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -143,7 +143,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -171,7 +171,7 @@ TEST_F(IoContextFixture, ServerAbruptShutdownDuringRead)
 
 TEST_F(IoContextFixture, FragmentedWriteRead)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -180,7 +180,7 @@ TEST_F(IoContextFixture, FragmentedWriteRead)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -219,7 +219,7 @@ TEST_F(IoContextFixture, FragmentedWriteRead)
 
 TEST_F(IoContextFixture, LargeWriteThenRead)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -228,7 +228,7 @@ TEST_F(IoContextFixture, LargeWriteThenRead)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -274,7 +274,7 @@ TEST_F(IoContextFixture, LargeWriteThenRead)
 
 TEST_F(IoContextFixture, MultipleClientsSameServer)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -287,7 +287,7 @@ TEST_F(IoContextFixture, MultipleClientsSameServer)
 
   for (int i = 0; i < 10; i++)
   {
-    ClientSync client("127.0.0.1", server.port(), get_io_context());
+    ClientSync client("127.0.0.1", server.port(), getIoContext());
     auto connect_result = client.connect({});
     if (connect_result.has_value())
     {
@@ -316,7 +316,7 @@ TEST_F(IoContextFixture, MultipleClientsSameServer)
 
 TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -325,7 +325,7 @@ TEST_F(IoContextFixture, ConcurrentWriteReadSameSocket)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 

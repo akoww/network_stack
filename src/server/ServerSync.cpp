@@ -117,19 +117,19 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
     return;
   }
 
-  if (is_stopped())
+  if (isStopped())
   {
     promise->set_value(std::expected<void, std::error_code>{});
     return;
   }
 
-  auto new_socket = std::make_unique<TcpSocket>(get_io_context());
+  auto new_socket = std::make_unique<TcpSocket>(getIoContext());
   auto& socket = new_socket->getSocket();
   _acceptor.async_accept(socket,
                          [&, new_socket = std::move(new_socket), promise = std::move(promise),
                           handler = clientHandler()](std::error_code ec) mutable
                          {
-                           if (is_stopped())
+                           if (isStopped())
                            {
                              promise->set_value(std::expected<void, std::error_code>{});
                              return;
@@ -162,13 +162,13 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
     return;
   }
 
-  if (is_stopped())
+  if (isStopped())
   {
     promise->set_value(std::expected<void, std::error_code>{});
     return;
   }
 
-  auto new_socket = std::make_unique<SslSocket>(get_io_context(), *get_ssl_context());
+  auto new_socket = std::make_unique<SslSocket>(getIoContext(), *getSslContext());
 
   auto& stream = new_socket->getSocket();
   auto& socket = stream.next_layer();
@@ -177,7 +177,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
                          [&, new_socket = std::move(new_socket), promise = std::move(promise),
                           handler = clientHandler()](std::error_code ec) mutable
                          {
-                           if (is_stopped())
+                           if (isStopped())
                            {
                              promise->set_value(std::expected<void, std::error_code>{});
                              return;

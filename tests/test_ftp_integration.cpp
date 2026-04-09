@@ -445,7 +445,7 @@ TEST(FtpIntegrationTest, ReadWithCallbackError)
                                  [&](std::span<const std::byte>)
                                  {
                                    callback_called = true;
-                                   return std::unexpected(make_error_code(Network::Error::ConnectionLost));
+                                   return std::unexpected(make_error_code(Network::Error::CONNECTION_LOST));
                                  });
 
     EXPECT_FALSE(read_result.has_value()) << "Callback error should propagate";
@@ -618,7 +618,7 @@ TEST(FtpIntegrationTest, WriteWithCallbackError)
                                    [&]()
                                    {
                                      callback_called = true;
-                                     std::error_code ec = make_error_code(Network::Error::ConnectionLost);
+                                     std::error_code ec = make_error_code(Network::Error::CONNECTION_LOST);
                                      return std::unexpected(ec);
                                    });
 

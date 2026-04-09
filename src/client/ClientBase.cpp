@@ -19,11 +19,11 @@ uint16_t ClientBase::port() const
 {
   return _port;
 }
-asio::io_context& ClientBase::get_io_context()
+asio::io_context& ClientBase::getIoContext()
 {
   return _io_ctx;
 }
-std::shared_ptr<asio::ssl::context> ClientBase::get_ssl_context()
+std::shared_ptr<asio::ssl::context> ClientBase::getSslContext()
 {
   return _ssl_context;
 }

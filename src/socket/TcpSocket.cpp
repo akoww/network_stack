@@ -33,12 +33,12 @@ namespace
 {
 }  // namespace
 
-TcpSocket::TcpSocket(asio::io_context& io_ctx) : socket_(io_ctx)
+TcpSocket::TcpSocket(asio::io_context& io_ctx) : _socket(io_ctx)
 {
   spdlog::trace("[{}] new socket", getId());
 }
 
-TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : socket_(std::move(sock))
+TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : _socket(std::move(sock))
 {
   spdlog::trace("[{}] new socket", getId());
 }
@@ -52,26 +52,26 @@ TcpSocket::~TcpSocket()
 
 void TcpSocket::closeSocket() noexcept
 {
-  if (socket_.is_open())
+  if (_socket.is_open())
   {
     std::error_code ec;
-    socket_.close(ec);
+    _socket.close(ec);
   }
 }
 
 void TcpSocket::cancelSocket() noexcept
 {
   SocketBase::cancelSocket();
-  if (socket_.is_open())
+  if (_socket.is_open())
   {
     std::error_code ec;
-    socket_.cancel(ec);
+    _socket.cancel(ec);
   }
 }
 
 bool TcpSocket::isConnected() const noexcept
 {
-  return socket_.is_open();
+  return _socket.is_open();
 }
 
 bool TcpSocket::isConnectionClosed(const std::error_code& ec) const noexcept
@@ -86,7 +86,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::writeAll(std::span<const 
   spdlog::trace("[{}] writeAll", getId());
 
   auto future = asio::co_spawn(
-    socket_.get_executor(), [this, in_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    _socket.get_executor(), [this, in_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncWriteAll(in_buffer, timeout); }, asio::use_future);
 
   try
@@ -105,7 +105,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readSome(std::span<std::b
   spdlog::trace("[{}] readSome", getId());
 
   auto future = asio::co_spawn(
-    socket_.get_executor(),
+    _socket.get_executor(),
     [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadSome(out_buffer, timeout); }, asio::use_future);
 
@@ -125,7 +125,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readExact(std::span<std::
   spdlog::trace("[{}] readExact", getId());
 
   auto future = asio::co_spawn(
-    socket_.get_executor(),
+    _socket.get_executor(),
     [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadExact(out_buffer, timeout); }, asio::use_future);
 
@@ -146,7 +146,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::
   spdlog::trace("[{}] readUntil", getId());
 
   auto future = asio::co_spawn(
-    socket_.get_executor(),
+    _socket.get_executor(),
     [this, out_buffer, delimiter, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadUntil(out_buffer, delimiter, timeout); }, asio::use_future);
 

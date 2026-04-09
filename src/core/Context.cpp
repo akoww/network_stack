@@ -4,7 +4,7 @@
 namespace Network
 {
 
-IoContextWrapper::IoContextWrapper() : running_(false)
+IoContextWrapper::IoContextWrapper() : _running(false)
 {
   spdlog::trace("start context");
 }
@@ -29,20 +29,20 @@ IoContextWrapper& IoContextWrapper::instance()
 // Start the io_context run loop in a dedicated background thread
 void IoContextWrapper::start()
 {
-  if (running_)
+  if (_running)
   {
     return;
   }
-  std::scoped_lock lock(mutex_);
+  std::scoped_lock lock(_mutex);
 
   restart();
-  work_guard_.emplace(this->get_executor());
-  running_ = true;
-  thread_ = std::thread(
+  _work_guard.emplace(this->get_executor());
+  _running = true;
+  _thread = std::thread(
     [this]()
     {
       asio::io_context::run();
-      running_ = false;
+      _running = false;
     });
   spdlog::info("context started");
 }
@@ -50,30 +50,30 @@ void IoContextWrapper::start()
 // Stop the loop and wait for the thread
 void IoContextWrapper::stop()
 {
-  if (!running_)
+  if (!_running)
   {
     return;
   }
-  std::scoped_lock lock(mutex_);
+  std::scoped_lock lock(_mutex);
 
-  work_guard_.reset();
+  _work_guard.reset();
   // Inherit stop() from io_context
   asio::io_context::stop();
 
-  if (thread_.joinable())
+  if (_thread.joinable())
   {
-    thread_.join();
+    _thread.join();
   }
 
   // Optionally restart the context if you plan to use it again
   // this->restart();
-  running_ = false;
+  _running = false;
   spdlog::info("context stopped");
 }
 
-bool IoContextWrapper::is_running() const
+bool IoContextWrapper::isRunning() const
 {
-  return running_;
+  return _running;
 }
 
 }  // namespace Network

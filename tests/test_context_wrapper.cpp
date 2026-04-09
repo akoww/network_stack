@@ -16,35 +16,35 @@ TEST(IoContextWrapperTest, SingletonInstance)
 TEST(IoContextWrapperTest, InitialState)
 {
   IoContextWrapper& ctx = IoContextWrapper::instance();
-  EXPECT_FALSE(ctx.is_running());
+  EXPECT_FALSE(ctx.isRunning());
 }
 
 TEST(IoContextWrapperTest, StartAndStop)
 {
   IoContextWrapper& ctx = IoContextWrapper::instance();
 
-  if (ctx.is_running())
+  if (ctx.isRunning())
   {
     ctx.stop();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  EXPECT_FALSE(ctx.is_running());
+  EXPECT_FALSE(ctx.isRunning());
 
   ctx.start();
 
-  EXPECT_TRUE(ctx.is_running());
+  EXPECT_TRUE(ctx.isRunning());
 
   ctx.stop();
 
-  EXPECT_FALSE(ctx.is_running());
+  EXPECT_FALSE(ctx.isRunning());
 }
 
 TEST(IoContextWrapperTest, ExecuteTaskViaPost)
 {
   IoContextWrapper& ctx = IoContextWrapper::instance();
 
-  if (ctx.is_running())
+  if (ctx.isRunning())
   {
     ctx.stop();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -72,7 +72,7 @@ TEST(IoContextWrapperTest, DirectPostIfAccessible)
   // If this fails, you MUST use the asio::post(ctx.get_executor(), ...) method above.
   IoContextWrapper& ctx = IoContextWrapper::instance();
 
-  if (ctx.is_running())
+  if (ctx.isRunning())
   {
     ctx.stop();
   }

@@ -31,13 +31,13 @@ class EchoServer : public ServerAsync
   {
     unsigned int id;
     std::future<void> future;
-    std::unique_ptr<BasicSocket> sock;
+    std::unique_ptr<DualSocket> sock;
   };
 
   mutable std::mutex mutex;
   std::vector<Clients> clients;
 
-  void handle_client_impl(asio::io_context& context, std::unique_ptr<BasicSocket> sock)
+  void handle_client_impl(asio::io_context& context, std::unique_ptr<DualSocket> sock)
   {
     if (!sock)
       return;
@@ -45,7 +45,7 @@ class EchoServer : public ServerAsync
     unsigned int client_id = sock->getId();
 
     auto entry = Clients{client_id, std::future<void>{}, std::move(sock)};
-    BasicSocket* sock_ptr = entry.sock.get();
+    DualSocket* sock_ptr = entry.sock.get();
 
     {
       std::lock_guard<std::mutex> lock(mutex);
@@ -103,7 +103,7 @@ public:
   EchoServer(uint16_t port, asio::io_context& io_ctx)
     : ServerAsync(port,
                   io_ctx,
-                  [this, &io_ctx](std::unique_ptr<BasicSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
+                  [this, &io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
   {
     spdlog::info("created server");
   }
@@ -128,7 +128,7 @@ public:
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& get_io_context() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
 
 protected:
   Network::IoContextWrapper _io_ctx;

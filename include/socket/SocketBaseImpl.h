@@ -43,7 +43,7 @@ namespace socket_detail
 
 inline std::error_code makeTimeoutError()
 {
-  return make_error_code(Network::Error::ConnectionTimeout);
+  return make_error_code(Network::Error::CONNECTION_TIMEOUT);
 }
 
 inline std::size_t move_data(std::vector<std::byte>& buffer, std::span<std::byte> out, const std::size_t max_len)
@@ -65,9 +65,9 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   SocketType& socket, std::span<std::byte> out, std::optional<std::chrono::milliseconds> timeout)
 {
   auto& readBuffer = socket.getReadBuffer();
-  auto& underlayingSocket = socket.getSocket();
+  auto& underlyingSocket = socket.getSocket();
 
-  auto sock_id = underlayingSocket.lowest_layer().native_handle();
+  auto sock_id = underlyingSocket.lowest_layer().native_handle();
   spdlog::trace("[{}] asyncReadSome {}", socket.getId(), sock_id);
 
   std::error_code ec;
@@ -94,7 +94,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
 
     auto [order, results] =
       co_await asio::experimental::make_parallel_group(
-        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        underlyingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
         timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
         .async_wait(asio::experimental::wait_for_one(),
                     asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
@@ -140,7 +140,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
   auto timer = asio::steady_timer(executor, timeout.value());
 
   auto& readBuffer = socket.getReadBuffer();
-  auto& underlayingSocket = socket.getSocket();
+  auto& underlyingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
 
@@ -153,7 +153,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
 
     auto [order, result] =
       co_await asio::experimental::make_parallel_group(
-        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        underlyingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
         timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
         .async_wait(asio::experimental::wait_for_one(),
                     asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
@@ -208,7 +208,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
   timer.expires_after(timeout.value());
 
   auto& readBuffer = socket.getReadBuffer();
-  auto& underlayingSocket = socket.getSocket();
+  auto& underlyingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
 
@@ -221,7 +221,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
       if (len > out.size())
       {
         spdlog::warn("[{}] result buffer has not enough space for result", socket.getId());
-        co_return std::unexpected(make_error_code(Network::Error::ProtocolError));
+        co_return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
       }
 
       co_return move_data(readBuffer, out, len + 1);
@@ -232,7 +232,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
 
     auto [order, result] =
       co_await asio::experimental::make_parallel_group(
-        underlayingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
+        underlyingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
         timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
         .async_wait(asio::experimental::wait_for_one(),
                     asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));
@@ -265,7 +265,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
     dyn_buf.commit(readBytes);
   }
 
-  co_return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  co_return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 template <typename SocketType>
@@ -281,14 +281,14 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   auto timer = asio::steady_timer(executor);
   timer.expires_after(timeout.value());
 
-  auto& underlayingSocket = socket.getSocket();
+  auto& underlyingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
   std::size_t bytesTransferred = 0;
 
   auto [order, result] =
     co_await asio::experimental::make_parallel_group(
-      asio::async_write(underlayingSocket, asio::buffer(buffer), asio::redirect_error(asio::deferred, ec1)),
+      asio::async_write(underlyingSocket, asio::buffer(buffer), asio::redirect_error(asio::deferred, ec1)),
       timer.async_wait(asio::redirect_error(asio::deferred, ec2)))
       .async_wait(asio::experimental::wait_for_one(),
                   asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::use_awaitable));

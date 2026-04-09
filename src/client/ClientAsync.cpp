@@ -24,13 +24,13 @@ ClientAsync::ClientAsync(std::string_view host, uint16_t port, asio::io_context&
 {
 }
 
-asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
+asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
 {
   spdlog::info("client async connecting to {}:{}...", host(), port());
 
   std::error_code ec;
 
-  asio::ip::tcp::resolver resolver(get_io_context());
+  asio::ip::tcp::resolver resolver(getIoContext());
 
   auto endpoints =
     co_await resolver.async_resolve(host(), std::to_string(port()), asio::redirect_error(asio::use_awaitable, ec));
@@ -41,7 +41,7 @@ asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> Cl
     co_return std::unexpected(ec);
   }
 
-  asio::ip::tcp::socket socket(get_io_context());
+  asio::ip::tcp::socket socket(getIoContext());
 
   co_await asio::async_connect(socket, endpoints, asio::redirect_error(asio::use_awaitable, ec));
 
@@ -57,13 +57,13 @@ asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> Cl
   co_return std::move(tcp_socket);
 }
 
-asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> ClientAsync::connect_tls(Options /*opts*/)
+asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> ClientAsync::connect_tls(Options /*opts*/)
 {
   spdlog::info("client async connecting to {}:{} using TLS...", host(), port());
 
   std::error_code ec;
 
-  asio::ip::tcp::resolver resolver(get_io_context());
+  asio::ip::tcp::resolver resolver(getIoContext());
 
   auto endpoints =
     co_await resolver.async_resolve(host(), std::to_string(port()), asio::redirect_error(asio::use_awaitable, ec));
@@ -74,7 +74,7 @@ asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> Cl
     co_return std::unexpected(ec);
   }
 
-  asio::ip::tcp::socket socket(get_io_context());
+  asio::ip::tcp::socket socket(getIoContext());
 
   co_await asio::async_connect(socket, endpoints, asio::redirect_error(asio::use_awaitable, ec));
 
@@ -84,7 +84,7 @@ asio::awaitable<std::expected<std::unique_ptr<BasicSocket>, std::error_code>> Cl
     co_return std::unexpected(ec);
   }
 
-  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *get_ssl_context());
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
 
   ssl_stream.set_verify_mode(asio::ssl::verify_none, ec);
   if (ec)

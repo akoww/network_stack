@@ -17,7 +17,7 @@ protected:
 
   void TearDown() override { _io_ctx.stop(); }
 
-  Network::IoContextWrapper& get_io_context() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
 
 private:
   Network::IoContextWrapper _io_ctx;

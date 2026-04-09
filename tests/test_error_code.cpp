@@ -3,7 +3,7 @@
 
 TEST(NetworkErrorTest, NoErrorIsSuccess)
 {
-  std::error_code ec = Network::Error::NoError;
+  std::error_code ec = Network::Error::NO_ERROR;
 
   EXPECT_FALSE(ec);          // 0 should evaluate to false
   EXPECT_EQ(ec.value(), 0);  // Value should be 0
@@ -12,10 +12,10 @@ TEST(NetworkErrorTest, NoErrorIsSuccess)
 
 TEST(NetworkErrorTest, ConnectionTimeoutFails)
 {
-  std::error_code ec = Network::Error::ConnectionTimeout;
+  std::error_code ec = Network::Error::CONNECTION_TIMEOUT;
 
   EXPECT_TRUE(ec);  // Should evaluate to true
-  EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::CONNECTION_TIMEOUT));
   EXPECT_EQ(ec.message(), "Connection attempt timed out");
 }
 

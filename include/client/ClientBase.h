@@ -39,11 +39,11 @@ public:
   uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  asio::io_context& get_io_context();
+  asio::io_context& getIoContext();
 
   /// @brief Get the SSL context for TLS connections.
   /// @return Shared pointer to SSL context.
-  std::shared_ptr<asio::ssl::context> get_ssl_context();
+  std::shared_ptr<asio::ssl::context> getSslContext();
 
 private:
   std::string _host;

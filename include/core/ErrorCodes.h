@@ -8,12 +8,12 @@ namespace Network
 /// 0 is intentionally reserved for 'no error'.
 enum class Error
 {
-  NoError = 0,
-  ConnectionRefused,
-  ConnectionTimeout,
-  ConnectionLost,
-  DnsFailure,
-  ProtocolError
+  NO_ERROR = 0,
+  CONNECTION_REFUSED,
+  CONNECTION_TIMEOUT,
+  CONNECTION_LOST,
+  DNS_FAILURE,
+  PROTOCOL_ERROR
 };
 
 /// @brief Custom error category for Network error codes.

@@ -64,12 +64,12 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 
   spdlog::info("server async started on {}:{}", host(), port());
 
-  // auto new_socket = std::make_unique<TcpSocket>(get_io_context());
+  // auto new_socket = std::make_unique<TcpSocket>(getIoContext());
   // auto& socket = new_socket->getSocket();
 
-  asio::ip::tcp::socket socket(get_io_context());
+  asio::ip::tcp::socket socket(getIoContext());
 
-  while (!is_stopped())
+  while (!isStopped())
   {
     ec = {};
     co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
@@ -141,10 +141,10 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
 
   spdlog::info("server async TLS started on {}:{}", host(), port());
 
-  while (!is_stopped())
+  while (!isStopped())
   {
     ec = {};
-    asio::ip::tcp::socket socket(get_io_context());
+    asio::ip::tcp::socket socket(getIoContext());
     co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
@@ -160,7 +160,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
 
     spdlog::info("new async TLS connection accepted");
 
-    asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *get_ssl_context());
+    asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
 
     ec = {};
     co_await ssl_stream.async_handshake(asio::ssl::stream_base::server, asio::redirect_error(asio::use_awaitable, ec));

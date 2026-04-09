@@ -106,9 +106,9 @@ public:
   struct FtpCapabilities
   {
     // Listing commands
-    bool mlst = false;  // MLST - modern directory listing
-    bool nlst = false;  // NLST - simple name listing
-    bool list = true;   // LIST - standard listing (assume fallback)
+    bool mlst = false;     // MLST - modern directory listing
+    bool nlst = false;     // NLST - simple name listing
+    bool list_cmd = true;  // LIST - standard listing (assume fallback)
 
     // File info commands
     bool size = false;  // SIZE - get file size
@@ -126,9 +126,13 @@ public:
   };
 
 protected:
+  /// @brief Response from FTP server.
   struct Answer
   {
+    /// @brief Full response message including code and text.
     std::string full_msg;
+
+    /// @brief Numeric response code (e.g., 200, 220, 530).
     int code;
   };
 
@@ -183,7 +187,7 @@ private:
   DefaultFtpNavigator _navigator;
 
   IoContextWrapper& _io_context;
-  std::unique_ptr<BasicSocket> _socket;
+  std::unique_ptr<DualSocket> _socket;
   ConnectOptions _options;
   FtpCapabilities _capabilities;
 

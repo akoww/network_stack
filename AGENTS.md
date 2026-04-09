@@ -69,12 +69,13 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 
 ## Naming Conventions
 
-- **Classes/Structs**: `PascalCase` (e.g., `TcpSocket`, `IoContextWrapper`)
-- **Interfaces**: End with `Interface` (e.g., `AsyncSocketInterface`, `SyncSocketInterface`)
-- **Variables/Members**: `_prefixed_lower_snake_case` (e.g., `_host`, `_port`)
-- **Functions**: `snake_case` (e.g., `isConnected`, `async_send`)
-- **Constants/Enums**: `PascalCase` (e.g., `Error::ConnectionTimeout`)
-- **Namespaces**: `snake_case` (e.g., `Network`, `asio`)
+- **Classes & Structs**: Use PascalCase (e.g., `CreateScriptedSequenceCommand`).
+- **Functions & Methods**: Use camelCase for member functions and free functions (e.g., `createElement`, `destroyElements`).
+- **Variables**: Use camelCase for local variables and member variables (e.g., `context`, `params`, `errorLog`). Private variables of classes are always starting with an underscore (e.g. `_my_private_var` while function variables or function parameters are not (e.g. `my_parameter`).
+- **Constants & Macros**: Use ALL_CAPS with underscores (e.g., `CMD_CREATE_SCRIPTED_SEQUENCE`).
+- **Enum Members**: Use ALL_CAPS with underscores.
+- **Global Functions**: Use camelCase.
+- **Exception**: `make_error_code()` must remain snake_case for ADL (Argument-Dependent Lookup) compatibility with `std::is_error_code_enum`. This enables implicit conversion from `Network::Error` to `std::error_code`.
 
 ## Types & Declarations
 
@@ -89,9 +90,9 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 
 ## Error Handling
 
-- **Custom error enum** `Network::Error` with values: `NoError`, `ConnectionRefused`, `ConnectionTimeout`, `ConnectionLost`, `DnsFailure`, `ProtocolError`
-- Use `std::error_code` with `Network::get_network_category()` for error codes
-- Convert with `std::make_error_code(Network::Error::X)` or implicit conversion via `is_error_code_enum`
+- **Custom error enum** `Network::Error` with values: `NO_ERROR`, `CONNECTION_REFUSED`, `CONNECTION_TIMEOUT`, `CONNECTION_LOST`, `DNS_FAILURE`, `PROTOCOL_ERROR`
+- Use `std::error_code` with `Network::getNetworkCategory()` for error codes
+- Convert with `makeErrorCode(Network::Error::X)` or implicit conversion via `is_error_code_enum`
 - Check errors via `if (!ec)` or `if (ec)`
 - **ASIO operations**: Always use `asio::redirect_error(asio::use_awaitable, ec)` for async operations and pass `ec` parameter for sync operations
 - **Never throw exceptions**: All ASIO errors must be captured via error codes

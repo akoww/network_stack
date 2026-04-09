@@ -37,7 +37,7 @@ std::expected<void, std::error_code> DefaultFtpNavigator::ftpCd(const std::strin
   if (cmd_result->code != 250)
   {
     spdlog::warn("Failed to change directory to '{}': code {}", dir, cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
   return {};
 }
@@ -53,7 +53,7 @@ std::expected<void, std::error_code> DefaultFtpNavigator::ftpSelectDrive(const s
   if (cmd_result->code != 250)
   {
     spdlog::warn("Failed to change directory to '{}': Code {}", drive, cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
   return {};
 }
@@ -150,7 +150,7 @@ std::expected<void, std::error_code> FtpFileTransfer::connect(const ConnectOptio
     {
       spdlog::error("USER command returned unexpected code: {}", user_response_code);
       _socket.reset();
-      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+      return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
     }
   }
 
@@ -170,7 +170,7 @@ std::expected<void, std::error_code> FtpFileTransfer::connect(const ConnectOptio
     {
       spdlog::error("PASS command returned unexpected code: {}", pass_response_code);
       _socket.reset();
-      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+      return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
     }
   }
 
@@ -319,7 +319,7 @@ std::expected<FtpFileTransfer::Answer, std::error_code> FtpFileTransfer::receive
     if (*r == 0)
     {
       spdlog::error("Connection closed while receiving response");
-      return std::unexpected(make_error_code(Network::Error::ConnectionLost));
+      return std::unexpected(make_error_code(Network::Error::CONNECTION_LOST));
     }
     buf.append(reinterpret_cast<const char*>(tmp.data()), *r);
     auto lines = splitLines(buf);
@@ -331,7 +331,7 @@ std::expected<FtpFileTransfer::Answer, std::error_code> FtpFileTransfer::receive
 
   if (buf.size() < 3)
   {
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   int code = std::stoi(buf.substr(0, 3));
@@ -541,7 +541,7 @@ std::expected<std::vector<FileListData>, std::error_code> FtpFileTransfer::list(
   if (cmd_result->code != 150)
   {
     spdlog::error("LIST command failed with code: {}", cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   auto list_result = receiveRawResponse(*data_socket, getDataTimeout());
@@ -601,7 +601,7 @@ std::expected<void, std::error_code> FtpFileTransfer::createDir(const std::files
   if (cmd_result->code != 257)
   {
     spdlog::warn("Can't create dir '{}' Code: '{}'", path.string(), cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
   return {};
 }
@@ -629,7 +629,7 @@ std::expected<bool, std::error_code> FtpFileTransfer::existsMlst(std::string_vie
   }
 
   spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 std::expected<bool, std::error_code> FtpFileTransfer::existsCwd(std::string_view name)
@@ -655,7 +655,7 @@ std::expected<bool, std::error_code> FtpFileTransfer::existsCwd(std::string_view
   }
 
   spdlog::warn("CWD returned unexpected code: {}", cmd_result->code);
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 std::expected<bool, std::error_code> FtpFileTransfer::existsSize(std::string_view name)
@@ -676,7 +676,7 @@ std::expected<bool, std::error_code> FtpFileTransfer::existsSize(std::string_vie
   }
 
   spdlog::warn("SIZE returned unexpected code: {}", cmd_result->code);
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 std::expected<bool, std::error_code> FtpFileTransfer::exists(const std::filesystem::path& remote_path)
@@ -753,7 +753,7 @@ std::expected<void, std::error_code> FtpFileTransfer::remove(const std::filesyst
   if (cmd_result->code != 250)
   {
     spdlog::warn("Failed to remove file '{}' Code: '{}'", remote_path.string(), cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   return {};
@@ -787,7 +787,7 @@ std::expected<std::vector<std::byte>, std::error_code> FtpFileTransfer::read(con
   if (cmd_result->code != 150)
   {
     spdlog::error("RETR command failed with code: {}", cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   std::vector<std::byte> buffer;
@@ -811,7 +811,7 @@ std::expected<std::vector<std::byte>, std::error_code> FtpFileTransfer::read(con
   if (response->code != 226)
   {
     spdlog::error("RETR completion returned unexpected code: {}", response->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   spdlog::info("File read successfully: {} bytes", buffer.size());
@@ -846,7 +846,7 @@ std::expected<std::size_t, std::error_code> FtpFileTransfer::read(const std::fil
   if (cmd_result->code != 150)
   {
     spdlog::error("RETR command failed with code: {}", cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   std::vector<std::byte> buffer(16384);
@@ -881,7 +881,7 @@ std::expected<std::size_t, std::error_code> FtpFileTransfer::read(const std::fil
     if (*callback_result != bytes_read)
     {
       spdlog::error("Callback must consume all data: {} bytes provided, {} consumed", bytes_read, *callback_result);
-      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+      return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
     }
 
     total_bytes += bytes_read;
@@ -897,7 +897,7 @@ std::expected<std::size_t, std::error_code> FtpFileTransfer::read(const std::fil
   if (response->code != 226)
   {
     spdlog::error("RETR completion returned unexpected code: {}", response->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   spdlog::info("File read successfully via callback: {} bytes", total_bytes);
@@ -933,7 +933,7 @@ std::expected<FileListData, std::error_code> FtpFileTransfer::write(const std::f
   if (cmd_result->code != 150)
   {
     spdlog::error("STOR command failed with code: {}", cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   auto buffer = as_byte_span(data);
@@ -956,7 +956,7 @@ std::expected<FileListData, std::error_code> FtpFileTransfer::write(const std::f
   if (response->code != 226)
   {
     spdlog::error("STOR completion returned unexpected code: {}", response->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   FileListData file_data;
@@ -997,7 +997,7 @@ std::expected<FileListData, std::error_code> FtpFileTransfer::write(const std::f
   if (cmd_result->code != 150)
   {
     spdlog::error("STOR command failed with code: {}", cmd_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   FileListData file_data;
@@ -1044,7 +1044,7 @@ std::expected<FileListData, std::error_code> FtpFileTransfer::write(const std::f
   if (response->code != 226)
   {
     spdlog::error("STOR completion returned unexpected code: {}", response->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   file_data.size = total_bytes;
@@ -1072,7 +1072,7 @@ std::expected<bool, std::error_code> FtpFileTransfer::isDirectoryMlst(std::strin
     if (start == std::string::npos)
     {
       spdlog::warn("MLST response missing type= field");
-      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+      return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
     }
 
     size_t end = cmd_result->full_msg.find(';', start);
@@ -1082,11 +1082,11 @@ std::expected<bool, std::error_code> FtpFileTransfer::isDirectoryMlst(std::strin
   }
   if (cmd_result->code == 550)
   {
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   spdlog::warn("MLST returned unexpected code: {}", cmd_result->code);
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 std::expected<bool, std::error_code> FtpFileTransfer::isDirectoryCwd(std::string_view name)
@@ -1103,7 +1103,7 @@ std::expected<bool, std::error_code> FtpFileTransfer::isDirectoryCwd(std::string
     if (!restore_ok)
     {
       spdlog::error("Failed to restore directory after CWD test");
-      return std::unexpected(make_error_code(Network::Error::ProtocolError));
+      return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
     }
     return true;
   }
@@ -1124,11 +1124,11 @@ std::expected<bool, std::error_code> FtpFileTransfer::isDirectoryCwd(std::string
     }
 
     spdlog::debug("Path does not exist or is not accessible: {}", name);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   spdlog::warn("CWD returned unexpected code: {}", cmd_result->code);
-  return std::unexpected(make_error_code(Network::Error::ProtocolError));
+  return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
 }
 
 std::expected<bool, std::error_code> FtpFileTransfer::isDirectory(const std::filesystem::path& path)
@@ -1289,7 +1289,7 @@ std::expected<std::unique_ptr<SyncSocket>, std::error_code> FtpFileTransfer::ope
   if (pasv_result->code != 227)
   {
     spdlog::error("Failed to open connection. Code: '{}'", pasv_result->code);
-    return std::unexpected(make_error_code(Network::Error::ProtocolError));
+    return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
   }
 
   auto endpoint = parsePasvResponse(pasv_result->full_msg);

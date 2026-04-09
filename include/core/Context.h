@@ -36,18 +36,15 @@ public:
   void stop();
 
   /// @brief Check if the io_context is currently running.
-  bool is_running() const;
-
-  /// @brief Access the underlying io_context executor.
-  /// Inheritance allows us to access all io_context methods directly.
+  bool isRunning() const;
 
 private:
-  std::mutex mutex_;
-  std::thread thread_;
-  std::atomic<bool> running_;
+  std::mutex _mutex;
+  std::thread _thread;
+  std::atomic<bool> _running;
 
   using Guard = asio::executor_work_guard<asio::io_context::executor_type>;
-  std::optional<Guard> work_guard_;
+  std::optional<Guard> _work_guard;
 };
 
 }  // namespace Network

@@ -4,10 +4,12 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/ssl/context.hpp>
 
+#include "socket/SocketBase.h"
+
 namespace Network
 {
 
-class BasicSocket;
+class DualSocket;
 
 /// @brief Base class for server implementations.
 /// Provides common server functionality including acceptor management,
@@ -24,14 +26,14 @@ class BasicSocket;
 class ServerBase
 {
 public:
-  using ClientHandler = std::function<void(std::unique_ptr<BasicSocket>)>;
+  using ClientHandler = std::function<void(std::unique_ptr<DualSocket>)>;
 
   virtual ~ServerBase() = default;
 
   /// @brief Construct with port and io_context.
   /// @param port Port to bind to (0 for dynamic assignment).
   /// @param io_ctx ASIO io_context for async operations.
-  /// @param handler callback function for new incoming clients
+  /// @param handler Callback function for new incoming clients.
   explicit ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
 
   /// @brief Get the bound host.
@@ -41,11 +43,11 @@ public:
   uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  asio::io_context& get_io_context();
+  asio::io_context& getIoContext();
 
   /// @brief Get the SSL context for TLS connections.
   /// @return Shared pointer to SSL context.
-  std::shared_ptr<asio::ssl::context> get_ssl_context();
+  std::shared_ptr<asio::ssl::context> getSslContext();
 
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
@@ -53,7 +55,7 @@ public:
 
   /// @brief Check if the server has been stopped.
   /// @return true if server has been stopped, false otherwise.
-  bool is_stopped() const noexcept;
+  bool isStopped() const noexcept;
 
   ClientHandler clientHandler();
 

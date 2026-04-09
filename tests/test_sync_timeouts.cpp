@@ -19,7 +19,7 @@ constexpr uint16_t TEST_PORT = 12346;
 
 TEST_F(IoContextFixture, SyncWriteTimeout)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -28,7 +28,7 @@ TEST_F(IoContextFixture, SyncWriteTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -53,7 +53,7 @@ TEST_F(IoContextFixture, SyncWriteTimeout)
 
 TEST_F(IoContextFixture, SyncReadTimeout)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -62,7 +62,7 @@ TEST_F(IoContextFixture, SyncReadTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -72,7 +72,7 @@ TEST_F(IoContextFixture, SyncReadTimeout)
   auto recv_result = client_socket->readSome(std::span(buffer), std::chrono::milliseconds(100));
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
   server_thread.join();
@@ -80,7 +80,7 @@ TEST_F(IoContextFixture, SyncReadTimeout)
 
 TEST_F(IoContextFixture, SyncReadExactTimeout)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -89,7 +89,7 @@ TEST_F(IoContextFixture, SyncReadExactTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -99,7 +99,7 @@ TEST_F(IoContextFixture, SyncReadExactTimeout)
   auto recv_result = client_socket->readExact(std::span(buffer), std::chrono::milliseconds(100));
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
   server_thread.join();
@@ -107,7 +107,7 @@ TEST_F(IoContextFixture, SyncReadExactTimeout)
 
 TEST_F(IoContextFixture, SyncReadUntilTimeout)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -116,7 +116,7 @@ TEST_F(IoContextFixture, SyncReadUntilTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -126,7 +126,7 @@ TEST_F(IoContextFixture, SyncReadUntilTimeout)
   auto recv_result = client_socket->readUntil(std::span(buffer), "\n", std::chrono::milliseconds(100));
 
   EXPECT_FALSE(recv_result.has_value());
-  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::ConnectionTimeout));
+  EXPECT_EQ(recv_result.error(), make_error_code(Network::Error::CONNECTION_TIMEOUT));
 
   server.stop();
   server_thread.join();
@@ -134,7 +134,7 @@ TEST_F(IoContextFixture, SyncReadUntilTimeout)
 
 TEST_F(IoContextFixture, SyncNoTimeout)
 {
-  EchoServer server(TEST_PORT, get_io_context());
+  EchoServer server(TEST_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -143,7 +143,7 @@ TEST_F(IoContextFixture, SyncNoTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), get_io_context());
+  ClientSync client("127.0.0.1", server.port(), getIoContext());
   auto connect_result = client.connect({});
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
