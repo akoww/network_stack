@@ -175,7 +175,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
 
   _acceptor.async_accept(socket,
                          [&, new_socket = std::move(new_socket), promise = std::move(promise),
-                          handler = ClientHandler()](std::error_code ec) mutable
+                          handler = clientHandler()](std::error_code ec) mutable
                          {
                            if (is_stopped())
                            {

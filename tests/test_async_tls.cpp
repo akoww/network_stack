@@ -14,7 +14,7 @@
 namespace Network::Test
 {
 
-constexpr uint16_t TEST_TLS_PORT = 12350;
+constexpr uint16_t TEST_TLS_PORT = 12346;
 
 TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 {
@@ -33,57 +33,37 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
       client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
-      auto result = co_await client.connect_tls({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect_tls({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   if (connect_result)
   {
     auto client_socket = std::move(*connect_result);
     const std::string msg = "hello tls";
 
-    std::promise<std::expected<std::size_t, std::error_code>> send_promise;
-    auto send_future = send_promise.get_future();
-
-    asio::co_spawn(
-      _io_ctx,
-      [&client_socket, msg, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
-      {
-        auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    auto send_future = asio::co_spawn(
+      _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+      { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto send_result = send_future.get();
 
     EXPECT_TRUE(send_result);
 
-    std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-    auto recv_future = recv_promise.get_future();
-
     std::array<std::byte, 1024> buffer{};
-    asio::co_spawn(
-      _io_ctx,
-      [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-      {
-        auto result = co_await client_socket->asyncReadSome(std::span(buffer));
-        promise.set_value(std::move(result));
-      },
-      asio::detached);
+    auto recv_future = asio::co_spawn(
+      _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+      { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto recv_result = recv_future.get();
@@ -115,22 +95,18 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
       client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
-      auto result = co_await client.connect_tls({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect_tls({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   if (connect_result)
   {
@@ -139,34 +115,18 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 
     for (const auto& msg : messages)
     {
-      std::promise<std::expected<std::size_t, std::error_code>> send_promise;
-      auto send_future = send_promise.get_future();
-
-      asio::co_spawn(
-        _io_ctx,
-        [&client_socket, msg, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
-        {
-          auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      auto send_future = asio::co_spawn(
+        _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+        { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       auto send_result = send_future.get();
       EXPECT_TRUE(send_result);
 
-      std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-      auto recv_future = recv_promise.get_future();
-
       std::array<std::byte, 1024> buffer{};
-      asio::co_spawn(
-        _io_ctx,
-        [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-        {
-          auto result = co_await client_socket->asyncReadSome(std::span(buffer));
-          promise.set_value(std::move(result));
-        },
-        asio::detached);
+      auto recv_future = asio::co_spawn(
+        _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+        { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       auto recv_result = recv_future.get();
@@ -187,20 +147,13 @@ TEST_F(IoContextFixture, TlsConnectionRefused)
   ClientAsync client("127.0.0.1", 59997, get_io_context());
   client.get_ssl_context()->set_verify_mode(asio::ssl::verify_none);
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     get_io_context(),
-    [&client, promise = std::move(promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client.connect_tls({});
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+    [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+    { co_return co_await client.connect_tls({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
   EXPECT_TRUE(!connect_result.has_value());
 }
 

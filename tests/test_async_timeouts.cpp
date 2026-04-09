@@ -30,21 +30,17 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      auto result = co_await client.connect({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   ASSERT_TRUE(connect_result.has_value());
   auto client_socket = std::move(*connect_result);
@@ -55,17 +51,9 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
     data[i] = static_cast<std::byte>(i % 256);
   }
 
-  std::promise<std::expected<std::size_t, std::error_code>> send_promise;
-  auto send_future = send_promise.get_future();
-
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, data, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncWriteAll(std::span(data), std::chrono::milliseconds(100));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto send_future = asio::co_spawn(
+    _io_ctx, [&client_socket, data]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncWriteAll(std::span(data), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto send_result = send_future.get();
@@ -92,37 +80,25 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      auto result = co_await client.connect({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   ASSERT_TRUE(connect_result.has_value());
   auto client_socket = std::move(*connect_result);
 
   std::array<std::byte, 1024> buffer{};
-  std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-  auto recv_future = recv_promise.get_future();
-
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncReadSome(std::span(buffer), std::chrono::milliseconds(100));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto recv_future = asio::co_spawn(
+    _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncReadSome(std::span(buffer), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto recv_result = recv_future.get();
@@ -146,37 +122,25 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      auto result = co_await client.connect({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   ASSERT_TRUE(connect_result.has_value());
   auto client_socket = std::move(*connect_result);
 
   std::vector<std::byte> buffer(1024);
-  std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-  auto recv_future = recv_promise.get_future();
-
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncReadExact(std::span(buffer), std::chrono::milliseconds(100));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto recv_future = asio::co_spawn(
+    _io_ctx, [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncReadExact(std::span(buffer), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto recv_result = recv_future.get();
@@ -200,37 +164,26 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      auto result = co_await client.connect({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   ASSERT_TRUE(connect_result.has_value());
   auto client_socket = std::move(*connect_result);
 
   std::vector<std::byte> buffer(1024);
-  std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-  auto recv_future = recv_promise.get_future();
-
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncReadUntil(std::span(buffer), "\n", std::chrono::milliseconds(100));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto recv_future = asio::co_spawn(
+    _io_ctx, [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncReadUntil(std::span(buffer), "\n", std::chrono::milliseconds(100)); },
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto recv_result = recv_future.get();
@@ -254,56 +207,36 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
     asio::detached);
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  std::promise<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>> promise;
-  auto future = promise.get_future();
-
-  asio::co_spawn(
+  auto connect_future = asio::co_spawn(
     _io_ctx,
-    [this, &promise]() -> asio::awaitable<void>
+    [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      auto result = co_await client.connect({});
-      promise.set_value(std::move(result));
+      co_return co_await client.connect({});
     },
-    asio::detached);
+    asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  auto connect_result = future.get();
+  auto connect_result = connect_future.get();
 
   ASSERT_TRUE(connect_result.has_value());
   auto client_socket = std::move(*connect_result);
 
   const std::string msg = "hello";
 
-  std::promise<std::expected<std::size_t, std::error_code>> send_promise;
-  auto send_future = send_promise.get_future();
-
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, msg, promise = std::move(send_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncWriteAll(to_bytes(msg));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto send_future = asio::co_spawn(
+    _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto send_result = send_future.get();
 
   EXPECT_TRUE(send_result);
 
-  std::promise<std::expected<std::size_t, std::error_code>> recv_promise;
-  auto recv_future = recv_promise.get_future();
-
   std::array<std::byte, 1024> buffer{};
-  asio::co_spawn(
-    _io_ctx,
-    [&client_socket, &buffer, promise = std::move(recv_promise)]() mutable -> asio::awaitable<void>
-    {
-      auto result = co_await client_socket->asyncReadSome(std::span(buffer));
-      promise.set_value(std::move(result));
-    },
-    asio::detached);
+  auto recv_future = asio::co_spawn(
+    _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto recv_result = recv_future.get();

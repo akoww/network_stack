@@ -90,7 +90,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 
     asio::co_spawn(
       co_await asio::this_coro::executor,
-      [socket = std::move(new_socket), handler = ClientHandler()]() mutable -> asio::awaitable<void>
+      [socket = std::move(new_socket), handler = this->clientHandler()]() mutable -> asio::awaitable<void>
       {
         handler(std::move(socket));
         co_return;
@@ -175,7 +175,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
 
     asio::co_spawn(
       co_await asio::this_coro::executor,
-      [socket = std::move(new_socket), handler = ClientHandler()]() mutable -> asio::awaitable<void>
+      [socket = std::move(new_socket), handler = clientHandler()]() mutable -> asio::awaitable<void>
       {
         handler(std::move(socket));
         co_return;

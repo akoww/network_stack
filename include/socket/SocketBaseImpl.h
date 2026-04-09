@@ -68,7 +68,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   auto& underlayingSocket = socket.getSocket();
 
   auto sock_id = underlayingSocket.lowest_layer().native_handle();
-  spdlog::info("[{}] asyncReadSome {}", socket.getId(), sock_id);
+  spdlog::trace("[{}] asyncReadSome {}", socket.getId(), sock_id);
 
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});

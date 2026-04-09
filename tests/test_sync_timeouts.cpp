@@ -15,7 +15,7 @@
 namespace Network::Test
 {
 
-constexpr uint16_t TEST_PORT = 12350;
+constexpr uint16_t TEST_PORT = 12346;
 
 TEST_F(IoContextFixture, SyncWriteTimeout)
 {
