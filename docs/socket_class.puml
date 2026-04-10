@@ -1,0 +1,81 @@
+@startuml SocketImplementation
+!theme plain
+skinparam packageStyle rectangle
+
+package "Network" {
+  interface "AsyncSocket" as AsyncSocket_IF {
+    +asyncReadSome(out_buffer, timeout)
+    +asyncWriteAll(in_buffer, timeout)
+    +asyncReadUntil(out_buffer, delimiter, timeout)
+    +asyncReadExact(out_buffer, timeout)
+  }
+
+  interface "SyncSocket" as SyncSocket_IF {
+    +readSome(out_buffer, timeout)
+    +writeAll(in_buffer, timeout)
+    +readUntil(out_buffer, delimiter, timeout)
+    +readExact(out_buffer, timeout)
+  }
+
+  class "SocketBase" {
+    +_id: unsigned int
+    +_read_buffer: vector<byte>
+    +_cancel_signal: cancellation_signal
+    +isConnected(): bool
+    +closeSocket(): void
+    +cancelSocket(): void
+    +isConnectionClosed(ec): bool
+    +getReadBuffer(): vector<byte>&
+    +getId(): unsigned int
+    +cancelSignal(): cancellation_signal&
+  }
+
+  class "DualSocket" {
+    +virtual ~DualSocket()
+  }
+
+  class "TcpSocket" {
+    +_socket: ip::tcp::socket
+    +TcpSocket(io_ctx)
+    +TcpSocket(socket&&)
+    +isConnected(): bool
+    +closeSocket(): void
+    +cancelSocket(): void
+    +isConnectionClosed(ec): bool
+    +getSocket(): socket&
+    +writeAll(in_buffer, timeout)
+    +readSome(out_buffer, timeout)
+    +readExact(out_buffer, timeout)
+    +readUntil(out_buffer, delimiter, timeout)
+    +asyncWriteAll(in_buffer, timeout)
+    +asyncReadSome(out_buffer, timeout)
+    +asyncReadExact(out_buffer, timeout)
+    +asyncReadUntil(out_buffer, delimiter, timeout)
+  }
+
+  class "SslSocket" {
+    +_stream: ssl::stream<tcp::socket>
+    +SslSocket(io_ctx, ssl_context)
+    +SslStream(stream&&)
+    +isConnected(): bool
+    +closeSocket(): void
+    +cancelSocket(): void
+    +isConnectionClosed(ec): bool
+    +getSocket(): stream&
+    +writeAll(in_buffer, timeout)
+    +readSome(out_buffer, timeout)
+    +readExact(out_buffer, timeout)
+    +readUntil(out_buffer, delimiter, timeout)
+    +asyncWriteAll(in_buffer, timeout)
+    +asyncReadSome(out_buffer, timeout)
+    +asyncReadExact(out_buffer, timeout)
+    +asyncReadUntil(out_buffer, delimiter, timeout)
+  }
+
+  SocketBase <|-- DualSocket
+  AsyncSocket_IF <|.. DualSocket
+  SyncSocket_IF <|.. DualSocket
+  DualSocket <|-- TcpSocket
+  DualSocket <|-- SslSocket
+}
+@enduml

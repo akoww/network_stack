@@ -1,0 +1,53 @@
+@startuml ClientImplementation
+!theme plain
+skinparam packageStyle rectangle
+
+package "Network" {
+  class "ClientBase" {
+    -_host: string
+    -_port: uint16_t
+    -_io_ctx: io_context&
+    -_ssl_context: shared_ptr<ssl::context>
+    +ClientBase(host, port, io_ctx)
+    +host(): string_view
+    +port(): uint16_t
+    +getIoContext(): io_context&
+    +getSslContext(): shared_ptr<ssl::context>
+  }
+
+  class "ClientSync" {
+    +ClientSync(host, port, io_ctx)
+    +connect(opts): expected<unique_ptr<DualSocket>, error_code>
+    +connect_tls(opts): expected<unique_ptr<DualSocket>, error_code>
+  }
+
+  class "ClientAsync" {
+    +ClientAsync(host, port, io_ctx)
+    +connect(opts): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+    +connect_tls(opts): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+  }
+
+  interface "DualSocket" as DualSocket_IF
+
+  ClientBase <|-- ClientSync
+  ClientBase <|-- ClientAsync
+  ClientSync -> DualSocket_IF: returns
+  ClientAsync -> DualSocket_IF: returns
+
+  note right of ClientBase::Options
+    struct Options {
+      timeout: milliseconds
+    }
+  end note
+
+  note right of ClientSync::connect
+    Uses asio::connect()
+    Blocks until connected
+  end note
+
+  note right of ClientAsync::connect
+    Uses asio::async_connect()
+    Must be co_awaited
+  end note
+}
+@enduml

@@ -23,12 +23,12 @@ namespace Network
 ServerAsync::ServerAsync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
   : ServerBase(port, io_ctx, std::move(handler))
 {
-  spdlog::info("server async created on port {}", port);
+  spdlog::trace("server async created on port {}", port);
 }
 
 asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 {
-  spdlog::info("server async listening on {}:{}", host(), port());
+  spdlog::trace("server async listening on {}:{}", host(), port());
 
   std::error_code ec;
 
@@ -62,7 +62,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
     co_return std::unexpected(ec);
   }
 
-  spdlog::info("server async started on {}:{}", host(), port());
+  spdlog::trace("server async started on {}:{}", host(), port());
 
   // auto new_socket = std::make_unique<TcpSocket>(getIoContext());
   // auto& socket = new_socket->getSocket();
@@ -85,7 +85,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
       co_return std::unexpected(ec);
     }
 
-    spdlog::info("new async connection accepted");
+    spdlog::debug("new async connection accepted");
     auto new_socket = std::make_unique<TcpSocket>(std::move(socket));
 
     asio::co_spawn(
@@ -105,7 +105,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
 
 asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
 {
-  spdlog::info("server async listening on {}:{} with TLS", host(), port());
+  spdlog::trace("server async listening on {}:{} with TLS", host(), port());
 
   std::error_code ec;
 
@@ -139,7 +139,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
     co_return std::unexpected(ec);
   }
 
-  spdlog::info("server async TLS started on {}:{}", host(), port());
+  spdlog::trace("server async TLS started on {}:{}", host(), port());
 
   while (!isStopped())
   {
@@ -158,7 +158,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
       co_return std::unexpected(ec);
     }
 
-    spdlog::info("new async TLS connection accepted");
+    spdlog::debug("new async TLS connection accepted");
 
     asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
 
@@ -188,11 +188,11 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
 
 void ServerAsync::stop()
 {
-  spdlog::info("server async stopping...");
+  spdlog::trace("server async stopping...");
   ServerBase::stop();
   _acceptor.cancel();
   _acceptor.close();
-  spdlog::info("server async stopped");
+  spdlog::trace("server async stopped");
 }
 
 }  // namespace Network

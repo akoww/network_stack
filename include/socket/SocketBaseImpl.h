@@ -68,7 +68,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   auto& underlyingSocket = socket.getSocket();
 
   auto sock_id = underlyingSocket.lowest_layer().native_handle();
-  spdlog::trace("[{}] asyncReadSome {}", socket.getId(), sock_id);
+  spdlog::trace("[{}] asyncReadSome (fd={})", socket.getId(), sock_id);
 
   std::error_code ec;
   std::ranges::fill(out, std::byte{0});
@@ -92,6 +92,8 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
     std::error_code ec1, ec2;
     std::size_t bytes_received = 0;
 
+    spdlog::debug("[{}] waiting for data (timeout={}ms)", socket.getId(), timeout->count());
+
     auto [order, results] =
       co_await asio::experimental::make_parallel_group(
         underlyingSocket.async_read_some(buffer, asio::redirect_error(asio::deferred, ec1)),
@@ -102,15 +104,18 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
     if (order[0] == 1)
     {
       socket.cancelSocket();
+      spdlog::debug("[{}] read timed out", socket.getId());
       co_return std::unexpected(makeTimeoutError());
     }
     if (socket.isConnectionClosed(ec1))
     {
       socket.closeSocket();
+      spdlog::debug("[{}] connection closed during read", socket.getId());
       co_return std::unexpected(ec1);
     }
     if (ec1)
     {
+      spdlog::debug("[{}] read error: {}", socket.getId(), ec1.message());
       co_return std::unexpected(ec1);
     }
 
@@ -120,6 +125,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
       spdlog::warn("[{}] buffer empty, cant read any bytes and connection is closed", socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
+    spdlog::debug("[{}] received {} bytes", socket.getId(), bytes_received);
     dyn_buf.commit(bytes_received);
   }
 
@@ -130,7 +136,7 @@ template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommon(
   SocketType& socket, std::span<std::byte> out, std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] asyncReadExact", socket.getId());
+  spdlog::trace("[{}] asyncReadExact {} bytes", socket.getId(), out.size());
 
   std::ranges::fill(out, std::byte{0});
   if (!timeout)
@@ -143,6 +149,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
   auto& underlyingSocket = socket.getSocket();
 
   std::error_code ec1, ec2;
+  std::size_t total_read = 0;
 
   while (readBuffer.size() < out.size())
   {
@@ -150,6 +157,9 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
     auto buffer = dyn_buf.prepare(out.size());
 
     std::size_t readBytes = 0;
+
+    spdlog::debug("[{}] reading (need {} more, timeout={}ms)", socket.getId(), out.size() - total_read,
+                  timeout->count());
 
     auto [order, result] =
       co_await asio::experimental::make_parallel_group(
@@ -161,16 +171,19 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
     if (order[0] == 1)
     {
       socket.cancelSocket();
+      spdlog::debug("[{}] readExact timed out", socket.getId());
       co_return std::unexpected(makeTimeoutError());
     }
 
     if (socket.isConnectionClosed(ec1))
     {
       socket.closeSocket();
+      spdlog::debug("[{}] connection closed during readExact", socket.getId());
       co_return std::unexpected(ec1);
     }
     if (ec1)
     {
+      spdlog::debug("[{}] readExact error: {}", socket.getId(), ec1.message());
       co_return std::unexpected(ec1);
     }
 
@@ -183,6 +196,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
         socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
+    spdlog::debug("[{}] readExact got {} bytes", socket.getId(), readBytes);
     dyn_buf.commit(readBytes);
   }
 
@@ -196,7 +210,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
   std::string_view delim,
   std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] asyncReadUntil", socket.getId());
+  spdlog::trace("[{}] asyncReadUntil delim='{}'", socket.getId(), delim);
 
   if (!timeout)
     timeout = std::chrono::hours(24);
@@ -212,6 +226,8 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
 
   std::error_code ec1, ec2;
 
+  spdlog::debug("[{}] waiting for delimiter '{}' (timeout={}ms)", socket.getId(), delim, timeout->count());
+
   while (true)
   {
     auto it = std::search(readBuffer.begin(), readBuffer.end(), std::begin(delimAsSv), std::end(delimAsSv));
@@ -224,6 +240,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
         co_return std::unexpected(make_error_code(Network::Error::PROTOCOL_ERROR));
       }
 
+      spdlog::debug("[{}] found delimiter, moving {} bytes", socket.getId(), len);
       co_return move_data(readBuffer, out, len + 1);
     }
     std::size_t readBytes = 0;
@@ -240,16 +257,19 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
     if (order[0] == 1)
     {
       socket.cancelSocket();
+      spdlog::debug("[{}] readUntil timed out", socket.getId());
       co_return std::unexpected(makeTimeoutError());
     }
 
     if (socket.isConnectionClosed(ec1))
     {
       socket.closeSocket();
+      spdlog::debug("[{}] connection closed during readUntil", socket.getId());
       co_return std::unexpected(ec1);
     }
     if (ec1)
     {
+      spdlog::debug("[{}] readUntil error: {}", socket.getId(), ec1.message());
       co_return std::unexpected(ec1);
     }
 
@@ -262,6 +282,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
         socket.getId());
       co_return std::unexpected(asio::error::eof);
     }
+    spdlog::debug("[{}] readUntil got {} bytes", socket.getId(), readBytes);
     dyn_buf.commit(readBytes);
   }
 
@@ -272,7 +293,7 @@ template <typename SocketType>
 asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon(
   SocketType& socket, std::span<const std::byte> buffer, std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] async_writeAll", socket.getId());
+  spdlog::trace("[{}] asyncWriteAll {} bytes", socket.getId(), buffer.size());
 
   if (!timeout)
     timeout = std::chrono::hours(24);
@@ -286,6 +307,8 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   std::error_code ec1, ec2;
   std::size_t bytesTransferred = 0;
 
+  spdlog::debug("[{}] writing {} bytes (timeout={}ms)", socket.getId(), buffer.size(), timeout->count());
+
   auto [order, result] =
     co_await asio::experimental::make_parallel_group(
       asio::async_write(underlyingSocket, asio::buffer(buffer), asio::redirect_error(asio::deferred, ec1)),
@@ -296,6 +319,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   if (order[0] == 1)
   {
     socket.cancelSocket();
+    spdlog::debug("[{}] write timed out", socket.getId());
     co_return std::unexpected(makeTimeoutError());
   }
 
@@ -304,13 +328,16 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   if (socket.isConnectionClosed(ec1))
   {
     socket.closeSocket();
+    spdlog::debug("[{}] connection closed during write", socket.getId());
     co_return std::unexpected(ec1);
   }
   if (ec1)
   {
+    spdlog::debug("[{}] write error: {}", socket.getId(), ec1.message());
     co_return std::unexpected(ec1);
   }
 
+  spdlog::debug("[{}] wrote {} bytes", socket.getId(), bytesTransferred);
   co_return bytesTransferred;
 }
 

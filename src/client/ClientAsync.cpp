@@ -26,7 +26,7 @@ ClientAsync::ClientAsync(std::string_view host, uint16_t port, asio::io_context&
 
 asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> ClientAsync::connect(Options /*opts*/)
 {
-  spdlog::info("client async connecting to {}:{}...", host(), port());
+  spdlog::trace("client async connecting to {}:{}...", host(), port());
 
   std::error_code ec;
 
@@ -51,7 +51,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(ec);
   }
 
-  spdlog::info("client async connected to {}:{} successfully", host(), port());
+  spdlog::trace("client async connected to {}:{} successfully", host(), port());
 
   auto tcp_socket = std::make_unique<TcpSocket>(std::move(socket));
   co_return std::move(tcp_socket);
@@ -59,7 +59,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
 
 asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> ClientAsync::connect_tls(Options /*opts*/)
 {
-  spdlog::info("client async connecting to {}:{} using TLS...", host(), port());
+  spdlog::trace("client async connecting to {}:{} using TLS...", host(), port());
 
   std::error_code ec;
 
@@ -101,7 +101,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(ec);
   }
 
-  spdlog::info("client async TLS connected to {}:{} successfully", host(), port());
+  spdlog::trace("client async TLS connected to {}:{} successfully", host(), port());
 
   auto ssl_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
   co_return std::move(ssl_socket);

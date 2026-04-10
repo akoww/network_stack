@@ -21,7 +21,7 @@ ClientSync::ClientSync(std::string_view host, uint16_t port, asio::io_context& i
 
 std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(Options /*opts*/)
 {
-  spdlog::info("client connecting to {}:{}...", host(), port());
+  spdlog::trace("client connecting to {}:{}...", host(), port());
 
   std::error_code ec;
 
@@ -45,7 +45,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(
     return std::unexpected(ec);
   }
 
-  spdlog::info("client connected to {}:{} successfully", host(), port());
+  spdlog::trace("client connected to {}:{} successfully", host(), port());
   auto tcp_socket = std::make_unique<TcpSocket>(std::move(socket));
 
   return tcp_socket;
@@ -53,7 +53,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(
 
 std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_tls(Options /*opts*/)
 {
-  spdlog::info("client connecting to {}:{} using TLS...", host(), port());
+  spdlog::trace("client connecting to {}:{} using TLS...", host(), port());
 
   std::error_code ec;
 
@@ -94,7 +94,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_
     return std::unexpected(ec);
   }
 
-  spdlog::info("client TLS connected to {}:{} successfully", host(), port());
+  spdlog::trace("client TLS connected to {}:{} successfully", host(), port());
   auto ssl_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
 
   return ssl_socket;

@@ -9,6 +9,7 @@ ServerBase::ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler ha
   : _acceptor(io_ctx), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler)),
     _ssl_context(std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server))
 {
+  spdlog::trace("ServerBase created on port {}", port);
 }
 
 ServerBase::ClientHandler ServerBase::clientHandler()
@@ -35,7 +36,7 @@ std::shared_ptr<asio::ssl::context> ServerBase::getSslContext()
 
 void ServerBase::stop()
 {
-  spdlog::info("server stopping...");
+  spdlog::trace("server {}:{} stopping...", host(), port());
   _stop_requested.store(true);
 }
 

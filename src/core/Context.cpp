@@ -44,7 +44,7 @@ void IoContextWrapper::start()
       asio::io_context::run();
       _running = false;
     });
-  spdlog::info("context started");
+  spdlog::trace("context started");
 }
 
 // Stop the loop and wait for the thread
@@ -68,7 +68,7 @@ void IoContextWrapper::stop()
   // Optionally restart the context if you plan to use it again
   // this->restart();
   _running = false;
-  spdlog::info("context stopped");
+  spdlog::trace("context stopped");
 }
 
 bool IoContextWrapper::isRunning() const

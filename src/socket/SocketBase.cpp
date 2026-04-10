@@ -1,6 +1,7 @@
 #include "socket/SocketBase.h"
 
 #include <atomic>
+#include <spdlog/spdlog.h>
 
 namespace Network
 {
@@ -12,6 +13,7 @@ std::atomic<unsigned int> id_counter = 0;
 
 SocketBase::SocketBase() : _id(id_counter++)
 {
+  spdlog::trace("[{}] socket created", _id);
 }
 
 unsigned int SocketBase::getId() const
@@ -21,6 +23,7 @@ unsigned int SocketBase::getId() const
 
 void SocketBase::cancelSocket()
 {
+  spdlog::trace("[{}] cancelling socket", _id);
   _cancel_signal.emit(asio::cancellation_type_t::all);
 }
 

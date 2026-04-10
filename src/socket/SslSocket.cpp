@@ -35,14 +35,17 @@ namespace Network
 SslSocket::SslSocket(asio::io_context& context, asio::ssl::context& ssl_context)
   : _stream(asio::ip::tcp::socket{context}, ssl_context)
 {
+  spdlog::trace("[{}] SSL socket created", getId());
 }
 
 SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {
+  spdlog::trace("[{}] SSL socket created", getId());
 }
 
 SslSocket::~SslSocket()
 {
+  spdlog::trace("[{}] SSL socket closing", getId());
   cancelSocket();
   closeSocket();
 }
@@ -81,7 +84,7 @@ bool SslSocket::isConnectionClosed(const std::error_code& ec) const noexcept
 std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const std::byte> in_buffer,
                                                                 std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] writeAll", getId());
+  spdlog::debug("[{}] SSL writeAll {} bytes", getId(), in_buffer.size());
 
   auto future = asio::co_spawn(
     _stream.next_layer().get_executor(),
@@ -101,7 +104,7 @@ std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const 
 std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::byte> out_buffer,
                                                                 std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] readSome", getId());
+  spdlog::trace("[{}] SSL readSome", getId());
 
   auto future = asio::co_spawn(
     _stream.next_layer().get_executor(),
@@ -110,7 +113,12 @@ std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::b
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] SSL readSome {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {
@@ -121,7 +129,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::b
 std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::byte> out_buffer,
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] readExact", getId());
+  spdlog::trace("[{}] SSL readExact", getId());
   auto future = asio::co_spawn(
     _stream.next_layer().get_executor(),
     [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
@@ -129,7 +137,12 @@ std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] SSL readExact {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {
@@ -141,7 +154,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::
                                                                  std::string_view delimiter,
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] readUntil", getId());
+  spdlog::trace("[{}] SSL readUntil '{}'", getId(), delimiter);
 
   auto future = asio::co_spawn(
     _stream.next_layer().get_executor(),
@@ -150,7 +163,12 @@ std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] SSL readUntil {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {

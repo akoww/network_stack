@@ -1,6 +1,7 @@
 
 #include "client/ClientBase.h"
 #include <asio/ssl/context.hpp>
+#include <spdlog/spdlog.h>
 
 namespace Network
 {
@@ -9,6 +10,7 @@ ClientBase::ClientBase(std::string_view host, uint16_t port, asio::io_context& i
   : _host(std::string(host)), _port(port), _io_ctx(io_ctx),
     _ssl_context(std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_client))
 {
+  spdlog::trace("ClientBase created for {}:{}", host, port);
 }
 
 std::string_view ClientBase::host() const

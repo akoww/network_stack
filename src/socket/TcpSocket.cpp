@@ -35,19 +35,20 @@ namespace
 
 TcpSocket::TcpSocket(asio::io_context& io_ctx) : _socket(io_ctx)
 {
-  spdlog::trace("[{}] new socket", getId());
+  spdlog::trace("[{}] TCP socket created", getId());
 }
 
 TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : _socket(std::move(sock))
 {
-  spdlog::trace("[{}] new socket", getId());
+  spdlog::trace("[{}] TCP socket created (moved)", getId());
 }
 
 TcpSocket::~TcpSocket()
 {
+  spdlog::trace("[{}] TCP socket closing", getId());
   cancelSocket();
   closeSocket();
-  spdlog::trace("[{}] closed socket", getId());
+  spdlog::trace("[{}] TCP socket closed", getId());
 }
 
 void TcpSocket::closeSocket() noexcept
@@ -83,7 +84,7 @@ bool TcpSocket::isConnectionClosed(const std::error_code& ec) const noexcept
 std::expected<std::size_t, std::error_code> TcpSocket::writeAll(std::span<const std::byte> in_buffer,
                                                                 std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] writeAll", getId());
+  spdlog::debug("[{}] writeAll {} bytes", getId(), in_buffer.size());
 
   auto future = asio::co_spawn(
     _socket.get_executor(), [this, in_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
@@ -111,7 +112,12 @@ std::expected<std::size_t, std::error_code> TcpSocket::readSome(std::span<std::b
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] readSome {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {
@@ -131,7 +137,12 @@ std::expected<std::size_t, std::error_code> TcpSocket::readExact(std::span<std::
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] readExact {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {
@@ -143,7 +154,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::
                                                                  std::string_view delimiter,
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
-  spdlog::trace("[{}] readUntil", getId());
+  spdlog::trace("[{}] readUntil '{}'", getId(), delimiter);
 
   auto future = asio::co_spawn(
     _socket.get_executor(),
@@ -152,7 +163,12 @@ std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::
 
   try
   {
-    return future.get();
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("[{}] readUntil {} bytes", getId(), *result);
+    }
+    return result;
   }
   catch (...)
   {

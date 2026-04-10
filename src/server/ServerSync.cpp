@@ -22,7 +22,7 @@ ServerSync::ServerSync(uint16_t port, asio::io_context& io_ctx, ClientHandler ha
 
 std::expected<void, std::error_code> ServerSync::listen()
 {
-  spdlog::info("server listening on {}:{}", host(), port());
+  spdlog::trace("server listening on {}:{}", host(), port());
 
   std::error_code ec;
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
@@ -55,7 +55,7 @@ std::expected<void, std::error_code> ServerSync::listen()
     return std::unexpected(ec);
   }
 
-  spdlog::info("server started successfully on {}:{}", host(), port());
+  spdlog::trace("server started successfully on {}:{}", host(), port());
 
   auto promise = std::make_shared<std::promise<std::expected<void, std::error_code>>>();
 
@@ -67,7 +67,7 @@ std::expected<void, std::error_code> ServerSync::listen()
 
 std::expected<void, std::error_code> ServerSync::listen_tls()
 {
-  spdlog::info("server listening on {}:{} with TLS", host(), port());
+  spdlog::trace("server listening on {}:{} with TLS", host(), port());
 
   std::error_code ec;
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
@@ -100,7 +100,7 @@ std::expected<void, std::error_code> ServerSync::listen_tls()
     return std::unexpected(ec);
   }
 
-  spdlog::info("server TLS started successfully on {}:{}", host(), port());
+  spdlog::trace("server TLS started successfully on {}:{}", host(), port());
 
   auto promise = std::make_shared<std::promise<std::expected<void, std::error_code>>>();
 
@@ -148,7 +148,7 @@ void ServerSync::start_accept(std::shared_ptr<std::promise<std::expected<void, s
                            }
 
                            auto sock_id = new_socket->getSocket().lowest_layer().native_handle();
-                           spdlog::info("[{}]new connection accepted {}", new_socket->getId(), sock_id);
+                           spdlog::debug("[{}] new connection accepted (fd={})", new_socket->getId(), sock_id);
 
                            handler(std::move(new_socket));
                            start_accept(std::move(promise));
@@ -196,7 +196,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
                              return;
                            }
 
-                           spdlog::info("new TLS connection accepted");
+                           spdlog::debug("new TLS connection accepted");
 
                            auto& ssl_stream = new_socket->getSocket();
                            ssl_stream.handshake(asio::ssl::stream_base::server, ec);
@@ -215,7 +215,7 @@ void ServerSync::start_accept_tls(std::shared_ptr<std::promise<std::expected<voi
 
 void ServerSync::stop()
 {
-  spdlog::info("closing server...");
+  spdlog::trace("closing server...");
   ServerBase::stop();
   std::error_code ec;
   _acceptor.cancel(ec);
@@ -223,7 +223,7 @@ void ServerSync::stop()
   {
     spdlog::warn("acceptor cancel error: {}", ec.message());
   }
-  spdlog::info("server closed");
+  spdlog::trace("server closed");
 }
 
 }  // namespace Network
