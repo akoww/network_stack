@@ -56,6 +56,7 @@ void TcpSocket::closeSocket() noexcept
   if (_socket.is_open())
   {
     std::error_code ec;
+    _socket.shutdown(asio::socket_base::shutdown_send, ec);
     _socket.close(ec);
   }
 }

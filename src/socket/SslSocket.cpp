@@ -55,7 +55,6 @@ void SslSocket::closeSocket() noexcept
   if (_stream.next_layer().is_open())
   {
     std::error_code ec;
-    _stream.shutdown(ec);
     _stream.next_layer().close(ec);
   }
 }
