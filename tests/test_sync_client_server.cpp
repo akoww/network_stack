@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "client/ClientSync.h"
+#include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
 
@@ -148,6 +149,13 @@ TEST_F(IoContextFixture, ConnectionRefused)
   ClientSync client("127.0.0.1", 59999, getIoContext());
   auto connect_result = client.connect({});
   EXPECT_FALSE(connect_result.has_value());
+  if (!connect_result.has_value())
+  {
+    auto ec = connect_result.error();
+    EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::CONNECTION_REFUSED));
+    EXPECT_STREQ(ec.category().name(), "network");
+    EXPECT_EQ(ec.message(), "Connection was refused by the remote host");
+  }
 }
 
 TEST_F(IoContextFixture, InvalidHost)
@@ -155,6 +163,13 @@ TEST_F(IoContextFixture, InvalidHost)
   ClientSync client("invalid.host.invalid", TEST_PORT, getIoContext());
   auto connect_result = client.connect({});
   EXPECT_FALSE(connect_result.has_value());
+  if (!connect_result.has_value())
+  {
+    auto ec = connect_result.error();
+    EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::DNS_RESOLUTION_FAILED));
+    EXPECT_STREQ(ec.category().name(), "network");
+    EXPECT_EQ(ec.message(), "Failed to resolve hostname (DNS lookup failed)");
+  }
 }
 
 TEST_F(SyncClientServerFixture, SpecialCharacters)

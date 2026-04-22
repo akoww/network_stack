@@ -1,4 +1,5 @@
 #include "server/ServerAsync.h"
+#include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -38,28 +39,28 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   spdlog::trace("server async started on {}:{}", host(), port());
@@ -82,7 +83,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
     if (ec)
     {
       spdlog::error("async accept error: {}", ec.message());
-      co_return std::unexpected(ec);
+      co_return std::unexpected(makeServerError(ec, "accept"));
     }
 
     spdlog::debug("new async connection accepted");
@@ -115,28 +116,28 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeSocketCreateError(ec));
   }
 
   spdlog::trace("server async TLS started on {}:{}", host(), port());
@@ -155,7 +156,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
     if (ec)
     {
       spdlog::error("async TLS accept error: {}", ec.message());
-      co_return std::unexpected(ec);
+      co_return std::unexpected(makeServerError(ec, "accept"));
     }
 
     spdlog::debug("new async TLS connection accepted");

@@ -152,6 +152,7 @@ target_sources(network_stack_core
     PRIVATE
         src/core/Context.cpp
         src/core/ErrorCodes.cpp
+        src/core/ErrorTranslation.cpp
 
         src/socket/SocketBase.cpp
         src/socket/TcpSocket.cpp
@@ -192,6 +193,7 @@ enable_testing()
 
 set(TEST_SOURCES
     tests/test_error_code.cpp
+    tests/test_error_translation.cpp
     tests/test_socket_interface.cpp
     tests/test_sync_client_server.cpp
     tests/test_sync_client_server_edge_cases.cpp

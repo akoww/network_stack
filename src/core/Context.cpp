@@ -29,10 +29,14 @@ IoContextWrapper& IoContextWrapper::instance()
 // Start the io_context run loop in a dedicated background thread
 void IoContextWrapper::start()
 {
-  if (_running)
   {
-    return;
+    std::scoped_lock lock(_mutex);
+    if (_running)
+    {
+      return;
+    }
   }
+
   std::scoped_lock lock(_mutex);
 
   restart();
@@ -50,11 +54,16 @@ void IoContextWrapper::start()
 // Stop the loop and wait for the thread
 void IoContextWrapper::stop()
 {
-  if (!_running)
+  bool should_stop;
   {
-    return;
+    std::scoped_lock lock(_mutex);
+    should_stop = _running;
+    if (!should_stop)
+    {
+      return;
+    }
+    _running = false;
   }
-  std::scoped_lock lock(_mutex);
 
   _work_guard.reset();
   // Inherit stop() from io_context
@@ -65,9 +74,6 @@ void IoContextWrapper::stop()
     _thread.join();
   }
 
-  // Optionally restart the context if you plan to use it again
-  // this->restart();
-  _running = false;
   spdlog::trace("context stopped");
 }
 

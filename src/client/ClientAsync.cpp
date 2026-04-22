@@ -1,4 +1,5 @@
 #include "client/ClientAsync.h"
+#include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -38,7 +39,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeDnsError(ec));
   }
 
   asio::ip::tcp::socket socket(getIoContext());
@@ -48,7 +49,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeConnectionError(ec));
   }
 
   spdlog::trace("client async connected to {}:{} successfully", host(), port());
@@ -71,7 +72,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeDnsError(ec));
   }
 
   asio::ip::tcp::socket socket(getIoContext());
@@ -81,7 +82,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeConnectionError(ec));
   }
 
   asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
@@ -90,7 +91,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("failed to set SSL verify mode: {}", ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeTlsError(ec));
   }
 
   co_await ssl_stream.async_handshake(asio::ssl::stream_base::client, asio::redirect_error(asio::use_awaitable, ec));
@@ -98,7 +99,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
   if (ec)
   {
     spdlog::error("TLS handshake failed for {}:{}: {}", host(), port(), ec.message());
-    co_return std::unexpected(ec);
+    co_return std::unexpected(makeTlsError(ec));
   }
 
   spdlog::trace("client async TLS connected to {}:{} successfully", host(), port());

@@ -1,4 +1,5 @@
 #include "client/ClientSync.h"
+#include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
 #include "socket/SyncSocketInterface.h"
 #include "socket/TcpSocket.h"
@@ -32,7 +33,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(
   if (ec)
   {
     spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeDnsError(ec));
   }
 
   asio::ip::tcp::socket socket(getIoContext());
@@ -42,7 +43,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect(
   if (ec)
   {
     spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeConnectionError(ec));
   }
 
   spdlog::trace("client connected to {}:{} successfully", host(), port());
@@ -64,7 +65,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_
   if (ec)
   {
     spdlog::error("DNS resolution failed for {}: {}", host(), ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeDnsError(ec));
   }
 
   asio::ip::tcp::socket socket(getIoContext());
@@ -74,7 +75,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_
   if (ec)
   {
     spdlog::error("connection to {}:{} failed: {}", host(), port(), ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeConnectionError(ec));
   }
 
   asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
@@ -83,7 +84,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_
   if (ec)
   {
     spdlog::error("failed to set SSL verify mode: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeTlsError(ec));
   }
 
   ssl_stream.handshake(asio::ssl::stream_base::client, ec);
@@ -91,7 +92,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> ClientSync::connect_
   if (ec)
   {
     spdlog::error("TLS handshake failed for {}:{}: {}", host(), port(), ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeTlsError(ec));
   }
 
   spdlog::trace("client TLS connected to {}:{} successfully", host(), port());

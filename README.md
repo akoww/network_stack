@@ -12,6 +12,14 @@ This project is educational code to learn and practice modern C++ network progra
 - Error handling with `std::expected`
 - Coroutine-based async operations
 
+## Documentation
+
+- **[HOWTO](./HOWTO.md)** - Comprehensive guide to using the network stack
+  - Async and sync client/server patterns
+  - Lifetime management and thread safety
+  - TLS configuration
+  - Common patterns and troubleshooting
+
 ## Build
 
 ```bash

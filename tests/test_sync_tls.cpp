@@ -7,6 +7,7 @@
 #include <thread>
 
 #include "client/ClientSync.h"
+#include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
 #include "server/ServerSync.h"
@@ -102,6 +103,13 @@ TEST_F(SyncClientServerFixture, TlsConnectionRefused)
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
   auto connect_result = client.connect_tls({});
   EXPECT_FALSE(connect_result.has_value());
+  if (!connect_result.has_value())
+  {
+    auto ec = connect_result.error();
+    EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::CONNECTION_REFUSED));
+    EXPECT_STREQ(ec.category().name(), "network");
+    EXPECT_EQ(ec.message(), "Connection was refused by the remote host");
+  }
 }
 
 }  // namespace Network::Test

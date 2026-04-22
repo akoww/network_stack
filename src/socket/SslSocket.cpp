@@ -1,5 +1,6 @@
 #include "socket/SslSocket.h"
 #include "core/ErrorCodes.h"
+#include "core/ErrorTranslation.h"
 #include <socket/SocketBaseImpl.h>
 
 #include <asio/awaitable.hpp>
@@ -96,7 +97,7 @@ std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const 
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeWriteError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -121,7 +122,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::b
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -145,7 +146,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -171,7 +172,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 

@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "client/ClientAsync.h"
+#include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "server/ServerAsync.h"
@@ -220,6 +221,13 @@ TEST_F(IoContextFixture, ConnectionRefused)
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = connect_future.get();
   EXPECT_TRUE(!connect_result.has_value());
+  if (!connect_result.has_value())
+  {
+    auto ec = connect_result.error();
+    EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::CONNECTION_REFUSED));
+    EXPECT_STREQ(ec.category().name(), "network");
+    EXPECT_EQ(ec.message(), "Connection was refused by the remote host");
+  }
 }
 
 TEST_F(IoContextFixture, InvalidHost)
@@ -232,6 +240,13 @@ TEST_F(IoContextFixture, InvalidHost)
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = connect_future.get();
   EXPECT_TRUE(!connect_result.has_value());
+  if (!connect_result.has_value())
+  {
+    auto ec = connect_result.error();
+    EXPECT_EQ(ec.value(), static_cast<int>(Network::Error::DNS_RESOLUTION_FAILED));
+    EXPECT_STREQ(ec.category().name(), "network");
+    EXPECT_EQ(ec.message(), "Failed to resolve hostname (DNS lookup failed)");
+  }
 }
 
 TEST_F(AsyncClientServerFixture, SpecialCharacters)

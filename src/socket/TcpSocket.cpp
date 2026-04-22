@@ -1,12 +1,12 @@
 #include "socket/TcpSocket.h"
 #include "core/ErrorCodes.h"
+#include "core/ErrorTranslation.h"
 #include <socket/SocketBaseImpl.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>
 #include <asio/co_spawn.hpp>
 #include <asio/detached.hpp>
-#include <asio/use_future.hpp>
 #include <asio/error.hpp>
 #include <asio/experimental/awaitable_operators.hpp>
 #include <asio/read.hpp>
@@ -15,6 +15,7 @@
 #include <asio/steady_timer.hpp>
 #include <asio/streambuf.hpp>
 #include <asio/use_awaitable.hpp>
+#include <asio/use_future.hpp>
 #include <asio/write.hpp>
 #include <chrono>
 #include <expected>
@@ -97,7 +98,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::writeAll(std::span<const 
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeWriteError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -122,7 +123,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readSome(std::span<std::b
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -147,7 +148,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readExact(std::span<std::
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 
@@ -173,7 +174,7 @@ std::expected<std::size_t, std::error_code> TcpSocket::readUntil(std::span<std::
   }
   catch (...)
   {
-    return std::unexpected(std::make_error_code(std::errc::operation_canceled));
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
 

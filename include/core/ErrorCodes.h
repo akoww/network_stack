@@ -9,11 +9,28 @@ namespace Network
 enum class Error
 {
   NO_ERROR = 0,
+  // Connection errors
   CONNECTION_REFUSED,
   CONNECTION_TIMEOUT,
   CONNECTION_LOST,
-  DNS_FAILURE,
-  PROTOCOL_ERROR
+  CONNECTION_ESTABLISHMENT_FAILED,
+  SOCKET_CREATE_FAILED,
+  // DNS errors
+  DNS_RESOLUTION_FAILED,
+  // Communication errors
+  READ_FAILED,
+  WRITE_FAILED,
+  TIMEOUT,
+  // Protocol errors
+  PROTOCOL_ERROR,
+  // TLS errors
+  TLS_HANDSHAKE_FAILED,
+  TLS_VALIDATION_FAILED,
+  // Server errors
+  SERVER_LISTEN_FAILED,
+  SERVER_ACCEPT_FAILED,
+  // Generic errors
+  INTERNAL_ERROR
 };
 
 /// @brief Custom error category for Network error codes.

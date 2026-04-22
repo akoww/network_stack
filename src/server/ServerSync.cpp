@@ -1,8 +1,8 @@
 #include "server/ServerSync.h"
+#include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
-#include <asio/connect.hpp>
 #include <asio/error.hpp>
 #include <asio/ip/basic_resolver.hpp>
 #include <asio/ip/tcp.hpp>
@@ -31,28 +31,28 @@ std::expected<void, std::error_code> ServerSync::listen()
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen"));
   }
 
   _acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen"));
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen"));
   }
 
   spdlog::trace("server started successfully on {}:{}", host(), port());
@@ -76,31 +76,31 @@ std::expected<void, std::error_code> ServerSync::listen_tls()
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeSocketCreateError(ec));
   }
 
   _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen_tls"));
   }
 
   _acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen_tls"));
   }
 
   _acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
-    return std::unexpected(ec);
+    return std::unexpected(makeServerError(ec, "listen_tls"));
   }
 
-  spdlog::trace("server TLS started successfully on {}:{}", host(), port());
+  spdlog::trace("server started successfully on {}:{}", host(), port());
 
   auto promise = std::make_shared<std::promise<std::expected<void, std::error_code>>>();
 
