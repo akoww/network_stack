@@ -125,3 +125,7 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 - FTP integration tests require a running FTP server (see `tests/fixtures/FtpServerFixture.h`)
 - `IoContextWrapper` provides singleton `io_context` with background thread management
 - `TcpSocket` implements both `SyncSocket` and `AsyncSocket` interfaces for mixed usage
+- `TicketPeer` is the core protocol class managing a `DualSocket` connection (handshake/goodbye lifecycle)
+- `TicketController` (executor) and `TicketWorker` (handler) both use `TicketPeer`
+- See [TODO.md](./TODO.md) for tasks to address
+- See [KNOWN_PROBLEMS.md](./KNOWN_PROBLEMS.md) for known issues

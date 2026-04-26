@@ -110,6 +110,18 @@ find_package(spdlog REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 # ============================================================================
+# nlohmann_json Dependency
+# ============================================================================
+include(FetchContent)
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY https://github.com/nlohmann/json.git
+  GIT_TAG v3.11.3
+  FIND_PACKAGE_ARGS NAMES nlohmann_json
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ============================================================================
 # Clang Tidy
 # ============================================================================
 option(ENABLE_CLANG_TIDY_FIX "Enable clang-tidy auto-fixes" OFF)
@@ -169,6 +181,13 @@ target_sources(network_stack_core
 
         src/protocol/FtpFileTransfer.cpp
         src/protocol/FtpUtils.cpp
+
+        src/protocol/Ticket.cpp
+        src/protocol/TicketJson.cpp
+        src/protocol/TicketFrame.cpp
+        src/protocol/TicketPeer.cpp
+        src/protocol/TicketController.cpp
+        src/protocol/TicketWorker.cpp
 )
 
 # Compile options
@@ -184,6 +203,7 @@ target_link_libraries(network_stack_core
         spdlog::spdlog
         OpenSSL::SSL
         OpenSSL::Crypto
+        nlohmann_json::nlohmann_json
 )
 
 # ============================================================================
@@ -205,6 +225,10 @@ set(TEST_SOURCES
     tests/test_async_client_server_edge_cases.cpp
     tests/test_async_timeouts.cpp
     tests/test_async_tls.cpp
+    tests/test_ticket_serialization.cpp
+    tests/test_ticket_controller_worker.cpp
+    tests/test_ticket_edge_cases.cpp
+    tests/test_ticket_protocol_integration.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
