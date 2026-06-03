@@ -6,6 +6,8 @@
 
 #include "socket/SocketBase.h"
 
+#include <expected>
+
 namespace Network
 {
 
@@ -37,10 +39,10 @@ public:
   explicit ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
 
   /// @brief Get the bound host.
-  std::string_view host() const;
+  [[nodiscard]] std::string_view host() const;
 
   /// @brief Get the bound port.
-  uint16_t port() const;
+  [[nodiscard]] uint16_t port() const;
 
   /// @brief Get the io_context reference.
   asio::io_context& getIoContext();
@@ -69,6 +71,65 @@ private:
   asio::io_context& _io_ctx;
   ClientHandler _handler;
   std::shared_ptr<asio::ssl::context> _ssl_context;
+};
+
+/// @brief Asynchronous server implementation.
+/// Uses coroutines for async accept and client handling.
+/// Each accepted connection is handled via a new coroutine.
+/// @section usage Usage
+/// ```cpp
+/// asio::co_spawn(io_ctx, []() -> asio::awaitable<void> {
+///   ServerAsync server(8080, io_ctx);
+///   auto result = co_await server.listen();
+///   if (!result) {
+///     // handle error...
+///   }
+/// }(), asio::detached);
+/// ```
+class ServerAsync
+{
+public:
+  virtual ~ServerAsync() = default;
+
+  /// @brief Asynchronously start accepting connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note This coroutine will not complete until server is stopped.
+  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListen() = 0;
+
+  /// @brief Asynchronously start accepting TLS connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note This coroutine will not complete until server is stopped.
+  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListenTls() = 0;
+
+private:
+};
+
+/// @brief Synchronous server implementation.
+/// Uses blocking accept and client handling.
+/// @note Server must be run in its own thread or the listen() call will block.
+/// @section usage Usage
+/// ```cpp
+/// asio::io_context io_ctx;
+/// ServerSync server(8080, io_ctx);
+/// std::thread t([&]() { server.listen(); });
+/// // ... run server ...
+/// server.stop();
+/// t.join();
+/// ```
+class ServerSync
+{
+public:
+  virtual ~ServerSync() = default;
+
+  /// @brief Start accepting connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note Blocks until listen() is called or server is stopped.
+  virtual std::expected<void, std::error_code> listen() = 0;
+
+  /// @brief Start accepting TLS connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note Blocks until listen() is called or server is stopped.
+  virtual std::expected<void, std::error_code> listenTls() = 0;
 };
 
 }  // namespace Network

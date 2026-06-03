@@ -45,7 +45,7 @@ tests/certs/
 ### Server Setup
 
 ```cpp
-#include "server/ServerSync.h"
+#include "server/Server.h"
 #include <asio/ssl/context.hpp>
 
 class TlsServer : public Network::ServerSync {
@@ -69,7 +69,7 @@ public:
 ### Client Setup
 
 ```cpp
-#include "client/ClientSync.h"
+#include "client/Client.h"
 #include <asio/ssl/context.hpp>
 
 asio::io_context io_ctx;
@@ -84,7 +84,7 @@ context->load_verify_file("tests/certs/ca.crt");
 // context->use_private_key_file("tests/certs/client.key", asio::ssl::context::pem);
 
 // Connect with TLS
-auto result = client.connect_tls();
+auto result = client.connectTls();
 ```
 
 ## Certificate Details

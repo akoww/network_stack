@@ -4,8 +4,8 @@ skinparam packageStyle rectangle
 
 package "Network" {
   class "ServerBase" {
-    +_stop_requested: atomic<bool>
-    +_acceptor: tcp::acceptor
+    -_stop_requested: atomic<bool>
+    -_acceptor: tcp::acceptor
     -_host: string
     -_port: uint16_t
     -_io_ctx: io_context&
@@ -22,29 +22,35 @@ package "Network" {
   }
 
   class "ServerSync" {
-    +ServerSync(port, io_ctx, handler)
+    <<interface>>
     +listen(): expected<void, error_code>
-    +listen_tls(): expected<void, error_code>
-    +stop(): void
-    #start_accept(promise)
-    #start_accept_tls(promise)
+    +listenTls(): expected<void, error_code>
   }
 
   class "ServerAsync" {
-    +ServerAsync(port, io_ctx, handler)
-    +listen(): awaitable<expected<void, error_code>>
-    +listen_tls(): awaitable<expected<void, error_code>>
+    <<interface>>
+    +asyncListen(): awaitable<expected<void, error_code>>
+    +asyncListenTls(): awaitable<expected<void, error_code>>
+  }
+
+  class "Server" {
+    +Server(port, io_ctx, handler)
+    +listen(): expected<void, error_code>
+    +listenTls(): expected<void, error_code>
+    +asyncListen(): awaitable<expected<void, error_code>>
+    +asyncListenTls(): awaitable<expected<void, error_code>>
     +stop(): void
   }
 
   interface "DualSocket" as DualSocket_IF
 
-  ServerBase <|-- ServerSync
-  ServerBase <|-- ServerAsync
-  ServerBase --> DualSocket_IF: creates & passes to handler
-  
-  note right of ServerBase::ClientHandler
+  note right of ClientHandler
     std::function<void(std::unique_ptr<DualSocket>)>
   end note
+
+  ServerBase <|-- Server : common state impl
+  ServerSync <|-- Server : sync ops
+  ServerAsync <|-- Server : async ops
+  Server --> DualSocket_IF : handler payload
 }
 @enduml

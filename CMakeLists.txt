@@ -171,13 +171,11 @@ target_sources(network_stack_core
         src/socket/TcpImpl.cpp
         src/socket/SslSocket.cpp
 
-        src/client/ClientAsync.cpp
         src/client/ClientBase.cpp
-        src/client/ClientSync.cpp
+        src/client/Client.cpp
 
-        src/server/ServerAsync.cpp
         src/server/ServerBase.cpp
-        src/server/ServerSync.cpp
+        src/server/Server.cpp
 
         src/protocol/FtpFileTransfer.cpp
         src/protocol/FtpUtils.cpp

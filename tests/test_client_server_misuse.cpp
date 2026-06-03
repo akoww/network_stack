@@ -6,14 +6,14 @@
 #include <string>
 #include <thread>
 
-#include "client/ClientAsync.h"
-#include "client/ClientSync.h"
+#include "client/Client.h"
+#include "client/Client.h"
 #include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
-#include "server/ServerAsync.h"
-#include "server/ServerSync.h"
+#include "server/Server.h"
+#include "server/Server.h"
 #include "socket/TcpSocket.h"
 
 #include <asio/co_spawn.hpp>
@@ -112,10 +112,10 @@ TEST_F(IoContextFixture, DoubleConnect)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto first_connect = client.connect({});
+  auto first_connect = client.connect();
   ASSERT_TRUE(first_connect.has_value()) << "First connect failed";
 
-  auto second_connect = client.connect({});
+  auto second_connect = client.connect();
   EXPECT_FALSE(second_connect.has_value());
   if (!second_connect.has_value())
   {
@@ -196,7 +196,7 @@ TEST_F(IoContextFixture, ServerListenOnZeroPort)
   EXPECT_LT(server.port(), 65536);
 
   ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client connect failed";
 
   auto client_socket = std::move(*connect_result);
@@ -251,7 +251,7 @@ TEST_F(IoContextFixture, SyncClientToAsyncServer)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Sync client to async server failed";
 
   auto client_socket = std::move(*connect_result);
@@ -286,7 +286,7 @@ TEST_F(IoContextFixture, AsyncClientToSyncServer)
     [port = server.port()]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       ClientAsync client("127.0.0.1", port, getIoContext());
-      co_return co_await client.connect({});
+      return client.asyncConnect();
     },
     asio::use_future);
 

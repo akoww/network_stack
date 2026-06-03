@@ -5,11 +5,11 @@
 #include <gtest/gtest.h>
 #include <thread>
 
-#include "client/ClientAsync.h"
+#include "client/Client.h"
 #include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_fixture_io_context.h"
-#include "server/ServerAsync.h"
+#include "server/Server.h"
 #include "socket/TcpSocket.h"
 
 namespace Network::Test
@@ -28,7 +28,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen_tls();
+      auto listen_result = co_await server.asyncListenTls();
       (void)listen_result;
     },
     asio::detached);
@@ -38,9 +38,9 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
       client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-      co_return co_await client.connect_tls({});
+      co_return co_await client.asyncConnectTls({});
     },
     asio::use_future);
 
@@ -90,7 +90,7 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen_tls();
+      auto listen_result = co_await server.asyncListenTls();
       (void)listen_result;
     },
     asio::detached);
@@ -100,9 +100,9 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
       client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-      co_return co_await client.connect_tls({});
+      co_return co_await client.asyncConnectTls({});
     },
     asio::use_future);
 
@@ -145,12 +145,12 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 
 TEST_F(IoContextFixture, TlsConnectionRefused)
 {
-  ClientAsync client("127.0.0.1", 59997, getIoContext());
+  Client client("127.0.0.1", 59997, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
   auto connect_future = asio::co_spawn(
     getIoContext(), [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
-    { co_return co_await client.connect_tls({}); }, asio::use_future);
+    { co_return co_await client.asyncConnectTls({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = connect_future.get();

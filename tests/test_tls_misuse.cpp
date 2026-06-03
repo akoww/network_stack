@@ -13,14 +13,14 @@
 
 #include <spdlog/spdlog.h>
 
-#include "client/ClientAsync.h"
-#include "client/ClientSync.h"
+#include "client/Client.h"
+#include "client/Client.h"
 #include "core/Context.h"
 #include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
-#include "server/ServerAsync.h"
-#include "server/ServerSync.h"
+#include "server/Server.h"
+#include "server/Server.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -65,9 +65,9 @@ TEST_F(IoContextFixture, TlsClientToPlainServer)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, getIoContext());
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
 
   EXPECT_FALSE(connect_result.has_value()) << "TLS client connecting to plain server should fail";
   if (!connect_result.has_value())
@@ -84,19 +84,19 @@ TEST_F(IoContextFixture, PlainClientToTlsServer)
 {
   constexpr uint16_t port = 50001;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", port, getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Plain client should connect at TCP level";
 
   auto client_socket = std::move(*connect_result);
@@ -121,19 +121,19 @@ TEST_F(IoContextFixture, PlainWriteToTlsServerGarbledRead)
 {
   constexpr uint16_t port = 50002;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", port, getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -158,13 +158,13 @@ TEST_F(IoContextFixture, TlsWriteToPlainServer)
 {
   constexpr uint16_t port = 50003;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
 
   EXPECT_FALSE(connect_result.has_value()) << "TLS client should not connect to plain server";
   if (!connect_result.has_value())
@@ -186,19 +186,37 @@ TEST_F(IoContextFixture, MissingCertificate)
   constexpr uint16_t port = 50004;
 
   // Give server an empty SSL context (no cert or key loaded)
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   auto empty_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   server.getSslContext() = empty_ctx;  // Replace default with empty
 
-  auto listen_result = server.listen_tls();
-  EXPECT_FALSE(listen_result.has_value()) << "listen_tls should fail without cert/key";
+  std::thread server_thread([&server]() { server.listenTls(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+  // Client tries to connect -- handshake should fail without cert
+  Client client("127.0.0.1", port, getIoContext());
+  client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
+  auto connect_result = client.connectTls({});
+
+  EXPECT_FALSE(connect_result.has_value()) << "TLS handshake should fail without cert/key";
+  if (connect_result)
+  {
+    server.stop();
+  }
+
+  server_thread.join();
+  if (!connect_result)
+  {
+    server.stop();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
 }
 
 TEST_F(IoContextFixture, MissingPrivateKey)
 {
   constexpr uint16_t port = 50005;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   // Load cert but with wrong key (CA cert, not server key)
   server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
   server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/ca.crt",
@@ -207,7 +225,7 @@ TEST_F(IoContextFixture, MissingPrivateKey)
   std::thread server_thread(
     [&server]()
     {
-      auto listen_result = server.listen_tls();
+      auto listen_result = server.listenTls();
       EXPECT_FALSE(listen_result.has_value());
     });
 
@@ -220,23 +238,22 @@ TEST_F(IoContextFixture, SelfSignedVerifyPeer)
 {
   constexpr uint16_t port = 50006;
 
-  auto server_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
-  server_ctx->use_certificate_chain_file(SELF_SIGNED_CERT_PATH);
-  server_ctx->use_private_key_file(SELF_SIGNED_KEY_PATH, asio::ssl::context::pem);
+  EchoServer server(port, getIoContext());
+  auto sctx = server.getSslContext();
+  sctx->use_certificate_chain_file(std::string(SELF_SIGNED_CERT_PATH));
+  sctx->use_private_key_file(std::string(SELF_SIGNED_KEY_PATH), asio::ssl::context::pem);
 
-  EchoServer server(port, _io_ctx);
   std::thread server_thread(
-    [s = std::move(server), ctx = std::move(server_ctx)]() mutable
+    [&server]()
     {
-      s.getSslContext() = ctx;
-      auto listen_result = s.listen_tls();
+      auto listen_result = server.listenTls();
       EXPECT_TRUE(listen_result.has_value());
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_peer);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
 
   EXPECT_FALSE(connect_result.has_value()) << "verify_peer should reject self-signed server cert";
   if (!connect_result.has_value())
@@ -253,23 +270,22 @@ TEST_F(IoContextFixture, SelfSignedAcceptAny)
 {
   constexpr uint16_t port = 50007;
 
-  auto server_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
-  server_ctx->use_certificate_chain_file(SELF_SIGNED_CERT_PATH);
-  server_ctx->use_private_key_file(SELF_SIGNED_KEY_PATH, asio::ssl::context::pem);
+  EchoServer server(port, getIoContext());
+  auto sctx = server.getSslContext();
+  sctx->use_certificate_chain_file(std::string(SELF_SIGNED_CERT_PATH));
+  sctx->use_private_key_file(std::string(SELF_SIGNED_KEY_PATH), asio::ssl::context::pem);
 
-  EchoServer server(port, _io_ctx);
   std::thread server_thread(
-    [s = std::move(server), ctx = std::move(server_ctx)]() mutable
+    [&server]()
     {
-      s.getSslContext() = ctx;
-      auto listen_result = s.listen_tls();
+      auto listen_result = server.listenTls();
       EXPECT_TRUE(listen_result.has_value());
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
 
   EXPECT_TRUE(connect_result.has_value());
   if (connect_result)
@@ -307,12 +323,15 @@ TEST_F(IoContextFixture, WrongKeyPair)
   mismatch_ctx->use_private_key_file("/home/akoww/source/network_stack/tests/certs/client.key",
                                      asio::ssl::context::pem);
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
+  auto sctx = server.getSslContext();
+  sctx->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
+  sctx->use_private_key_file("/home/akoww/source/network_stack/tests/certs/client.key", asio::ssl::context::pem);
+
   std::thread server_thread(
-    [s = std::move(server), ctx = std::move(mismatch_ctx)]() mutable
+    [&server]()
     {
-      s.getSslContext() = ctx;
-      auto listen_result = s.listen_tls();
+      auto listen_result = server.listenTls();
       (void)listen_result;  // May or may not fail depending on TLS implementation
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -329,23 +348,23 @@ TEST_F(IoContextFixture, TlsConnectThenServerStop)
 {
   constexpr uint16_t port = 50009;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   server.stop();
   server_thread.join();
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   EXPECT_FALSE(connect_result.has_value()) << "Client should not connect to stopped server";
 }
 
@@ -353,7 +372,7 @@ TEST_F(IoContextFixture, SslContextDestroyBeforeConnect)
 {
   constexpr uint16_t port = 50010;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   // Replace default context with a fresh empty one, then destroy it
   auto empty_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   server.getSslContext() = empty_ctx;
@@ -364,15 +383,15 @@ TEST_F(IoContextFixture, SslContextDestroyBeforeConnect)
   std::thread server_thread(
     [&server]()
     {
-      auto listen_result = server.listen_tls();
+      auto listen_result = server.listenTls();
       (void)listen_result;  // May succeed with tlsv12_server default
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   // Client tries to connect -- result is unpredictable but must not crash
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   (void)connect_result;
 
   server.stop();
@@ -385,13 +404,13 @@ TEST_F(IoContextFixture, SslContextDestroyAfterConnect)
 
   std::shared_ptr<asio::ssl::context> server_ctx_ptr;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&]()
     {
       server_ctx_ptr = createSslContextWithCert();
       server.getSslContext() = server_ctx_ptr;
-      server.listen_tls();
+      server.listenTls();
       // After listen returns, destroy context
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
       server_ctx_ptr.reset();
@@ -399,9 +418,9 @@ TEST_F(IoContextFixture, SslContextDestroyAfterConnect)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   // Connect immediately -- context is still valid
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
 
   if (connect_result)
   {
@@ -424,22 +443,22 @@ TEST_F(IoContextFixture, TlsHandshakeRepeated)
 {
   constexpr uint16_t port = 50012;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   for (int i = 0; i < 10; ++i)
   {
-    ClientSync client("127.0.0.1", port, _io_ctx);
+    Client client("127.0.0.1", port, getIoContext());
     client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-    auto connect_result = client.connect_tls({});
+    auto connect_result = client.connectTls({});
 
     EXPECT_TRUE(connect_result.has_value()) << "Iter " << i;
     if (!connect_result)
@@ -471,23 +490,23 @@ TEST_F(IoContextFixture, TlsConnectDisconnectRepeated)
   constexpr uint16_t port = 50013;
   constexpr int iterations = 50;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   int success_count = 0;
   for (int i = 0; i < iterations; ++i)
   {
-    ClientSync client("127.0.0.1", port, _io_ctx);
+    Client client("127.0.0.1", port, getIoContext());
     client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-    auto connect_result = client.connect_tls({});
+    auto connect_result = client.connectTls({});
     if (!connect_result)
     {
       continue;
@@ -523,20 +542,20 @@ TEST_F(IoContextFixture, SslSocketGetSocket)
 {
   constexpr uint16_t port = 50014;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -566,7 +585,6 @@ TEST_F(IoContextFixture, SslSocketGetSocket)
 TEST_F(IoContextFixture, TlsReadOnUnconnected)
 {
   asio::io_context io_ctx;
-  io_ctx.start();
 
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   SslSocket socket(io_ctx, *ssl_ctx);
@@ -581,7 +599,6 @@ TEST_F(IoContextFixture, TlsReadOnUnconnected)
 TEST_F(IoContextFixture, TlsWriteOnUnconnected)
 {
   asio::io_context io_ctx;
-  io_ctx.start();
 
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   SslSocket socket(io_ctx, *ssl_ctx);
@@ -606,20 +623,20 @@ TEST_F(IoContextFixture, TlsZeroLengthWrite)
 {
   constexpr uint16_t port = 50015;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -635,14 +652,14 @@ TEST_F(IoContextFixture, TlsLargePayload)
   constexpr uint16_t port = 50016;
   constexpr std::size_t payload_size = 100 * 1024;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -652,9 +669,9 @@ TEST_F(IoContextFixture, TlsLargePayload)
     payload[i] = static_cast<std::byte>(static_cast<unsigned char>(i % 256));
   }
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -688,26 +705,26 @@ TEST_F(IoContextFixture, TlsBinaryData)
 {
   constexpr uint16_t port = 50017;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::array<std::byte, 256> binary_data{};
-  for (int i = 0; i < 256; ++i)
+  for (std::size_t i = 0; i < binary_data.size(); ++i)
   {
     binary_data[i] = static_cast<std::byte>(static_cast<unsigned char>(i));
   }
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -728,7 +745,7 @@ TEST_F(IoContextFixture, TlsBinaryData)
   }
 
   EXPECT_EQ(total_read, binary_data.size());
-  for (int i = 0; i < 256; ++i)
+  for (std::size_t i = 0; i < binary_data.size(); ++i)
   {
     EXPECT_EQ(recv_buffer[i], binary_data[i]) << "Mismatch at byte " << i;
   }
@@ -741,22 +758,22 @@ TEST_F(IoContextFixture, TlsConcurrentReadWrite)
 {
   constexpr uint16_t port = 50018;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server]()
     {
       server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
       server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
                                                    asio::ssl::context::pem);
-      server.listen_tls();
+      server.listenTls();
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::atomic<std::size_t> total_read{0};
 
-  ClientSync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connect_tls({});
+  auto connect_result = client.connectTls({});
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
@@ -805,16 +822,16 @@ TEST_F(IoContextFixture, AsyncTlsConnectToPlain)
 {
   constexpr uint16_t port = 50019;
 
-  EchoServer server(port, _io_ctx);
+  EchoServer server(port, getIoContext());
   std::thread server_thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientAsync client("127.0.0.1", port, _io_ctx);
+  Client client("127.0.0.1", port, getIoContext());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
   auto connect_future = asio::co_spawn(
-    _io_ctx, [&client]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
-    { co_return co_await client.connect_tls({}); }, asio::use_future);
+    getIoContext(), [&client]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
+    { co_return co_await client.asyncConnectTls({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto connect_result = connect_future.get();
@@ -834,12 +851,12 @@ TEST_F(IoContextFixture, AsyncTlsServerListenFail)
 {
   constexpr uint16_t port = 50020;
 
-  ServerAsync server(port, _io_ctx, [](std::unique_ptr<DualSocket>) {});
+  Server server(port, getIoContext(), [](std::unique_ptr<DualSocket>) {});
   server.getSslContext()->use_certificate_chain_file("/nonexistent/path/server.crt");
 
   auto listen_future = asio::co_spawn(
-    _io_ctx, [&server]() -> asio::awaitable<std::expected<void, std::error_code>>
-    { co_return co_await server.listen_tls(); }, asio::use_future);
+    getIoContext(), [&server]() -> asio::awaitable<std::expected<void, std::error_code>>
+    { return server.asyncListenTls(); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto listen_result = listen_future.get();

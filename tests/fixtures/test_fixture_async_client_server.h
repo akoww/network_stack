@@ -3,9 +3,9 @@
 #include <gtest/gtest.h>
 #include <spdlog/spdlog.h>
 
-#include "client/ClientAsync.h"
+#include "client/Client.h"
 #include "core/Context.h"
-#include "server/ServerAsync.h"
+#include "server/Server.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -25,7 +25,7 @@
 namespace Network::Test
 {
 
-class EchoServer : public ServerAsync
+class EchoServer : public Server
 {
   struct Clients
   {
@@ -101,9 +101,9 @@ public:
   }
 
   EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerAsync(port,
-                  io_ctx,
-                  [this, &io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
+    : Server(port,
+             io_ctx,
+             [this, &io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
   {
     spdlog::info("created server");
   }

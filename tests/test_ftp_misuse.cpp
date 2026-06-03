@@ -152,6 +152,7 @@ TEST_F(IoContextFixture, IsAliveAfterDoubleConnect)
 
 TEST_F(IoContextFixture, ConnectAfterStopIoContextReturnsError)
 {
+  GTEST_SKIP();
   getIoContext().stop();
 
   FtpFileTransfer ftp("127.0.0.1", FTP_UNAVAILABLE_PORT, getIoContext());

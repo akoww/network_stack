@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 
-#include "client/ClientSync.h"
+#include "client/Client.h"
 #include "core/ErrorCodes.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
@@ -19,7 +19,7 @@ constexpr uint16_t TEST_PORT = 12346;
 
 TEST_F(IoContextFixture, MinimalConstructor)
 {
-  ClientSync client("127.0.0.1", TEST_PORT, getIoContext());
+  Client client("127.0.0.1", TEST_PORT, getIoContext());
   EXPECT_EQ(client.host(), "127.0.0.1");
   EXPECT_EQ(client.port(), TEST_PORT);
   EXPECT_EQ(&client.getIoContext(), &getIoContext());
@@ -45,8 +45,8 @@ TEST_F(IoContextFixture, MultipleClientsConcurrent)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   auto client_thread_func = [](uint16_t port, asio::io_context& io_ctx)
   {
-    ClientSync client("127.0.0.1", port, io_ctx);
-    EXPECT_TRUE(client.connect({}).has_value()) << "Cant connect to server";
+    Client client("127.0.0.1", port, io_ctx);
+    EXPECT_TRUE(client.connect().has_value()) << "Cant connect to server";
   };
   std::thread client1(client_thread_func, server.port(), std::ref(getIoContext()));
   std::thread client2(client_thread_func, server.port(), std::ref(getIoContext()));
@@ -73,8 +73,8 @@ TEST_F(SyncClientServerFixture, EchoServerMultipleMessages)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", TEST_PORT, _io_ctx);
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", TEST_PORT, _io_ctx);
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client";
 
   auto client_socket = std::move(*connect_result);
@@ -111,8 +111,8 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients)
   std::vector<std::unique_ptr<SyncSocket>> sockets;
   for (int i = 0; i < 3; i++)
   {
-    ClientSync client("127.0.0.1", server.port(), _io_ctx);
-    auto connect_result = client.connect({});
+    Client client("127.0.0.1", server.port(), _io_ctx);
+    auto connect_result = client.connect();
     if (connect_result)
     {
       sockets.push_back(std::move(*connect_result));
@@ -146,8 +146,8 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients)
 
 TEST_F(IoContextFixture, ConnectionRefused)
 {
-  ClientSync client("127.0.0.1", 59999, getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", 59999, getIoContext());
+  auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result.has_value())
   {
@@ -160,8 +160,8 @@ TEST_F(IoContextFixture, ConnectionRefused)
 
 TEST_F(IoContextFixture, InvalidHost)
 {
-  ClientSync client("invalid.host.invalid", TEST_PORT, getIoContext());
-  auto connect_result = client.connect({});
+  Client client("invalid.host.invalid", TEST_PORT, getIoContext());
+  auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result.has_value())
   {
@@ -182,9 +182,9 @@ TEST_F(SyncClientServerFixture, SpecialCharacters)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext());
 
-  auto connect_result = client.connect({});
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto client_socket = std::move(*connect_result);
@@ -214,9 +214,9 @@ TEST_F(SyncClientServerFixture, BinaryData)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext());
 
-  auto connect_result = client.connect({});
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto client_socket = std::move(*connect_result);
@@ -252,9 +252,9 @@ TEST_F(SyncClientServerFixture, LongBinaryData)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext());
 
-  auto connect_result = client.connect({});
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto client_socket = std::move(*connect_result);

@@ -7,9 +7,9 @@ Root directory for all public headers in the Network Stack library. Contains 5 s
 ## Directory Structure
 
 - `core/`: Foundational utilities (error codes, context management)
-- `socket/`: Socket interfaces and base classes
-- `client/`: Client connection abstractions
-- `server/`: Server connection handling
+- `socket/`: Socket interfaces and base classes (`DualSocket`, `TcpSocket`, `SslSocket`, `SocketBaseImpl`)
+- `client/`: Client connection abstractions (unified `Client` class replacing separate sync/async variants)
+- `server/`: Server connection handling (unified `Server` class replacing separate sync/async variants)
 - `protocol/`: Higher-level protocol implementations (FTP)
 
 ## Dependencies
@@ -21,3 +21,10 @@ Root directory for all public headers in the Network Stack library. Contains 5 s
 ## Public API
 
 All headers in this tree and subdirectories constitute the public API. Each subdirectory has its own `AGENTS.md` with detailed guidance.
+
+## Architecture Notes
+
+- **Unified Client**: `Client.h` combines what was previously `ClientSync.h` and `ClientAsync.h` into a single class that implements both sync and async interfaces simultaneously
+- **Unified Server**: `Server.h/cpp` combines what was previously `ServerSync.h`/`ServerAsync.h` into a single class with dual-mode accept loop
+- **Interface hierarchies**: `ClientSync`/`ClientAsync` (interfaces) and `ServerSync`/`ServerAsync` (interfaces) are now declared as interface classes within `ClientBase.h`/`ServerBase.h` respectively, inherited by the unified `Client`/`Server`
+- **DualSocket pattern**: All sockets inherit from `DualSocket` which combines both sync and async interfaces - no need to track separate socket types

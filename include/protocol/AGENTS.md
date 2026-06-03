@@ -13,10 +13,10 @@ Higher-level network protocol implementations built on socket interfaces.
 - **Streaming**: Callback variants for `read()` and `write()` enable large file handling without full memory load
 - **Data types**: `FileListData` (metadata), `TransferConfig` (timeout options)
 
-### FtpFileTransfer.h
+### FtpFileTransfer.h/cpp
 
 - **`FtpFileTransfer`**: FTP-specific implementation of `IAbstractFileTransfer`
-- **Connection**: `connect(ConnectOptions)` with automatic capability detection (FEAT command)
+- **Connection**: Uses unified `Client::connect(std::chrono::milliseconds)` with 500ms default timeout - pass explicit timeout for production code
 - **Capabilities**: Detects MLST, NLST, SIZE, MDTM, EPSV, PASV, RNFR/RNTO support
 - **FTP-specific**: CWD, PWD, PASV/EPSV, PASV/EPSV data channel setup, LIST/NLST/MLSD
 - **FTP navigator**: Uses `DefaultFtpNavigator` for directory path navigation

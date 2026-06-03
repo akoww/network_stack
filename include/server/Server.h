@@ -14,34 +14,31 @@ namespace Network
 
 class SslSocket;
 
-/// @brief Asynchronous server implementation.
-/// Uses coroutines for async accept and client handling.
-/// Each accepted connection is handled via a new coroutine.
-/// @section usage Usage
-/// ```cpp
-/// asio::co_spawn(io_ctx, []() -> asio::awaitable<void> {
-///   ServerAsync server(8080, io_ctx);
-///   auto result = co_await server.listen();
-///   if (!result) {
-///     // handle error...
-///   }
-/// }(), asio::detached);
-/// ```
-class ServerAsync : public ServerBase
+class Server : public ServerBase, public ServerSync, public ServerAsync
 {
 public:
   /// @brief Construct with port and io_context.
-  ServerAsync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
+  Server(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
 
   /// @brief Asynchronously start accepting connections.
   /// @return error_code on failure (e.g., port already in use).
   /// @note This coroutine will not complete until server is stopped.
-  asio::awaitable<std::expected<void, std::error_code>> listen();
+  asio::awaitable<std::expected<void, std::error_code>> asyncListen() override;
 
   /// @brief Asynchronously start accepting TLS connections.
   /// @return error_code on failure (e.g., port already in use).
   /// @note This coroutine will not complete until server is stopped.
-  asio::awaitable<std::expected<void, std::error_code>> listen_tls();
+  asio::awaitable<std::expected<void, std::error_code>> asyncListenTls() override;
+
+  /// @brief Start accepting connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note Blocks until listen() is called or server is stopped.
+  std::expected<void, std::error_code> listen() override;
+
+  /// @brief Start accepting TLS connections.
+  /// @return error_code on failure (e.g., port already in use).
+  /// @note Blocks until listen() is called or server is stopped.
+  std::expected<void, std::error_code> listenTls() override;
 
   /// @brief Stop accepting connections.
   /// Closes the acceptor and signals any waiting async operations.

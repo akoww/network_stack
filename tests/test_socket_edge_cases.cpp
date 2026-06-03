@@ -12,12 +12,12 @@
 #include <memory>
 #include <thread>
 
-#include "client/ClientSync.h"
+#include "client/Client.h"
 #include "core/ErrorCodes.h"
 #include "core/Context.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
-#include "server/ServerSync.h"
+#include "server/Server.h"
 #include "socket/TcpSocket.h"
 
 namespace Network::Test
@@ -83,7 +83,7 @@ TEST_F(IoContextFixture, AsyncReadOnUnconnectedSocket)
   std::array<std::byte, 1024> buffer{};
   auto future = asio::co_spawn(
     getIoContext(), [&socket, &buffer]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
+    { return socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();
@@ -102,7 +102,7 @@ TEST_F(IoContextFixture, AsyncWriteOnUnconnectedSocket)
   std::string msg = "hello";
   auto future = asio::co_spawn(
     getIoContext(), [&socket, msg]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
+    { return socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();
@@ -227,8 +227,8 @@ TEST_F(IoContextFixture, ReadExactUndersizedBuffer)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", server.port(), getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto client_socket = std::move(*connect_result);
@@ -255,12 +255,12 @@ TEST_F(IoContextFixture, ReadUntilNeverMatch)
   TcpSocket socket(getIoContext());
 
   std::array<std::byte, 1024> buffer{};
-  auto read_result = socket.readUntil(std::span(buffer), "\x00\x00\x00\x00", std::chrono::milliseconds(100));
+  auto read_result = socket.readUntil(std::span(buffer), "\\x00\\x00\\x00\\x00", std::chrono::milliseconds(100));
   EXPECT_FALSE(read_result.has_value());
   if (!read_result)
   {
     EXPECT_STREQ(read_result.error().category().name(), "asio.system");
-    EXPECT_EQ(read_result.error().value(), static_cast<int>(asio::error::timed_out));
+    EXPECT_EQ(read_result.error().value(), static_cast<int>(asio::error::not_connected));
   }
 }
 
@@ -275,8 +275,8 @@ TEST_F(IoContextFixture, ReadExactExactSizeBuffer)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", server.port(), getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto client_socket = std::move(*connect_result);
@@ -342,36 +342,36 @@ TEST_F(IoContextFixture, ConnectToRefusedPort)
   // Use a port that's definitely not in use
   constexpr uint16_t refused_port = 61234;
 
-  ClientSync client("127.0.0.1", refused_port, getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", refused_port, getIoContext());
+  auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result)
   {
-    EXPECT_STREQ(connect_result.error().category().name(), "asio.system");
+    EXPECT_STREQ(connect_result.error().category().name(), "network");
   }
 }
 
 TEST_F(IoContextFixture, ConnectToNonExistentHost)
 {
   // Use a private address that will get ECONNREFUSED quickly
-  ClientSync client("192.168.255.255", 12345, getIoContext());
-  auto connect_result = client.connect({});
+  Client client("192.168.255.255", 12345, getIoContext());
+  auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result)
   {
-    EXPECT_STREQ(connect_result.error().category().name(), "asio.system");
+    EXPECT_STREQ(connect_result.error().category().name(), "network");
   }
 }
 
 TEST_F(IoContextFixture, ConnectTimeout)
 {
   // Connect to a non-routable address - will get connection refused quickly
-  ClientSync client("192.168.255.255", 12345, getIoContext());
-  auto connect_result = client.connect({});
+  Client client("192.168.255.255", 12345, getIoContext());
+  auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result)
   {
-    EXPECT_STREQ(connect_result.error().category().name(), "asio.system");
+    EXPECT_STREQ(connect_result.error().category().name(), "network");
   }
 }
 
@@ -391,8 +391,8 @@ TEST_F(SyncClientServerFixture, MixedSyncAsyncOps)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   // Connect with sync client
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", server.port(), getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   auto socket = std::move(*connect_result);
@@ -407,7 +407,7 @@ TEST_F(SyncClientServerFixture, MixedSyncAsyncOps)
   auto async_read_future = asio::co_spawn(
     getIoContext(),
     [socket = socket.get(), &async_buffer]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket->asyncReadSome(std::span(async_buffer)); }, asio::use_future);
+    { return socket->asyncReadSome(std::span(async_buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
   auto async_read_result = async_read_future.get();
@@ -433,8 +433,8 @@ TEST_F(IoContextFixture, DestructWithoutClose)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  ClientSync client("127.0.0.1", server.port(), getIoContext());
-  auto connect_result = client.connect({});
+  Client client("127.0.0.1", server.port(), getIoContext());
+  auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
   // Let the socket go out of scope without explicit close
@@ -476,7 +476,7 @@ TEST_F(IoContextFixture, AsyncReadOnClosedSocket)
   std::array<std::byte, 1024> buffer{};
   auto future = asio::co_spawn(
     getIoContext(), [&socket, &buffer]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
+    { return socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();
@@ -496,7 +496,7 @@ TEST_F(IoContextFixture, AsyncWriteOnClosedSocket)
   std::string msg = "hello";
   auto future = asio::co_spawn(
     getIoContext(), [&socket, msg]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
+    { return socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();
@@ -516,7 +516,7 @@ TEST_F(IoContextFixture, CancelBeforeAsyncRead)
   std::array<std::byte, 1024> buffer{};
   auto future = asio::co_spawn(
     getIoContext(), [&socket, &buffer]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
+    { return socket.asyncReadSome(std::span(buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();
@@ -536,7 +536,7 @@ TEST_F(IoContextFixture, CancelBeforeAsyncWrite)
   std::string msg = "hello";
   auto future = asio::co_spawn(
     getIoContext(), [&socket, msg]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-    { co_return co_await socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
+    { return socket.asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto result = future.get();

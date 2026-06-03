@@ -67,6 +67,12 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   auto& readBuffer = socket.getReadBuffer();
   auto& underlyingSocket = socket.getSocket();
 
+  if (!socket.isConnected())
+  {
+    spdlog::debug("[{}] readSome on unconnected socket", socket.getId());
+    co_return std::unexpected(asio::error::not_connected);
+  }
+
   auto sock_id = underlyingSocket.lowest_layer().native_handle();
   spdlog::trace("[{}] asyncReadSome (fd={})", socket.getId(), sock_id);
 
@@ -137,6 +143,12 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadExactCommo
   SocketType& socket, std::span<std::byte> out, std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] asyncReadExact {} bytes", socket.getId(), out.size());
+
+  if (!socket.isConnected())
+  {
+    spdlog::debug("[{}] readExact on unconnected socket", socket.getId());
+    co_return std::unexpected(asio::error::not_connected);
+  }
 
   std::ranges::fill(out, std::byte{0});
   if (!timeout)
@@ -211,6 +223,12 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadUntilCommo
   std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] asyncReadUntil delim='{}'", socket.getId(), delim);
+
+  if (!socket.isConnected())
+  {
+    spdlog::debug("[{}] readUntil on unconnected socket", socket.getId());
+    co_return std::unexpected(asio::error::not_connected);
+  }
 
   if (!timeout)
     timeout = std::chrono::hours(24);
@@ -294,6 +312,12 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   SocketType& socket, std::span<const std::byte> buffer, std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] asyncWriteAll {} bytes", socket.getId(), buffer.size());
+
+  if (!socket.isConnected())
+  {
+    spdlog::debug("[{}] writeAll on unconnected socket", socket.getId());
+    co_return std::unexpected(asio::error::not_connected);
+  }
 
   if (!timeout)
     timeout = std::chrono::hours(24);

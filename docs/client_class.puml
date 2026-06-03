@@ -16,38 +16,43 @@ package "Network" {
   }
 
   class "ClientSync" {
-    +ClientSync(host, port, io_ctx)
-    +connect(opts): expected<unique_ptr<DualSocket>, error_code>
-    +connect_tls(opts): expected<unique_ptr<DualSocket>, error_code>
+    <<interface>>
+    +connect(timeout_ms): expected<unique_ptr<DualSocket>, error_code>
+    +connectTls(timeout_ms): expected<unique_ptr<DualSocket>, error_code>
   }
 
   class "ClientAsync" {
-    +ClientAsync(host, port, io_ctx)
-    +connect(opts): awaitable<expected<unique_ptr<DualSocket>, error_code>>
-    +connect_tls(opts): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+    <<interface>>
+    +asyncConnect(timeout_ms): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+    +asyncConnectTls(timeout_ms): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+  }
+
+  class "Client" {
+    +Client(host, port, io_ctx)
+    +connect(): expected<unique_ptr<DualSocket>, error_code>
+    +connectTls(): expected<unique_ptr<DualSocket>, error_code>
+    +asyncConnect(): awaitable<expected<unique_ptr<DualSocket>, error_code>>
+    +asyncConnectTls(): awaitable<expected<unique_ptr<DualSocket>, error_code>>
   }
 
   interface "DualSocket" as DualSocket_IF
 
-  ClientBase <|-- ClientSync
-  ClientBase <|-- ClientAsync
-  ClientSync -> DualSocket_IF: returns
-  ClientAsync -> DualSocket_IF: returns
-
-  note right of ClientBase::Options
-    struct Options {
-      timeout: milliseconds
-    }
+  note right of Client::connect
+    Defaults to 500ms timeout
+    No Options struct needed
   end note
 
-  note right of ClientSync::connect
-    Uses asio::connect()
-    Blocks until connected
+  note right of Client::ClientSync
+    <<interface>> - sync connection
   end note
 
-  note right of ClientAsync::connect
-    Uses asio::async_connect()
-    Must be co_awaited
+  note right of Client::ClientAsync
+    <<interface>> - coroutine-based
   end note
+
+  ClientBase <|-- Client : common state impl
+  ClientSync <|.. Client : sync ops
+  ClientAsync <|.. Client : async ops
+  Client --> DualSocket_IF : returns
 }
 @enduml

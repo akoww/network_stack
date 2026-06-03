@@ -2,9 +2,9 @@
 
 #include <gtest/gtest.h>
 
-#include "client/ClientSync.h"
+#include "client/Client.h"
 #include "core/Context.h"
-#include "server/ServerSync.h"
+#include "server/Server.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -14,7 +14,7 @@
 namespace Network::Test
 {
 
-class EchoServer : public ServerSync
+class EchoServer : public Server
 {
   struct Clients
   {
@@ -81,7 +81,7 @@ public:
   }
 
   EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerSync(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
+    : Server(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
   ~EchoServer()

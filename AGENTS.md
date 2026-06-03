@@ -66,6 +66,9 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 - Implementation files in corresponding `src/` subdirectories
 - Test certificates in `tests/certs/` (CA, client, server keys/certs for TLS)
 - Test fixtures in `tests/fixtures/` (FTP server, client/server helpers)
+- **Client**: `include/client/Client.h` is the unified client class; `ClientBase.h` declares both `ClientSync` and `ClientAsync` interface classes
+- **Server**: `include/server/Server.h` is the unified server class; `ServerBase.h` declares both `ServerSync` and `ServerAsync` interface classes
+- `SocketBaseImpl.h` (in `include/socket/`) contains shared helper implementations in the `socket_detail` namespace, used by `TcpSocket` and `SslSocket`
 
 ## Naming Conventions
 
@@ -121,10 +124,12 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 ## Important Notes
 
 - All include directories have their own `AGENTS.md` files with detailed guidance
+  - Client uses unified `Client` class (not separate sync/async variants)
+  - Server uses unified `Server` class (not separate sync/async variants)
 - TLS support requires OpenSSL (server and client implementations)
 - FTP integration tests require a running FTP server (see `tests/fixtures/FtpServerFixture.h`)
 - `IoContextWrapper` provides singleton `io_context` with background thread management
-- `TcpSocket` implements both `SyncSocket` and `AsyncSocket` interfaces for mixed usage
+- `DualSocket` implements both `SyncSocket` and `AsyncSocket` interfaces for mixed usage; clients use `Client::connect()` / `Client::asyncConnect()`, servers use `Server::listen()` / `Server::asyncListen()`
 - `TicketPeer` is the core protocol class managing a `DualSocket` connection (handshake/goodbye lifecycle)
 - `TicketController` (executor) and `TicketWorker` (handler) both use `TicketPeer`
 - See [TODO.md](./TODO.md) for tasks to address

@@ -1,4 +1,4 @@
-#include "server/ServerAsync.h"
+#include "server/Server.h"
 #include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
@@ -14,6 +14,8 @@
 #include <asio/ssl/context.hpp>
 #include <asio/this_coro.hpp>
 #include <asio/use_awaitable.hpp>
+#include <asio/use_future.hpp>
+
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <system_error>
@@ -21,13 +23,13 @@
 namespace Network
 {
 
-ServerAsync::ServerAsync(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+Server::Server(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
   : ServerBase(port, io_ctx, std::move(handler))
 {
   spdlog::trace("server async created on port {}", port);
 }
 
-asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
+asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen()
 {
   spdlog::trace("server async listening on {}:{}", host(), port());
 
@@ -104,7 +106,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen()
   co_return std::expected<void, std::error_code>{};
 }
 
-asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
+asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls()
 {
   spdlog::trace("server async listening on {}:{} with TLS", host(), port());
 
@@ -187,7 +189,7 @@ asio::awaitable<std::expected<void, std::error_code>> ServerAsync::listen_tls()
   co_return std::expected<void, std::error_code>{};
 }
 
-void ServerAsync::stop()
+void Server::stop()
 {
   spdlog::trace("server async stopping...");
   ServerBase::stop();
@@ -195,5 +197,52 @@ void ServerAsync::stop()
   _acceptor.close();
   spdlog::trace("server async stopped");
 }
+
+std::expected<void, std::error_code> Server::listen()
+{
+  spdlog::trace("starting sync server ...");  // TODO fix this
+
+  auto future = asio::co_spawn(
+    getIoContext(), [this]() -> asio::awaitable<std::expected<void, std::error_code>> { return Server::asyncListen(); },
+    asio::use_future);
+
+  try
+  {
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("connected tls!");
+    }
+    return result;
+  }
+  catch (...)
+  {
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
+  }
+}
+
+std::expected<void, std::error_code> Server::listenTls()
+{
+  spdlog::trace("starting sync server ...");  // TODO fix this
+
+  auto future = asio::co_spawn(
+    getIoContext(), [this]() -> asio::awaitable<std::expected<void, std::error_code>>
+    { return Server::asyncListenTls(); }, asio::use_future);
+
+  try
+  {
+    auto result = future.get();
+    if (result)
+    {
+      spdlog::debug("connected tls!");
+    }
+    return result;
+  }
+  catch (...)
+  {
+    return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
+  }
+}
+
 
 }  // namespace Network

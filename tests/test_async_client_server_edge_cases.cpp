@@ -7,10 +7,10 @@
 #include <string>
 #include <thread>
 
-#include "client/ClientAsync.h"
+#include "client/Client.h"
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_fixture_io_context.h"
-#include "server/ServerAsync.h"
+#include "server/Server.h"
 #include "socket/TcpSocket.h"
 
 namespace Network::Test
@@ -25,7 +25,7 @@ TEST_F(AsyncClientServerFixture, ZeroSizeWrite)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -35,8 +35,8 @@ TEST_F(AsyncClientServerFixture, ZeroSizeWrite)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -75,7 +75,7 @@ TEST_F(AsyncClientServerFixture, ZeroSizeRead)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -85,8 +85,8 @@ TEST_F(AsyncClientServerFixture, ZeroSizeRead)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -125,7 +125,7 @@ TEST_F(AsyncClientServerFixture, RapidConnectDisconnect)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -137,8 +137,8 @@ TEST_F(AsyncClientServerFixture, RapidConnectDisconnect)
       _io_ctx,
       [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
       {
-        ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-        co_return co_await client.connect({});
+        Client client("127.0.0.1", TEST_PORT, _io_ctx);
+        co_return co_await client.asyncConnect();
       },
       asio::use_future);
 
@@ -160,7 +160,7 @@ TEST_F(AsyncClientServerFixture, ServerAbruptShutdownDuringWrite)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -170,8 +170,8 @@ TEST_F(AsyncClientServerFixture, ServerAbruptShutdownDuringWrite)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -216,7 +216,7 @@ TEST_F(AsyncClientServerFixture, ServerAbruptShutdownDuringRead)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -226,8 +226,8 @@ TEST_F(AsyncClientServerFixture, ServerAbruptShutdownDuringRead)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -280,7 +280,7 @@ TEST_F(AsyncClientServerFixture, FragmentedWriteRead)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -290,8 +290,8 @@ TEST_F(AsyncClientServerFixture, FragmentedWriteRead)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -355,7 +355,7 @@ TEST_F(AsyncClientServerFixture, LargeWriteThenRead)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -365,8 +365,8 @@ TEST_F(AsyncClientServerFixture, LargeWriteThenRead)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -427,7 +427,7 @@ TEST_F(AsyncClientServerFixture, SpecialCharactersWithNullBytes)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -437,8 +437,8 @@ TEST_F(AsyncClientServerFixture, SpecialCharactersWithNullBytes)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 
@@ -493,7 +493,7 @@ TEST_F(AsyncClientServerFixture, BinaryDataAllBytes)
     _io_ctx,
     [&server]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.listen();
+      auto listen_result = co_await server.asyncListen();
       (void)listen_result;
     },
     asio::detached);
@@ -503,8 +503,8 @@ TEST_F(AsyncClientServerFixture, BinaryDataAllBytes)
     _io_ctx,
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      ClientAsync client("127.0.0.1", TEST_PORT, _io_ctx);
-      co_return co_await client.connect({});
+      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      co_return co_await client.asyncConnect();
     },
     asio::use_future);
 

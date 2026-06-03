@@ -36,8 +36,15 @@ std::shared_ptr<asio::ssl::context> ServerBase::getSslContext()
 
 void ServerBase::stop()
 {
-  spdlog::trace("server {}:{} stopping...", host(), port());
+  spdlog::trace("closing server...");
   _stop_requested.store(true);
+  std::error_code ec;
+  _acceptor.cancel(ec);
+  if (ec)
+  {
+    spdlog::warn("acceptor cancel error: {}", ec.message());
+  }
+  spdlog::trace("server closed");
 }
 
 bool ServerBase::isStopped() const noexcept
