@@ -179,13 +179,6 @@ target_sources(network_stack_core
 
         src/protocol/FtpFileTransfer.cpp
         src/protocol/FtpUtils.cpp
-
-        src/protocol/Ticket.cpp
-        src/protocol/TicketJson.cpp
-        src/protocol/TicketFrame.cpp
-        src/protocol/TicketPeer.cpp
-        src/protocol/TicketController.cpp
-        src/protocol/TicketWorker.cpp
 )
 
 # Compile options
@@ -201,7 +194,6 @@ target_link_libraries(network_stack_core
         spdlog::spdlog
         OpenSSL::SSL
         OpenSSL::Crypto
-        nlohmann_json::nlohmann_json
 )
 
 # ============================================================================
@@ -222,13 +214,8 @@ set(TEST_SOURCES
     tests/test_async_client_server_edge_cases.cpp
     tests/test_async_timeouts.cpp
     tests/test_async_tls.cpp
-    tests/test_ticket_serialization.cpp
     tests/test_tls_misuse.cpp
-    tests/test_ticket_controller_worker.cpp
-    tests/test_ticket_edge_cases.cpp
-    tests/test_ticket_protocol_integration.cpp
     tests/test_socket_edge_cases.cpp
-    tests/test_ticket_protocol_misuse.cpp
     tests/test_ftp_misuse.cpp
 )
 
