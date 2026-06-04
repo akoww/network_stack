@@ -8,6 +8,7 @@
 
 #include "client/Client.h"
 #include "core/ErrorCodes.h"
+#include "fixtures/test_certificate_paths.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
 #include "server/Server.h"
@@ -24,9 +25,8 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
   std::thread server_thread(
     [&server]()
     {
-      server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-      server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                                   asio::ssl::context::pem);
+      EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
+      EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
       auto listen_result = server.listenTls();
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });
@@ -62,9 +62,8 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
   std::thread server_thread(
     [&server]()
     {
-      server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-      server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                                   asio::ssl::context::pem);
+      EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
+      EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
       auto listen_result = server.listenTls();
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });

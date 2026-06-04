@@ -7,6 +7,7 @@
 
 #include "client/Client.h"
 #include "core/ErrorCodes.h"
+#include "fixtures/test_certificate_paths.h"
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "server/Server.h"
@@ -20,9 +21,8 @@ constexpr uint16_t TEST_TLS_PORT = 12346;
 TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
-  server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-  server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                               asio::ssl::context::pem);
+  EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
+  EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
   asio::co_spawn(
     _io_ctx,
@@ -82,9 +82,8 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 {
   EchoServer server(TEST_TLS_PORT, _io_ctx);
-  server.getSslContext()->use_certificate_chain_file("/home/akoww/source/network_stack/tests/certs/server.crt");
-  server.getSslContext()->use_private_key_file("/home/akoww/source/network_stack/tests/certs/server.key",
-                                               asio::ssl::context::pem);
+  EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
+  EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
   asio::co_spawn(
     _io_ctx,

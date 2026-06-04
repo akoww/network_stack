@@ -1,7 +1,7 @@
 #include "socket/TcpSocket.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
-#include <socket/SocketBaseImpl.h>
+#include <socket/SocketBaseDetails.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>
@@ -34,12 +34,7 @@ namespace
 {
 }  // namespace
 
-TcpSocket::TcpSocket(asio::io_context& io_ctx) : _socket(io_ctx)
-{
-  spdlog::trace("[{}] TCP socket created", getId());
-}
-
-TcpSocket::TcpSocket(asio::ip::tcp::socket&& sock) : _socket(std::move(sock))
+TcpSocket::TcpSocket(asio::ip::tcp::socket sock) : _socket(std::move(sock))
 {
   spdlog::trace("[{}] TCP socket created (moved)", getId());
 }

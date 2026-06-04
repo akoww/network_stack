@@ -28,11 +28,8 @@ private:
   asio::ip::tcp::socket _socket;
 
 public:
-  /// @brief Construct with an io_context.
-  explicit TcpSocket(asio::io_context& io_ctx);
-
   /// @brief Construct by moving in an existing socket.
-  explicit TcpSocket(asio::ip::tcp::socket&& sock);
+  explicit TcpSocket(asio::ip::tcp::socket sock);
 
   ~TcpSocket() override;
 

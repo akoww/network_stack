@@ -1,7 +1,7 @@
 #include "client/Client.h"
 #include "core/ErrorTranslation.h"
 #include "socket/SslSocket.h"
-#include "socket/SocketBaseImpl.h"
+#include "socket/SocketBaseDetails.h"
 #include "socket/TcpSocket.h"
 
 #include <asio/awaitable.hpp>
@@ -18,11 +18,12 @@
 #include <asio/ssl/context.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/use_future.hpp>
-
 #include <asio/bind_cancellation_slot.hpp>
 #include <asio/use_awaitable.hpp>
-#include <memory>
+
 #include <spdlog/spdlog.h>
+
+#include <memory>
 #include <system_error>
 
 namespace Network

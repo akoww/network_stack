@@ -2,7 +2,7 @@
 
 #include "client/Client.h"
 #include "core/ErrorCodes.h"
-#include "socket/SyncSocketInterface.h"
+#include "socket/SocketBase.h"
 
 #include <asio/connect.hpp>
 #include <asio/ip/tcp.hpp>

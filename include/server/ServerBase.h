@@ -7,6 +7,7 @@
 #include "socket/SocketBase.h"
 
 #include <expected>
+#include <filesystem>
 
 namespace Network
 {
@@ -45,11 +46,13 @@ public:
   [[nodiscard]] uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  asio::io_context& getIoContext();
+  [[nodiscard]] asio::io_context& getIoContext();
 
-  /// @brief Get the SSL context for TLS connections.
-  /// @return Shared pointer to SSL context.
-  std::shared_ptr<asio::ssl::context> getSslContext();
+  /// @brief Set the SSL certificate chain file on server (PEM format).
+  std::error_code setCertificateChain(std::filesystem::path const& path);
+
+  /// @brief Set the SSL private key file on server (PEM format only).
+  std::error_code setPrivateKey(std::filesystem::path const& path);
 
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
@@ -65,7 +68,6 @@ protected:
   std::atomic<bool> _stop_requested{false};
   asio::ip::tcp::acceptor _acceptor;
 
-private:
   std::string _host;
   uint16_t _port;
   asio::io_context& _io_ctx;

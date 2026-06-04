@@ -15,7 +15,6 @@ private:
   asio::ssl::stream<asio::ip::tcp::socket> _stream;
 
 public:
-  explicit SslSocket(asio::io_context& context, asio::ssl::context& ssl_context);
   explicit SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
   ~SslSocket() override;
 

@@ -1,7 +1,7 @@
 #include "socket/SslSocket.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
-#include <socket/SocketBaseImpl.h>
+#include <socket/SocketBaseDetails.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>
@@ -32,12 +32,6 @@ using namespace asio::experimental::awaitable_operators;
 
 namespace Network
 {
-
-SslSocket::SslSocket(asio::io_context& context, asio::ssl::context& ssl_context)
-  : _stream(asio::ip::tcp::socket{context}, ssl_context)
-{
-  spdlog::trace("[{}] SSL socket created", getId());
-}
 
 SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {

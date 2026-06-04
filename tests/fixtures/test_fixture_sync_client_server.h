@@ -7,6 +7,7 @@
 #include "server/Server.h"
 #include "socket/SslSocket.h"
 #include "socket/TcpSocket.h"
+#include "test_certificate_paths.h"
 
 #include <asio/io_context.hpp>
 #include <memory>
@@ -84,6 +85,9 @@ public:
     : Server(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
+
+  void setSslContext(std::shared_ptr<asio::ssl::context> ctx) { _ssl_context = std::move(ctx); }
+
   ~EchoServer()
   {
     std::vector<Clients> to_join;
@@ -120,6 +124,14 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes, std::si
   if (length >= bytes.size())
     return "";
   return {reinterpret_cast<const char*>(bytes.data()), length};
+}
+
+inline std::shared_ptr<asio::ssl::context> createSslContextWithCert()
+{
+  auto ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server);
+  ctx->use_certificate_chain_file(std::string(Network::Test::ServerCertPath()));
+  ctx->use_private_key_file(std::string(Network::Test::ServerKeyPath()), asio::ssl::context::pem);
+  return ctx;
 }
 
 class SyncClientServerFixture : public ::testing::Test

@@ -34,6 +34,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen()
   spdlog::trace("server async listening on {}:{}", host(), port());
 
   std::error_code ec;
+  auto executor = co_await asio::this_coro::executor;
 
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
@@ -70,11 +71,10 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen()
   // auto new_socket = std::make_unique<TcpSocket>(getIoContext());
   // auto& socket = new_socket->getSocket();
 
-  asio::ip::tcp::socket socket(getIoContext());
-
   while (!isStopped())
   {
     ec = {};
+    asio::ip::tcp::socket socket(executor);
     co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
@@ -88,19 +88,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen()
       co_return std::unexpected(makeServerError(ec, "accept"));
     }
 
-    spdlog::debug("new async connection accepted");
-    auto new_socket = std::make_unique<TcpSocket>(std::move(socket));
-
-    asio::co_spawn(
-      co_await asio::this_coro::executor,
-      [socket = std::move(new_socket), handler = this->clientHandler()]() mutable -> asio::awaitable<void>
-      {
-        handler(std::move(socket));
-        co_return;
-      },
-      asio::detached);
-
-    socket = asio::ip::tcp::socket(co_await asio::this_coro::executor);
+    asio::co_spawn(executor, acceptPlainSocket(std::move(socket)), asio::detached);
   }
 
   co_return std::expected<void, std::error_code>{};
@@ -111,6 +99,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls()
   spdlog::trace("server async listening on {}:{} with TLS", host(), port());
 
   std::error_code ec;
+  auto executor = co_await asio::this_coro::executor;
 
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
@@ -147,7 +136,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls()
   while (!isStopped())
   {
     ec = {};
-    asio::ip::tcp::socket socket(getIoContext());
+    asio::ip::tcp::socket socket(executor);
     co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
@@ -161,32 +150,53 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls()
       co_return std::unexpected(makeServerError(ec, "accept"));
     }
 
-    spdlog::debug("new async TLS connection accepted");
-
-    asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *getSslContext());
-
-    ec = {};
-    co_await ssl_stream.async_handshake(asio::ssl::stream_base::server, asio::redirect_error(asio::use_awaitable, ec));
-
-    if (ec)
-    {
-      spdlog::error("TLS handshake failed: {}", ec.message());
-      continue;
-    }
-
-    auto new_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
-
-    asio::co_spawn(
-      co_await asio::this_coro::executor,
-      [socket = std::move(new_socket), handler = clientHandler()]() mutable -> asio::awaitable<void>
-      {
-        handler(std::move(socket));
-        co_return;
-      },
-      asio::detached);
+    asio::co_spawn(executor, acceptTlsSocket(std::move(socket)), asio::detached);
   }
 
   co_return std::expected<void, std::error_code>{};
+}
+
+asio::awaitable<void> Server::acceptPlainSocket(asio::ip::tcp::socket socket)
+{
+  spdlog::debug("new async connection accepted");
+  asio::co_spawn(
+    co_await asio::this_coro::executor,
+    [socket = std::move(socket), handler = this->clientHandler()]() mutable -> asio::awaitable<void>
+    {
+      handler(std::make_unique<TcpSocket>(std::move(socket)));
+      co_return;
+    },
+    asio::detached);
+
+  co_return;
+}
+
+asio::awaitable<void> Server::acceptTlsSocket(asio::ip::tcp::socket socket)
+{
+  spdlog::debug("new async TLS connection accepted");
+
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *_ssl_context);
+  auto executor = co_await asio::this_coro::executor;
+
+  std::error_code ec;
+  co_await ssl_stream.async_handshake(asio::ssl::stream_base::server, asio::redirect_error(asio::use_awaitable, ec));
+
+  if (ec)
+  {
+    spdlog::error("TLS handshake failed: {}", ec.message());
+    co_return;
+  }
+
+  asio::co_spawn(
+    executor,
+    [stream = std::move(ssl_stream), handler = clientHandler()]() mutable -> asio::awaitable<void>
+    {
+      handler(std::make_unique<SslSocket>(std::move(stream)));
+      co_return;
+    },
+    asio::detached);
+
+  co_return;
 }
 
 void Server::stop()
@@ -243,6 +253,5 @@ std::expected<void, std::error_code> Server::listenTls()
     return std::unexpected(makeReadError(std::make_error_code(std::errc::operation_canceled)));
   }
 }
-
 
 }  // namespace Network

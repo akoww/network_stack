@@ -31,7 +31,8 @@ constexpr uint16_t TEST_PORT = 12349;
 
 TEST_F(IoContextFixture, ReadOnUnconnectedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   std::array<std::byte, 1024> buffer{};
 
@@ -64,7 +65,8 @@ TEST_F(IoContextFixture, ReadOnUnconnectedSocket)
 
 TEST_F(IoContextFixture, WriteOnUnconnectedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   std::string msg = "hello";
   auto write_result = socket.writeAll(to_bytes(msg));
@@ -78,7 +80,8 @@ TEST_F(IoContextFixture, WriteOnUnconnectedSocket)
 
 TEST_F(IoContextFixture, AsyncReadOnUnconnectedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   std::array<std::byte, 1024> buffer{};
   auto future = asio::co_spawn(
@@ -97,7 +100,8 @@ TEST_F(IoContextFixture, AsyncReadOnUnconnectedSocket)
 
 TEST_F(IoContextFixture, AsyncWriteOnUnconnectedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   std::string msg = "hello";
   auto future = asio::co_spawn(
@@ -120,7 +124,8 @@ TEST_F(IoContextFixture, AsyncWriteOnUnconnectedSocket)
 
 TEST_F(IoContextFixture, ReadAfterClose)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -135,7 +140,8 @@ TEST_F(IoContextFixture, ReadAfterClose)
 
 TEST_F(IoContextFixture, WriteAfterClose)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::string msg = "hello";
@@ -150,7 +156,8 @@ TEST_F(IoContextFixture, WriteAfterClose)
 
 TEST_F(IoContextFixture, ReadExactAfterClose)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -165,7 +172,8 @@ TEST_F(IoContextFixture, ReadExactAfterClose)
 
 TEST_F(IoContextFixture, ReadUntilAfterClose)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -184,7 +192,8 @@ TEST_F(IoContextFixture, ReadUntilAfterClose)
 
 TEST_F(IoContextFixture, ReadAfterCancel)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.cancelSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -199,7 +208,8 @@ TEST_F(IoContextFixture, ReadAfterCancel)
 
 TEST_F(IoContextFixture, WriteAfterCancel)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.cancelSocket();
 
   std::string msg = "hello";
@@ -252,7 +262,8 @@ TEST_F(IoContextFixture, ReadExactUndersizedBuffer)
 
 TEST_F(IoContextFixture, ReadUntilNeverMatch)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   std::array<std::byte, 1024> buffer{};
   auto read_result = socket.readUntil(std::span(buffer), "\\x00\\x00\\x00\\x00", std::chrono::milliseconds(100));
@@ -305,7 +316,8 @@ TEST_F(IoContextFixture, ReadExactExactSizeBuffer)
 
 TEST_F(IoContextFixture, MultipleCloseCalls)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   // Should not throw or crash
   socket.closeSocket();
@@ -315,7 +327,8 @@ TEST_F(IoContextFixture, MultipleCloseCalls)
 
 TEST_F(IoContextFixture, CancelThenClose)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   socket.cancelSocket();
   socket.closeSocket();
@@ -325,7 +338,8 @@ TEST_F(IoContextFixture, CancelThenClose)
 
 TEST_F(IoContextFixture, CloseThenCancel)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
 
   socket.closeSocket();
   socket.cancelSocket();
@@ -451,14 +465,16 @@ TEST_F(IoContextFixture, DestructWithoutClose)
 
 TEST_F(IoContextFixture, GetIdBeforeConnect)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   auto id = socket.getId();
   EXPECT_GT(id, 0u);
 }
 
 TEST_F(IoContextFixture, GetReadBufferBeforeConnect)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   auto& buffer = socket.getReadBuffer();
   // Should be a valid (empty) buffer
   EXPECT_TRUE(buffer.data() != nullptr || buffer.empty());
@@ -470,7 +486,8 @@ TEST_F(IoContextFixture, GetReadBufferBeforeConnect)
 
 TEST_F(IoContextFixture, AsyncReadOnClosedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -490,7 +507,8 @@ TEST_F(IoContextFixture, AsyncReadOnClosedSocket)
 
 TEST_F(IoContextFixture, AsyncWriteOnClosedSocket)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.closeSocket();
 
   std::string msg = "hello";
@@ -510,7 +528,8 @@ TEST_F(IoContextFixture, AsyncWriteOnClosedSocket)
 
 TEST_F(IoContextFixture, CancelBeforeAsyncRead)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.cancelSocket();
 
   std::array<std::byte, 1024> buffer{};
@@ -530,7 +549,8 @@ TEST_F(IoContextFixture, CancelBeforeAsyncRead)
 
 TEST_F(IoContextFixture, CancelBeforeAsyncWrite)
 {
-  TcpSocket socket(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  TcpSocket socket(std::move(sock));
   socket.cancelSocket();
 
   std::string msg = "hello";
@@ -558,7 +578,8 @@ TEST_F(IoContextFixture, MultipleSocketsSameContext)
 
   for (int i = 0; i < 20; i++)
   {
-    auto socket = std::make_unique<TcpSocket>(getIoContext());
+    asio::ip::tcp::socket sock(getIoContext());
+    auto socket = std::make_unique<TcpSocket>(std::move(sock));
     EXPECT_GT(socket->getId(), 0u);
     sockets.push_back(std::move(socket));
   }
@@ -573,7 +594,8 @@ TEST_F(IoContextFixture, MultipleSocketsSameContext)
 
 TEST_F(IoContextFixture, SocketMoveConstructor)
 {
-  auto original = std::make_unique<TcpSocket>(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  auto original = std::make_unique<TcpSocket>(std::move(sock));
 
   auto moved = std::move(original);
 
@@ -590,9 +612,11 @@ TEST_F(IoContextFixture, SocketMoveConstructor)
 
 TEST_F(IoContextFixture, SocketMoveAssignment)
 {
-  auto original = std::make_unique<TcpSocket>(getIoContext());
+  asio::ip::tcp::socket sock(getIoContext());
+  auto original = std::make_unique<TcpSocket>(std::move(sock));
 
-  auto destination = std::make_unique<TcpSocket>(getIoContext());
+  asio::ip::tcp::socket sock_other(getIoContext());
+  auto destination = std::make_unique<TcpSocket>(std::move(sock_other));
 
   destination = std::move(original);
 

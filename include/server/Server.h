@@ -6,6 +6,7 @@
 #include <asio/ssl/context.hpp>
 
 #include "ServerBase.h"
+#include "socket/SocketBase.h"
 
 #include <expected>
 
@@ -43,6 +44,10 @@ public:
   /// @brief Stop accepting connections.
   /// Closes the acceptor and signals any waiting async operations.
   void stop();
+
+protected:
+  asio::awaitable<void> acceptPlainSocket(asio::ip::tcp::socket socket);
+  asio::awaitable<void> acceptTlsSocket(asio::ip::tcp::socket socket);
 
 private:
 };

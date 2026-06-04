@@ -29,11 +29,20 @@ asio::io_context& ServerBase::getIoContext()
 {
   return _io_ctx;
 }
-std::shared_ptr<asio::ssl::context> ServerBase::getSslContext()
+
+std::error_code ServerBase::setCertificateChain(std::filesystem::path const& path)
 {
-  return _ssl_context;
+  std::error_code ec;
+  _ssl_context->use_certificate_chain_file(path.string(), ec);
+  return ec;
 }
 
+std::error_code ServerBase::setPrivateKey(std::filesystem::path const& path)
+{
+  std::error_code ec;
+  _ssl_context->use_private_key_file(path.string(), asio::ssl::context::file_format::pem, ec);
+  return ec;
+}
 void ServerBase::stop()
 {
   spdlog::trace("closing server...");
