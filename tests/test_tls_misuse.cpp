@@ -79,7 +79,7 @@ TEST_F(IoContextFixture, PlainClientToTlsServer)
   ASSERT_TRUE(connect_result.has_value()) << "Plain client should connect at TCP level";
 
   auto client_socket = std::move(*connect_result);
-  const std::string msg = "hello";
+  const std::string msg = "hello";  // sending 5 bytes is all the server needs for the handshake
   auto send_result = client_socket->writeAll(to_bytes(msg));
   EXPECT_TRUE(send_result);
 
@@ -115,13 +115,14 @@ TEST_F(IoContextFixture, PlainWriteToTlsServerGarbledRead)
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
-  const std::string ping = "PING";
+  const std::string ping = "PING";  // sending 4 bytes will block the server handshake until more is coming
   auto send_result = client_socket->writeAll(to_bytes(ping));
   EXPECT_TRUE(send_result);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
   std::array<std::byte, 1024> buffer{};
-  auto recv_result = client_socket->readSome(std::span(buffer), std::chrono::milliseconds(50));
+  auto recv_result =
+    client_socket->readSome(std::span(buffer), std::chrono::milliseconds(50));  // need to wait at max x ms
   if (recv_result && *recv_result > 0)
   {
     auto resp = to_string_view(buffer, *recv_result);

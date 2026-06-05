@@ -217,6 +217,7 @@ set(TEST_SOURCES
     tests/test_tls_misuse.cpp
     tests/test_socket_edge_cases.cpp
     tests/test_ftp_misuse.cpp
+    tests/test_echo_server_process.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
@@ -226,3 +227,16 @@ foreach(test_name IN LISTS TEST_SOURCES)
     get_filename_component(test_name_only ${test_name} NAME_WE)
     target_compile_definitions(${test_name_only} PRIVATE SOURCE_DIR_CERT="${CMAKE_CURRENT_SOURCE_DIR}/tests/certs/")
 endforeach()
+
+# ============================================================================
+# Echo server test binary (standalone for external-process testing)
+# ============================================================================
+add_executable(echo_server tests/fixtures/echo_server.cpp)
+
+target_include_directories(echo_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_link_libraries(echo_server
+    network_stack_core
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
