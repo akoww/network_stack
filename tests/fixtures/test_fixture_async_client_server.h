@@ -56,19 +56,33 @@ class EchoServer : public Server
         context,
         [sock_ptr]() mutable -> asio::awaitable<void>
         {
-          std::array<std::byte, 1024> buffer{};
+          std::array<std::byte, 8192> buffer{};
           while (true)
           {
+            auto recv_chunk_start = std::chrono::high_resolution_clock::now();
+
             auto recv_result = co_await sock_ptr->asyncReadSome(std::span(buffer));
             if (!recv_result || *recv_result == 0)
             {
               break;
             }
+            auto recv_chunk_end = std::chrono::high_resolution_clock::now();
+            auto elapsed_recv_chunk =
+              std::chrono::duration_cast<std::chrono::milliseconds>(recv_chunk_end - recv_chunk_start).count();
+            std::cout << "[DEBUG-SERVER]   recv " << *recv_result << " bytes in " << elapsed_recv_chunk << "ms\n";
+
+            auto send_chunk_start = std::chrono::high_resolution_clock::now();
+
             auto send_result = co_await sock_ptr->asyncWriteAll(std::span(buffer).first(*recv_result));
             if (!send_result)
             {
               break;
             }
+
+            auto send_chunk_end = std::chrono::high_resolution_clock::now();
+            auto elapsed_send_chunk =
+              std::chrono::duration_cast<std::chrono::milliseconds>(send_chunk_end - send_chunk_start).count();
+            std::cout << "[DEBUG-SERVER]   Sent " << *recv_result << " bytes in " << elapsed_send_chunk << "ms\n";
           }
           co_return;
         },

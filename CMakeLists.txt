@@ -218,6 +218,10 @@ set(TEST_SOURCES
     tests/test_socket_edge_cases.cpp
     tests/test_ftp_misuse.cpp
     tests/test_echo_server_process.cpp
+    tests/test_tls_bandwidth_ci_sync.cpp
+    tests/test_tls_bandwidth_ci_async.cpp
+    tests/test_tls_bandwidth_huge_sync.cpp
+    tests/test_tls_bandwidth_huge_async.cpp
 )
 
 add_separate_tests(TEST_SOURCES)
