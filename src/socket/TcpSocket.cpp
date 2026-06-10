@@ -6,36 +6,24 @@
 #include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>
 #include <asio/co_spawn.hpp>
-#include <asio/detached.hpp>
 #include <asio/error.hpp>
-#include <asio/experimental/awaitable_operators.hpp>
 #include <asio/read.hpp>
-#include <asio/read_until.hpp>
-#include <asio/redirect_error.hpp>
-#include <asio/steady_timer.hpp>
-#include <asio/streambuf.hpp>
 #include <asio/use_awaitable.hpp>
 #include <asio/use_future.hpp>
 #include <asio/write.hpp>
 #include <chrono>
 #include <expected>
 #include <future>
-#include <memory>
 #include <spdlog/spdlog.h>
 #include <system_error>
-#include <variant>
-
-using namespace asio::experimental::awaitable_operators;
 
 namespace Network
 {
 
-namespace
-{
-}  // namespace
-
 TcpSocket::TcpSocket(asio::ip::tcp::socket sock) : _socket(std::move(sock))
 {
+  asio::ip::tcp::no_delay option(true);
+  _socket.set_option(option);
   spdlog::trace("[{}] TCP socket created (moved)", getId());
 }
 

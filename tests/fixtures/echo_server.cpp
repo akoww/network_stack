@@ -71,7 +71,7 @@ public:
     std::unique_ptr<Network::DualSocket> sock;
   };
 
-  explicit EchoServer(uint16_t port, asio::io_context& ctx)
+  explicit EchoServer(uint16_t port, asio::any_io_executor ctx)
     : Base(port, ctx, [this](std::unique_ptr<Network::DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
@@ -162,9 +162,8 @@ int main(int argc, char** argv)
   Options const opts = parse_args(argc, argv);
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
-  EchoServer server(opts.port, io_ctx);
+  EchoServer server(opts.port, io_ctx.get_executor());
 
   if (!opts.cert_chain.empty() && !opts.private_key.empty())
   {
@@ -217,6 +216,5 @@ int main(int argc, char** argv)
   }
   std::cout.flush();
 
-  io_ctx.stop();
   return 0;
 }

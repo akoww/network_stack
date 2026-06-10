@@ -24,6 +24,9 @@ namespace Network
 
 SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {
+  asio::ip::tcp::no_delay option(true);
+  _stream.next_layer().set_option(option);
+
   spdlog::trace("[{}] SSL socket created", getId());
 }
 

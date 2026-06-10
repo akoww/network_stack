@@ -137,11 +137,7 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes, std::si
 class AsyncClientServerFixture : public ::testing::Test
 {
 public:
-  void SetUp() override
-  {
-    // spdlog::set_level(spdlog::level::debug);
-    // spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
-  }
+  void SetUp() override {}
 
   void TearDown() override {}
 

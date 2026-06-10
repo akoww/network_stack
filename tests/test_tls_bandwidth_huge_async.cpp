@@ -38,7 +38,7 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
       (void)listen_result;
     },
     asio::detached);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto connect_future = asio::co_spawn(
     getIoContext().get_executor(),
@@ -50,7 +50,6 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
     },
     asio::use_future);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   auto connect_result = connect_future.get();
   ASSERT_TRUE(connect_result.has_value()) << "Async TLS connect failed";
 
@@ -90,7 +89,6 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
         getIoContext().get_executor(),
         [sock = sock_ptr_for_capture, buf = data_ref]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return sock->asyncWriteAll(buf); }, asio::use_future);
-      std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
       auto write_ec = send_future.get();
       if (!write_ec)
@@ -115,7 +113,6 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
            sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
           { return sock->asyncReadSome(std::span(*bufs).first(sz)); },
           asio::use_future);
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
         auto read_ec = recv_future.get();
         if (read_ec && *read_ec > 0)

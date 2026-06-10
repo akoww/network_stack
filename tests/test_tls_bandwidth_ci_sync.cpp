@@ -30,7 +30,7 @@ TEST_F(SyncClientServerFixture, SyncTlsCiBandwidth)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
