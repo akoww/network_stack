@@ -26,7 +26,7 @@ struct StageConfig
 
 TEST_F(SyncClientServerFixture, SyncTlsHugeBandwidth)
 {
-  EchoServer server(TLS_BW_PORT, _io_ctx);
+  EchoServer server(TLS_BW_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -38,7 +38,7 @@ TEST_F(SyncClientServerFixture, SyncTlsHugeBandwidth)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", TLS_BW_PORT, _io_ctx);
+  Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
   auto connect_result = client.connectTls();
   ASSERT_TRUE(connect_result.has_value()) << "Client TLS connect failed";

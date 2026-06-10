@@ -58,7 +58,7 @@ bool hasFtpServer()
     return cached.load();
   }
   IoContextWrapper temp_ctx;
-  temp_ctx.start();
+
   FtpFileTransfer temp_ftp("127.0.0.1", 2121, temp_ctx);
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -68,7 +68,7 @@ bool hasFtpServer()
   bool found = result.has_value();
   cached.store(found);
   computed.store(true);
-  temp_ctx.stop();
+
   return found;
 }
 
@@ -153,7 +153,6 @@ TEST_F(IoContextFixture, IsAliveAfterDoubleConnect)
 TEST_F(IoContextFixture, ConnectAfterStopIoContextReturnsError)
 {
   GTEST_SKIP();
-  getIoContext().stop();
 
   FtpFileTransfer ftp("127.0.0.1", FTP_UNAVAILABLE_PORT, getIoContext());
   FtpFileTransfer::ConnectOptions opts;

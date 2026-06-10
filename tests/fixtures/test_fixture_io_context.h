@@ -9,18 +9,18 @@ namespace Network::Test
 
 class IoContextFixture : public ::testing::Test
 {
-protected:
-  IoContextFixture() = default;
+public:
+  IoContextFixture() {};
   ~IoContextFixture() override = default;
 
-  void SetUp() override { _io_ctx.start(); }
+  void SetUp() override {}
 
-  void TearDown() override { _io_ctx.stop(); }
+  void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io; }
 
-private:
-  Network::IoContextWrapper _io_ctx;
+protected:
+  Network::IoContextWrapper _io;
 };
 
 }  // namespace Network::Test

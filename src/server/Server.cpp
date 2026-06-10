@@ -23,7 +23,7 @@
 namespace Network
 {
 
-Server::Server(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+Server::Server(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler)
   : ServerBase(port, io_ctx, std::move(handler))
 {
   spdlog::trace("server async created on port {}", port);

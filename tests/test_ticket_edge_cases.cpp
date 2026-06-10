@@ -26,10 +26,13 @@ namespace Network::Test
 class TicketEdgeCaseFixture : public ::testing::Test
 {
 protected:
-  void SetUp() override { _io_ctx.start(); }
-  void TearDown() override { _io_ctx.stop(); }
+  void SetUp() override { _ }
+  void TearDown() override{_}
 
-  asio::io_context& getIoContext() { return _io_ctx; }
+  asio::any_io_executor getIoContext()
+  {
+    return _io_ctx;
+  }
 
 private:
   IoContextWrapper _io_ctx;

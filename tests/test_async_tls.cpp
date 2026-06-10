@@ -20,12 +20,12 @@ constexpr uint16_t TEST_TLS_PORT = 12346;
 
 TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 {
-  EchoServer server(TEST_TLS_PORT, _io_ctx);
+  EchoServer server(TEST_TLS_PORT, getIoContext().get_executor());
   EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
   EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListenTls();
@@ -35,10 +35,10 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_TLS_PORT, getIoContext().get_executor());
       client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
       co_return co_await client.asyncConnectTls({});
     },
@@ -53,7 +53,8 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
     const std::string msg = "hello tls";
 
     auto send_future = asio::co_spawn(
-      _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+      getIoContext().get_executor(),
+      [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
       { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -63,7 +64,8 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 
     std::array<std::byte, 1024> buffer{};
     auto recv_future = asio::co_spawn(
-      _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+      getIoContext().get_executor(),
+      [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
       { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -81,12 +83,12 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerSingleMessage)
 
 TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 {
-  EchoServer server(TEST_TLS_PORT, _io_ctx);
+  EchoServer server(TEST_TLS_PORT, getIoContext().get_executor());
   EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
   EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListenTls();
@@ -96,10 +98,10 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_TLS_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_TLS_PORT, getIoContext().get_executor());
       client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
       co_return co_await client.asyncConnectTls({});
     },
@@ -116,7 +118,8 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
     for (const auto& msg : messages)
     {
       auto send_future = asio::co_spawn(
-        _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+        getIoContext().get_executor(),
+        [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -125,7 +128,8 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 
       std::array<std::byte, 1024> buffer{};
       auto recv_future = asio::co_spawn(
-        _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+        getIoContext().get_executor(),
+        [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -144,11 +148,12 @@ TEST_F(AsyncClientServerFixture, TlsEchoServerMultipleMessages)
 
 TEST_F(IoContextFixture, TlsConnectionRefused)
 {
-  Client client("127.0.0.1", 59997, getIoContext());
+  Client client("127.0.0.1", 59997, getIoContext().get_executor());
   client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
   auto connect_future = asio::co_spawn(
-    getIoContext(), [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
+    getIoContext().get_executor(),
+    [&client]() mutable -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     { co_return co_await client.asyncConnectTls({}); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));

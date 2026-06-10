@@ -1,4 +1,5 @@
 #include <asio.hpp>
+#include <asio/thread_pool.hpp>
 #include <gtest/gtest.h>
 
 // Include your header
@@ -6,53 +7,10 @@
 
 using namespace Network;
 
-TEST(IoContextWrapperTest, SingletonInstance)
-{
-  IoContextWrapper& instance1 = IoContextWrapper::instance();
-  IoContextWrapper& instance2 = IoContextWrapper::instance();
-  EXPECT_EQ(&instance1, &instance2);
-}
-
-TEST(IoContextWrapperTest, InitialState)
-{
-  IoContextWrapper& ctx = IoContextWrapper::instance();
-  EXPECT_FALSE(ctx.isRunning());
-}
-
-TEST(IoContextWrapperTest, StartAndStop)
-{
-  IoContextWrapper& ctx = IoContextWrapper::instance();
-
-  if (ctx.isRunning())
-  {
-    ctx.stop();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
-  EXPECT_FALSE(ctx.isRunning());
-
-  ctx.start();
-
-  EXPECT_TRUE(ctx.isRunning());
-
-  ctx.stop();
-
-  EXPECT_FALSE(ctx.isRunning());
-}
-
 TEST(IoContextWrapperTest, ExecuteTaskViaPost)
 {
-  IoContextWrapper& ctx = IoContextWrapper::instance();
-
-  if (ctx.isRunning())
-  {
-    ctx.stop();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
+  IoContextWrapper ctx;
   std::atomic<bool> task_done{false};
-
-  ctx.start();
 
   asio::post(ctx.get_executor(), [&task_done]() { task_done.store(true); });
 
@@ -62,27 +20,24 @@ TEST(IoContextWrapperTest, ExecuteTaskViaPost)
   }
 
   EXPECT_TRUE(task_done.load());
-
-  ctx.stop();
 }
 
 TEST(IoContextWrapperTest, DirectPostIfAccessible)
 {
   // This test verifies if ctx.post() actually works.
   // If this fails, you MUST use the asio::post(ctx.get_executor(), ...) method above.
-  IoContextWrapper& ctx = IoContextWrapper::instance();
-
-  if (ctx.isRunning())
-  {
-    ctx.stop();
-  }
+  IoContextWrapper ctx;
 
   std::atomic<bool> task_done{false};
-  ctx.start();
 
   try
   {
-    asio::post(ctx.get_executor(), [&task_done]() { task_done.store(true); });
+    asio::post(ctx.get_executor(),
+               [&task_done]()
+               {
+                 std::cout << "running\n";
+                 task_done.store(true);
+               });
   }
   catch (...)
   {
@@ -94,5 +49,4 @@ TEST(IoContextWrapperTest, DirectPostIfAccessible)
   }
 
   EXPECT_TRUE(task_done.load());
-  ctx.stop();
 }

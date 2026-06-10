@@ -28,7 +28,7 @@ public:
   /// @param host Remote host address (domain name or IP).
   /// @param port Remote port number.
   /// @param io_ctx ASIO io_context for async operations.
-  explicit ClientBase(std::string_view host, uint16_t port, asio::io_context& io_ctx);
+  explicit ClientBase(std::string_view host, uint16_t port, asio::any_io_executor io_ctx);
 
   /// @brief Get the target host.
   [[nodiscard]] std::string_view host() const;
@@ -37,7 +37,7 @@ public:
   [[nodiscard]] uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  asio::io_context& getIoContext();
+  asio::any_io_executor& getIoContext();
 
   /// @brief Get the SSL context for TLS connections.
   /// @return Shared pointer to SSL context.
@@ -46,7 +46,7 @@ public:
 private:
   std::string _host;
   uint16_t _port;
-  asio::io_context& _io_ctx;
+  asio::any_io_executor _io_ctx;
   std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 

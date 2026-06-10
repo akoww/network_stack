@@ -101,7 +101,7 @@ std::expected<void, std::error_code> FtpFileTransfer::connect(const ConnectOptio
 {
   spdlog::info("FTP connecting to {}:{}", _host, _port);
 
-  Client client(_host, _port, _io_context);
+  Client client(_host, _port, _io_context.get_executor());
   auto socket_result = client.connect({opts.timeout});
 
   if (!socket_result)
@@ -1294,7 +1294,8 @@ std::expected<std::unique_ptr<SyncSocket>, std::error_code> FtpFileTransfer::ope
 
   auto endpoint = parsePasvResponse(pasv_result->full_msg);
 
-  auto data_socket = std::make_unique<Client>(endpoint->address().to_string(), endpoint->port(), _io_context);
+  auto data_socket =
+    std::make_unique<Client>(endpoint->address().to_string(), endpoint->port(), _io_context.get_executor());
   auto connect_result = data_socket->connect({getDataTimeout()});
   if (!connect_result)
   {

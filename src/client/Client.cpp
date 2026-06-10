@@ -40,7 +40,7 @@ inline std::error_code makeTimeoutError()
 
 // ------
 
-Client::Client(std::string_view host, uint16_t port, asio::io_context& io_ctx) : ClientBase(host, port, io_ctx)
+Client::Client(std::string_view host, uint16_t port, asio::any_io_executor io_ctx) : ClientBase(host, port, io_ctx)
 {
 }
 

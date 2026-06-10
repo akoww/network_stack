@@ -13,7 +13,6 @@ namespace Network::Test
 TEST(FtpIntegrationTest, ConnectAndDisconnect)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -30,14 +29,11 @@ TEST(FtpIntegrationTest, ConnectAndDisconnect)
       std::unique_ptr<Network::FtpFileTransfer>(dynamic_cast<Network::FtpFileTransfer*>(ftp_result->release()));
     EXPECT_TRUE(ftp->isAlive());
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ExistsFile)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -60,14 +56,11 @@ TEST(FtpIntegrationTest, ExistsFile)
     ASSERT_TRUE(not_exists_result.has_value()) << "exists() failed: " << not_exists_result.error().message();
     EXPECT_FALSE(not_exists_result.value()) << "nonexistent file should return false";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ListDirectory)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -102,14 +95,11 @@ TEST(FtpIntegrationTest, ListDirectory)
     }
     EXPECT_TRUE(found) << "readme.txt should be in directory listing";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ExistsAndListCombined)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -135,14 +125,11 @@ TEST(FtpIntegrationTest, ExistsAndListCombined)
       EXPECT_TRUE(exists_result.value()) << file.file_name << " should exist";
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, NestedDirectoriesNavigation)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -205,14 +192,11 @@ TEST(FtpIntegrationTest, NestedDirectoriesNavigation)
     EXPECT_TRUE(exists_result.has_value()) << "exists() failed after removal: " << exists_result.error().message();
     EXPECT_FALSE(exists_result.value()) << base_dir << " should not exist after removal";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, WriteAndReadFile)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -257,14 +241,11 @@ TEST(FtpIntegrationTest, WriteAndReadFile)
 
     EXPECT_TRUE(ftp->remove(test_path).has_value()) << "Failed to remove test file";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ReadExistingFile)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -295,14 +276,11 @@ TEST(FtpIntegrationTest, ReadExistingFile)
       spdlog::info("Read {} bytes from {}", read_result->size(), test_path.string());
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, IsDirectory)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -357,14 +335,11 @@ TEST(FtpIntegrationTest, IsDirectory)
       EXPECT_TRUE(ftp->remove(test_dir).has_value()) << "Failed to remove test directory";
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ReadWithCallback)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -415,14 +390,11 @@ TEST(FtpIntegrationTest, ReadWithCallback)
       }
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, ReadWithCallbackError)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -451,14 +423,11 @@ TEST(FtpIntegrationTest, ReadWithCallbackError)
     EXPECT_FALSE(read_result.has_value()) << "Callback error should propagate";
     EXPECT_TRUE(callback_called) << "Callback should be called";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, WriteWithCallback)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -527,14 +496,11 @@ TEST(FtpIntegrationTest, WriteWithCallback)
       EXPECT_TRUE(ftp->remove(test_path).has_value()) << "Failed to remove test file";
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, WriteWithCallbackMultipleChunks)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -588,14 +554,11 @@ TEST(FtpIntegrationTest, WriteWithCallbackMultipleChunks)
     EXPECT_GT(callback_count, 1) << "Should have multiple callback calls";
     EXPECT_EQ(write_result->size, 1000) << "Should have written 1000 bytes";
   }
-
-  io_ctx.stop();
 }
 
 TEST(FtpIntegrationTest, WriteWithCallbackError)
 {
   IoContextWrapper io_ctx;
-  io_ctx.start();
 
   FtpFileTransfer::ConnectOptions opts;
   opts.username = "anonymous";
@@ -625,8 +588,6 @@ TEST(FtpIntegrationTest, WriteWithCallbackError)
     EXPECT_FALSE(write_result.has_value()) << "Write should fail on callback error";
     EXPECT_TRUE(callback_called) << "Callback should be called";
   }
-
-  io_ctx.stop();
 }
 
 namespace

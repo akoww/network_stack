@@ -5,7 +5,7 @@
 namespace Network
 {
 
-ServerBase::ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler)
+ServerBase::ServerBase(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler)
   : _acceptor(io_ctx), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler)),
     _ssl_context(std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server))
 {
@@ -25,7 +25,7 @@ uint16_t ServerBase::port() const
 {
   return _port;
 }
-asio::io_context& ServerBase::getIoContext()
+asio::any_io_executor ServerBase::getIoContext()
 {
   return _io_ctx;
 }

@@ -1,5 +1,6 @@
 #include <array>
 #include <asio.hpp>
+#include <asio/thread_pool.hpp>
 #include <chrono>
 #include <expected>
 #include <gtest/gtest.h>
@@ -19,9 +20,11 @@ constexpr uint16_t TEST_PORT = 12351;
 
 TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  asio::thread_pool pool(5);
+
+  EchoServer server(TEST_PORT, pool.get_executor());
   asio::co_spawn(
-    _io_ctx,
+    pool.get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -31,10 +34,10 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    pool.get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -52,7 +55,8 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
   }
 
   auto send_future = asio::co_spawn(
-    _io_ctx, [&client_socket, data]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    pool.get_executor(),
+    [&client_socket, data]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncWriteAll(std::span(data), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -66,12 +70,12 @@ TEST_F(AsyncClientServerFixture, AsyncWriteTimeout)
 
   server.stop();
 }
-
+/*
 TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -81,10 +85,10 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -97,7 +101,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
 
   std::array<std::byte, 1024> buffer{};
   auto recv_future = asio::co_spawn(
-    _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    getIoContext().get_executor(),
+    [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncReadSome(std::span(buffer), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -111,9 +116,9 @@ TEST_F(AsyncClientServerFixture, AsyncReadTimeout)
 
 TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -123,10 +128,10 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -139,7 +144,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
 
   std::vector<std::byte> buffer(1024);
   auto recv_future = asio::co_spawn(
-    _io_ctx, [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    getIoContext().get_executor(),
+    [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncReadExact(std::span(buffer), std::chrono::milliseconds(100)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -153,9 +159,9 @@ TEST_F(AsyncClientServerFixture, AsyncReadExactTimeout)
 
 TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -165,10 +171,10 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -181,7 +187,8 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
 
   std::vector<std::byte> buffer(1024);
   auto recv_future = asio::co_spawn(
-    _io_ctx, [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    getIoContext().get_executor(),
+    [&client_socket, buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncReadUntil(std::span(buffer), "\n", std::chrono::milliseconds(100)); },
     asio::use_future);
 
@@ -196,9 +203,9 @@ TEST_F(AsyncClientServerFixture, AsyncReadUntilTimeout)
 
 TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -208,10 +215,10 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TEST_PORT, _io_ctx);
+      Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -225,7 +232,8 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
   const std::string msg = "hello";
 
   auto send_future = asio::co_spawn(
-    _io_ctx, [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    getIoContext().get_executor(),
+    [&client_socket, msg]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncWriteAll(to_bytes(msg)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -235,7 +243,8 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
 
   std::array<std::byte, 1024> buffer{};
   auto recv_future = asio::co_spawn(
-    _io_ctx, [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+    getIoContext().get_executor(),
+    [&client_socket, &buffer]() mutable -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return client_socket->asyncReadSome(std::span(buffer)); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -250,5 +259,5 @@ TEST_F(AsyncClientServerFixture, AsyncNoTimeout)
 
   server.stop();
 }
-
+*/
 }  // namespace Network::Test

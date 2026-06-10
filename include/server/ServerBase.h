@@ -37,7 +37,7 @@ public:
   /// @param port Port to bind to (0 for dynamic assignment).
   /// @param io_ctx ASIO io_context for async operations.
   /// @param handler Callback function for new incoming clients.
-  explicit ServerBase(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
+  explicit ServerBase(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler);
 
   /// @brief Get the bound host.
   [[nodiscard]] std::string_view host() const;
@@ -46,7 +46,7 @@ public:
   [[nodiscard]] uint16_t port() const;
 
   /// @brief Get the io_context reference.
-  [[nodiscard]] asio::io_context& getIoContext();
+  [[nodiscard]] asio::any_io_executor getIoContext();
 
   /// @brief Set the SSL certificate chain file on server (PEM format).
   std::error_code setCertificateChain(std::filesystem::path const& path);
@@ -70,7 +70,7 @@ protected:
 
   std::string _host;
   uint16_t _port;
-  asio::io_context& _io_ctx;
+  asio::any_io_executor _io_ctx;
   ClientHandler _handler;
   std::shared_ptr<asio::ssl::context> _ssl_context;
 };

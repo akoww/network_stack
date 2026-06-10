@@ -19,7 +19,7 @@ class Server : public ServerBase, public ServerSync, public ServerAsync
 {
 public:
   /// @brief Construct with port and io_context.
-  Server(uint16_t port, asio::io_context& io_ctx, ClientHandler handler);
+  Server(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler);
 
   /// @brief Asynchronously start accepting connections.
   /// @return error_code on failure (e.g., port already in use).

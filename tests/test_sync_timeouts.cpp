@@ -19,7 +19,7 @@ constexpr uint16_t TEST_PORT = 12346;
 
 TEST_F(IoContextFixture, SyncWriteTimeout)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -28,7 +28,7 @@ TEST_F(IoContextFixture, SyncWriteTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -53,7 +53,7 @@ TEST_F(IoContextFixture, SyncWriteTimeout)
 
 TEST_F(IoContextFixture, SyncReadTimeout)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -62,7 +62,7 @@ TEST_F(IoContextFixture, SyncReadTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -80,7 +80,7 @@ TEST_F(IoContextFixture, SyncReadTimeout)
 
 TEST_F(IoContextFixture, SyncReadExactTimeout)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -89,7 +89,7 @@ TEST_F(IoContextFixture, SyncReadExactTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -107,7 +107,7 @@ TEST_F(IoContextFixture, SyncReadExactTimeout)
 
 TEST_F(IoContextFixture, SyncReadUntilTimeout)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -116,7 +116,7 @@ TEST_F(IoContextFixture, SyncReadUntilTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 
@@ -134,7 +134,7 @@ TEST_F(IoContextFixture, SyncReadUntilTimeout)
 
 TEST_F(IoContextFixture, SyncNoTimeout)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -143,7 +143,7 @@ TEST_F(IoContextFixture, SyncNoTimeout)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
 

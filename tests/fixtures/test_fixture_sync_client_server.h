@@ -81,7 +81,7 @@ public:
       });
   }
 
-  EchoServer(uint16_t port, asio::io_context& io_ctx)
+  EchoServer(uint16_t port, asio::any_io_executor io_ctx)
     : Server(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
@@ -137,14 +137,17 @@ inline std::shared_ptr<asio::ssl::context> createSslContextWithCert()
 class SyncClientServerFixture : public ::testing::Test
 {
 public:
-  void SetUp() override { _io_ctx.start(); }
+  SyncClientServerFixture() = default;
+  virtual ~SyncClientServerFixture() = default;
+
+  void SetUp() override {}
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io; }
 
 protected:
-  Network::IoContextWrapper _io_ctx;
+  Network::IoContextWrapper _io;
 };
 
 }  // namespace Network::Test

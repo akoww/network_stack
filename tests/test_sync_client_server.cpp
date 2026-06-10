@@ -19,23 +19,21 @@ constexpr uint16_t TEST_PORT = 12346;
 
 TEST_F(IoContextFixture, MinimalConstructor)
 {
-  Client client("127.0.0.1", TEST_PORT, getIoContext());
+  Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
   EXPECT_EQ(client.host(), "127.0.0.1");
   EXPECT_EQ(client.port(), TEST_PORT);
-  EXPECT_EQ(&client.getIoContext(), &getIoContext());
 }
 
 TEST_F(IoContextFixture, MinimalConstructorServer)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   EXPECT_EQ(server.host(), "0.0.0.0");
   EXPECT_EQ(server.port(), TEST_PORT);
-  EXPECT_EQ(&server.getIoContext(), &getIoContext());
 }
 
 TEST_F(IoContextFixture, MultipleClientsConcurrent)
 {
-  EchoServer server(TEST_PORT, getIoContext());
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -43,14 +41,14 @@ TEST_F(IoContextFixture, MultipleClientsConcurrent)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  auto client_thread_func = [](uint16_t port, asio::io_context& io_ctx)
+  auto client_thread_func = [](uint16_t port, asio::any_io_executor io_ctx)
   {
     Client client("127.0.0.1", port, io_ctx);
     EXPECT_TRUE(client.connect().has_value()) << "Cant connect to server";
   };
-  std::thread client1(client_thread_func, server.port(), std::ref(getIoContext()));
-  std::thread client2(client_thread_func, server.port(), std::ref(getIoContext()));
-  std::thread client3(client_thread_func, server.port(), std::ref(getIoContext()));
+  std::thread client1(client_thread_func, server.port(), getIoContext().get_executor());
+  std::thread client2(client_thread_func, server.port(), getIoContext().get_executor());
+  std::thread client3(client_thread_func, server.port(), getIoContext().get_executor());
   client1.join();
   client2.join();
   client3.join();
@@ -63,7 +61,7 @@ TEST_F(IoContextFixture, MultipleClientsConcurrent)
 
 TEST_F(SyncClientServerFixture, EchoServerMultipleMessages)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -73,7 +71,7 @@ TEST_F(SyncClientServerFixture, EchoServerMultipleMessages)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", TEST_PORT, _io_ctx);
+  Client client("127.0.0.1", TEST_PORT, getIoContext().get_executor());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client";
 
@@ -99,7 +97,7 @@ TEST_F(SyncClientServerFixture, EchoServerMultipleMessages)
 
 TEST_F(SyncClientServerFixture, EchoServerConcurrentClients)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -111,7 +109,7 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients)
   std::vector<std::unique_ptr<SyncSocket>> sockets;
   for (int i = 0; i < 3; i++)
   {
-    Client client("127.0.0.1", server.port(), _io_ctx);
+    Client client("127.0.0.1", server.port(), getIoContext().get_executor());
     auto connect_result = client.connect();
     if (connect_result)
     {
@@ -146,7 +144,7 @@ TEST_F(SyncClientServerFixture, EchoServerConcurrentClients)
 
 TEST_F(IoContextFixture, ConnectionRefused)
 {
-  Client client("127.0.0.1", 59999, getIoContext());
+  Client client("127.0.0.1", 59999, getIoContext().get_executor());
   auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result.has_value())
@@ -160,7 +158,7 @@ TEST_F(IoContextFixture, ConnectionRefused)
 
 TEST_F(IoContextFixture, InvalidHost)
 {
-  Client client("invalid.host.invalid", TEST_PORT, getIoContext());
+  Client client("invalid.host.invalid", TEST_PORT, getIoContext().get_executor());
   auto connect_result = client.connect();
   EXPECT_FALSE(connect_result.has_value());
   if (!connect_result.has_value())
@@ -174,7 +172,7 @@ TEST_F(IoContextFixture, InvalidHost)
 
 TEST_F(SyncClientServerFixture, SpecialCharacters)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -182,7 +180,7 @@ TEST_F(SyncClientServerFixture, SpecialCharacters)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
 
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
@@ -206,7 +204,7 @@ TEST_F(SyncClientServerFixture, SpecialCharacters)
 
 TEST_F(SyncClientServerFixture, BinaryData)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -214,7 +212,7 @@ TEST_F(SyncClientServerFixture, BinaryData)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
 
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";
@@ -244,7 +242,7 @@ TEST_F(SyncClientServerFixture, BinaryData)
 
 TEST_F(SyncClientServerFixture, LongBinaryData)
 {
-  EchoServer server(TEST_PORT, _io_ctx);
+  EchoServer server(TEST_PORT, getIoContext().get_executor());
   std::thread server_thread(
     [&server]()
     {
@@ -252,7 +250,7 @@ TEST_F(SyncClientServerFixture, LongBinaryData)
       EXPECT_TRUE(listen_result.has_value()) << "Server listen failed";
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  Client client("127.0.0.1", server.port(), getIoContext());
+  Client client("127.0.0.1", server.port(), getIoContext().get_executor());
 
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Client not connected";

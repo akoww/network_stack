@@ -37,7 +37,7 @@ class EchoServer : public Server
   mutable std::mutex mutex;
   std::vector<Clients> clients;
 
-  void handle_client_impl(asio::io_context& context, std::unique_ptr<DualSocket> sock)
+  void handle_client_impl(asio::any_io_executor context, std::unique_ptr<DualSocket> sock)
   {
     if (!sock)
       return;
@@ -69,7 +69,7 @@ class EchoServer : public Server
             auto recv_chunk_end = std::chrono::high_resolution_clock::now();
             auto elapsed_recv_chunk =
               std::chrono::duration_cast<std::chrono::milliseconds>(recv_chunk_end - recv_chunk_start).count();
-            std::cout << "[DEBUG-SERVER]   recv " << *recv_result << " bytes in " << elapsed_recv_chunk << "ms\n";
+            spdlog::debug("Server: recv {} bytes in {}ms", *recv_result, elapsed_recv_chunk);
 
             auto send_chunk_start = std::chrono::high_resolution_clock::now();
 
@@ -82,7 +82,7 @@ class EchoServer : public Server
             auto send_chunk_end = std::chrono::high_resolution_clock::now();
             auto elapsed_send_chunk =
               std::chrono::duration_cast<std::chrono::milliseconds>(send_chunk_end - send_chunk_start).count();
-            std::cout << "[DEBUG-SERVER]   Sent " << *recv_result << " bytes in " << elapsed_send_chunk << "ms\n";
+            spdlog::debug("Server: sent {} bytes in {}ms", *recv_result, elapsed_send_chunk);
           }
           co_return;
         },
@@ -114,10 +114,9 @@ public:
     spdlog::info("stopped server");
   }
 
-  EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : Server(port,
-             io_ctx,
-             [this, &io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
+  EchoServer(uint16_t port, asio::any_io_executor io_ctx)
+    : Server(
+        port, io_ctx, [this, io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
   {
     spdlog::info("created server");
   }
@@ -138,14 +137,18 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes, std::si
 class AsyncClientServerFixture : public ::testing::Test
 {
 public:
-  void SetUp() override { _io_ctx.start(); }
+  void SetUp() override
+  {
+    // spdlog::set_level(spdlog::level::debug);
+    // spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
+  }
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io_ctx; }
+  Network::IoContextWrapper& getIoContext() { return _io; }
 
 protected:
-  Network::IoContextWrapper _io_ctx;
+  Network::IoContextWrapper _io;
 };
 
 }  // namespace Network::Test

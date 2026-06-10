@@ -1,6 +1,7 @@
 #pragma once
 
 #include <asio/io_context.hpp>
+#include <asio/thread_pool.hpp>
 #include <atomic>
 #include <mutex>
 #include <optional>
@@ -20,31 +21,20 @@ namespace Network
 /// // ... schedule work ...
 /// ctx.stop();
 /// ```
-class IoContextWrapper : public asio::io_context
+class IoContextWrapper final
 {
 public:
-  IoContextWrapper();
-
+  IoContextWrapper(unsigned int thread_count = 4);
   ~IoContextWrapper();
 
-  static IoContextWrapper& instance();
-
-  /// @brief Start the io_context run loop in a dedicated background thread.
-  void start();
-
-  /// @brief Stop the loop and wait for the thread to exit.
-  void stop();
-
-  /// @brief Check if the io_context is currently running.
-  bool isRunning() const;
+  // Expose executor for all Asio async operations
+  auto get_executor() { return pool_.get_executor(); }
 
 private:
-  std::mutex _mutex;
-  std::thread _thread;
-  std::atomic<bool> _running;
+  IoContextWrapper(const IoContextWrapper&) = delete;
+  IoContextWrapper& operator=(const IoContextWrapper&) = delete;
 
-  using Guard = asio::executor_work_guard<asio::io_context::executor_type>;
-  std::optional<Guard> _work_guard;
+  asio::thread_pool pool_;  // Lazy-initialized pool
 };
 
 }  // namespace Network

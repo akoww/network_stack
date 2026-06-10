@@ -26,12 +26,12 @@ struct StageConfig
 
 TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
 {
-  EchoServer server(TLS_BW_PORT, _io_ctx);
+  EchoServer server(TLS_BW_PORT, getIoContext().get_executor());
   EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
   EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
   asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListenTls();
@@ -41,10 +41,10 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    _io_ctx,
+    getIoContext().get_executor(),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TLS_BW_PORT, _io_ctx);
+      Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
       client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
       co_return co_await client.asyncConnectTls({});
     },
@@ -87,7 +87,7 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
 
       auto sock_ptr_for_capture = client_socket.get();
       auto send_future = asio::co_spawn(
-        _io_ctx,
+        getIoContext().get_executor(),
         [sock = sock_ptr_for_capture, buf = data_ref]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return sock->asyncWriteAll(buf); }, asio::use_future);
       std::this_thread::sleep_for(std::chrono::milliseconds(2));
@@ -110,7 +110,7 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
         auto sock_for_read = client_socket.get();
 
         auto recv_future = asio::co_spawn(
-          _io_ctx,
+          getIoContext().get_executor(),
           [sock = sock_for_read, bufs = std::move(buf_ptr),
            sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
           { return sock->asyncReadSome(std::span(*bufs).first(sz)); },

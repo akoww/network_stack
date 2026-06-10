@@ -223,10 +223,9 @@ TEST(ProcEcho, SingleMessage)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value()) << "Connect: " << sock_res.error().message();
 
@@ -244,8 +243,6 @@ TEST(ProcEcho, SingleMessage)
     std::string resp(reinterpret_cast<char*>(buf.data()), *r);
     EXPECT_EQ(resp, msg);
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEcho, MultipleMessages)
@@ -256,10 +253,9 @@ TEST(ProcEcho, MultipleMessages)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value());
 
@@ -279,8 +275,6 @@ TEST(ProcEcho, MultipleMessages)
       EXPECT_EQ(resp, msg);
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEcho, LargeBinaryPayload)
@@ -291,10 +285,9 @@ TEST(ProcEcho, LargeBinaryPayload)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value());
 
@@ -315,8 +308,6 @@ TEST(ProcEcho, LargeBinaryPayload)
     for (size_t i = 0; i < static_cast<size_t>(*r); ++i)
       EXPECT_EQ(buf[i], msg[i]);
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEcho, ConnectToDeadServer)
@@ -337,16 +328,13 @@ TEST(ProcEcho, ConnectToDeadServer)
   std::this_thread::sleep_for(std::chrono::milliseconds{200});
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", test_port, io_ctx);
+    Network::Client client("127.0.0.1", test_port, io_ctx.get_executor());
     auto sock_res = client.connect(std::chrono::milliseconds{1000});
     // Should fail since port is no longer bound — or get ECONNREFUSED/ETIMEDOUT
     EXPECT_FALSE(sock_res.has_value()) << "Should not connect to dead server";
   }
-
-  io_ctx.stop();
 }
 
 // ============================================================================
@@ -361,10 +349,9 @@ TEST(ProcEchoTLS, SingleMessage)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
     client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
@@ -384,8 +371,6 @@ TEST(ProcEchoTLS, SingleMessage)
     std::string resp(reinterpret_cast<char*>(buf.data()), *r);
     EXPECT_EQ(resp, msg);
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEchoTLS, MultipleMessages)
@@ -396,10 +381,9 @@ TEST(ProcEchoTLS, MultipleMessages)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
     client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
@@ -421,8 +405,6 @@ TEST(ProcEchoTLS, MultipleMessages)
       EXPECT_EQ(resp, msg);
     }
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEchoTLS, TLSLargePayload)
@@ -433,10 +415,9 @@ TEST(ProcEchoTLS, TLSLargePayload)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
     client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
@@ -463,8 +444,6 @@ TEST(ProcEchoTLS, TLSLargePayload)
     for (size_t i = 0; i < msg.size(); ++i)
       EXPECT_EQ(buf[i], msg[i]);
   }
-
-  io_ctx.stop();
 }
 
 TEST(ProcEchoTLS, PlainClientToTLSServer)
@@ -475,16 +454,15 @@ TEST(ProcEchoTLS, PlainClientToTLSServer)
   }
 
   Network::IoContextWrapper io_ctx;
-  io_ctx.start();
 
   // Connect a plain client to the TLS server — should gracefully disconnect
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     if (!sock_res.has_value())
     {
       // Connection failed before even getting a socket — also acceptable
-      io_ctx.stop();
+
       return;
     }
     auto sock = std::move(*sock_res);
@@ -504,8 +482,6 @@ TEST(ProcEchoTLS, PlainClientToTLSServer)
       EXPECT_EQ(*r2, 0u) << "Server should have closed the connection";
     }
   }
-
-  io_ctx.stop();
 }
 
 // ============================================================================

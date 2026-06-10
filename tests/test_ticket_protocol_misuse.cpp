@@ -61,7 +61,7 @@ TicketInfo makeEchoTicket(std::string_view payload)
   return info;
 }
 
-std::unique_ptr<DualSocket> createClient(asio::io_context& io_ctx)
+std::unique_ptr<DualSocket> createClient(asio::any_io_executor io_ctx)
 {
   ClientSync client("127.0.0.1", TEST_MISUSE_PORT, io_ctx);
   ClientSync::Options opts;
@@ -80,7 +80,7 @@ struct WorkerEntry
 class TicketServer
 {
 public:
-  TicketServer(asio::io_context& io_ctx)
+  TicketServer(asio::any_io_executor io_ctx)
     : server_(
         TEST_MISUSE_PORT, io_ctx, [this](std::unique_ptr<DualSocket> sock) { this->handle_client(std::move(sock)); })
   {
@@ -170,10 +170,13 @@ protected:
 class TicketMisuseFixture : public ::testing::Test
 {
 protected:
-  void SetUp() override { _io_ctx.start(); }
-  void TearDown() override { _io_ctx.stop(); }
+  void SetUp() override { _ }
+  void TearDown() override{_}
 
-  asio::io_context& getIoContext() { return _io_ctx; }
+  asio::any_io_executor getIoContext()
+  {
+    return _io_ctx;
+  }
 
 protected:
   IoContextWrapper _io_ctx;
