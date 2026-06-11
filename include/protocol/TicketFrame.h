@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "protocol/Ticket.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
 namespace Network
@@ -25,14 +25,14 @@ public:
   static std::expected<std::vector<std::byte>, std::error_code> readFrame(
     TcpSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
   static std::expected<std::vector<std::byte>, std::error_code> readFrame(
-    SslSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
+    TlsSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
 
   static std::expected<std::size_t, std::error_code> writeFrame(
     TcpSocket& socket,
     std::span<const std::byte> frame,
     std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
   static std::expected<std::size_t, std::error_code> writeFrame(
-    SslSocket& socket,
+    TlsSocket& socket,
     std::span<const std::byte> frame,
     std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
 
@@ -41,14 +41,14 @@ public:
     std::span<const std::byte> frame,
     std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
   static asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteFrame(
-    SslSocket& socket,
+    TlsSocket& socket,
     std::span<const std::byte> frame,
     std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
 
   static asio::awaitable<std::expected<std::vector<std::byte>, std::error_code>> asyncReadFrame(
     TcpSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
   static asio::awaitable<std::expected<std::vector<std::byte>, std::error_code>> asyncReadFrame(
-    SslSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
+    TlsSocket& socket, std::chrono::milliseconds timeout = std::chrono::milliseconds(30000));
 
   static std::vector<std::byte> makeLengthPrefix(std::uint32_t length);
 };

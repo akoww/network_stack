@@ -5,7 +5,7 @@
 #include "client/Client.h"
 #include "core/Context.h"
 #include "server/Server.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 #include "test_certificate_paths.h"
 

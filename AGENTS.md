@@ -68,7 +68,7 @@ clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
 - Test fixtures in `tests/fixtures/` (FTP server, client/server helpers)
 - **Client**: `include/client/Client.h` is the unified client class; `ClientBase.h` declares both `ClientSync` and `ClientAsync` interface classes
 - **Server**: `include/server/Server.h` is the unified server class; `ServerBase.h` declares both `ServerSync` and `ServerAsync` interface classes
-- `SocketBaseImpl.h` (in `include/socket/`) contains shared helper implementations in the `socket_detail` namespace, used by `TcpSocket` and `SslSocket`
+- `SocketBaseImpl.h` (in `include/socket/`) contains shared helper implementations in the `socket_detail` namespace, used by `TcpSocket` and `TlsSocket`
 
 ## Naming Conventions
 

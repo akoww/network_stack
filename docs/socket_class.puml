@@ -53,9 +53,9 @@ package "Network" {
     +asyncReadUntil(out_buffer, delimiter, timeout)
   }
 
-  class "SslSocket" {
+  class "TlsSocket" {
     +_stream: ssl::stream<tcp::socket>
-    +SslSocket(io_ctx, ssl_context)
+    +TlsSocket(io_ctx, ssl_context)
     +SslStream(stream&&)
     +isConnected(): bool
     +closeSocket(): void
@@ -76,6 +76,6 @@ package "Network" {
   AsyncSocket_IF <|.. DualSocket
   SyncSocket_IF <|.. DualSocket
   DualSocket <|-- TcpSocket
-  DualSocket <|-- SslSocket
+  DualSocket <|-- TlsSocket
 }
 @enduml

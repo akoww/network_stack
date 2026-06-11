@@ -16,7 +16,7 @@
 #include "client/Client.h"
 #include "core/Context.h"
 #include "socket/TcpSocket.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 
 namespace
 {

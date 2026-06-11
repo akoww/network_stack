@@ -20,14 +20,14 @@ Defines socket interfaces (sync/async) and common base functionality. This is th
 ### Implementations
 
 - **`TcpSocket.h/cpp`**: Dual-mode socket implementing both interfaces via `DualSocket` base
-- **`SslSocket.h/cpp`**: TLS wrapper around tcp socket implementing both interfaces via `DualSocket` base
+- **`TlsSocket.h/cpp`**: TLS wrapper around tcp socket implementing both interfaces via `DualSocket` base
 - **`TcpImpl.h`**: FTP-specific TCP implementation (not a direct socket interface)
 
 ### Helper Headers
 
 - **`SocketBaseImpl.h`**: **Implementation detail, not public interface** - contains common coroutine logic for async reads/writes in the `socket_detail` namespace
 - Provides `asyncReadSomeCommon()`, `asyncReadExactCommon()`, `asyncReadUntilCommon()`, `asyncWriteAllCommon()` template functions
-- Used internally by `TcpSocket` and `SslSocket` implementations
+- Used internally by `TcpSocket` and `TlsSocket` implementations
 
 ## Conventions
 

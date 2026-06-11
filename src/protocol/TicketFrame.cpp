@@ -4,7 +4,7 @@
 #include <bit>
 
 #include "protocol/Ticket.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
 namespace Network
@@ -34,11 +34,11 @@ std::expected<std::vector<std::byte>, std::error_code> readLengthPrefixSync(Dual
     return std::vector<std::byte>(length);
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(&socket);
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(&socket);
+  if (TlsSocket)
   {
     std::array<std::byte, TicketFrame::length_prefix_size> buf;
-    auto result = sslSocket->readExact(buf, timeout);
+    auto result = TlsSocket->readExact(buf, timeout);
     if (!result)
     {
       return std::unexpected(result.error());
@@ -76,11 +76,11 @@ asio::awaitable<std::expected<std::vector<std::byte>, std::error_code>> readLeng
     co_return std::vector<std::byte>(length);
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(&socket);
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(&socket);
+  if (TlsSocket)
   {
     std::array<std::byte, TicketFrame::length_prefix_size> buf;
-    auto result = co_await sslSocket->asyncReadExact(buf, timeout);
+    auto result = co_await TlsSocket->asyncReadExact(buf, timeout);
     if (!result)
     {
       co_return std::unexpected(result.error());
@@ -127,7 +127,7 @@ std::expected<std::vector<std::byte>, std::error_code> TicketFrame::readFrame(Tc
   return *lenBuf;
 }
 
-std::expected<std::vector<std::byte>, std::error_code> TicketFrame::readFrame(SslSocket& socket,
+std::expected<std::vector<std::byte>, std::error_code> TicketFrame::readFrame(TlsSocket& socket,
                                                                               std::chrono::milliseconds timeout)
 {
   auto lenBuf = readLengthPrefixSync(socket, timeout);
@@ -163,7 +163,7 @@ std::expected<std::size_t, std::error_code> TicketFrame::writeFrame(TcpSocket& s
   return *prefixResult + *result;
 }
 
-std::expected<std::size_t, std::error_code> TicketFrame::writeFrame(SslSocket& socket,
+std::expected<std::size_t, std::error_code> TicketFrame::writeFrame(TlsSocket& socket,
                                                                     std::span<const std::byte> frame,
                                                                     std::chrono::milliseconds timeout)
 {
@@ -201,7 +201,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> TicketFrame::asyncW
 }
 
 asio::awaitable<std::expected<std::size_t, std::error_code>> TicketFrame::asyncWriteFrame(
-  SslSocket& socket, std::span<const std::byte> frame, std::chrono::milliseconds timeout)
+  TlsSocket& socket, std::span<const std::byte> frame, std::chrono::milliseconds timeout)
 {
   auto prefix = makeLengthPrefix(static_cast<std::uint32_t>(frame.size()));
   auto prefixResult = co_await socket.asyncWriteAll(std::span(prefix), timeout);
@@ -236,7 +236,7 @@ asio::awaitable<std::expected<std::vector<std::byte>, std::error_code>> TicketFr
 }
 
 asio::awaitable<std::expected<std::vector<std::byte>, std::error_code>> TicketFrame::asyncReadFrame(
-  SslSocket& socket, std::chrono::milliseconds timeout)
+  TlsSocket& socket, std::chrono::milliseconds timeout)
 {
   auto lenBuf = co_await readLengthPrefixAsync(socket, timeout);
   if (!lenBuf)

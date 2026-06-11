@@ -7,7 +7,7 @@ Root directory for all public headers in the Network Stack library. Contains 5 s
 ## Directory Structure
 
 - `core/`: Foundational utilities (error codes, context management)
-- `socket/`: Socket interfaces and base classes (`DualSocket`, `TcpSocket`, `SslSocket`, `SocketBaseImpl`)
+- `socket/`: Socket interfaces and base classes (`DualSocket`, `TcpSocket`, `TlsSocket`, `SocketBaseImpl`)
 - `client/`: Client connection abstractions (unified `Client` class replacing separate sync/async variants)
 - `server/`: Server connection handling (unified `Server` class replacing separate sync/async variants)
 - `protocol/`: Higher-level protocol implementations (FTP)

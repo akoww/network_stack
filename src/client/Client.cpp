@@ -1,6 +1,6 @@
 #include "client/Client.h"
 #include "core/ErrorTranslation.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/SocketBaseDetails.h"
 #include "socket/TcpSocket.h"
 
@@ -200,7 +200,7 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
 
   spdlog::trace("client async TLS connected to {}:{} successfully", host(), port());
 
-  auto ssl_socket = std::make_unique<SslSocket>(std::move(ssl_stream));
+  auto ssl_socket = std::make_unique<TlsSocket>(std::move(ssl_stream));
   co_return std::move(ssl_socket);
 }
 

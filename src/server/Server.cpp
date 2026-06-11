@@ -1,6 +1,6 @@
 #include "server/Server.h"
 #include "core/ErrorTranslation.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
 #include <asio/awaitable.hpp>
@@ -191,7 +191,7 @@ asio::awaitable<void> Server::acceptTlsSocket(asio::ip::tcp::socket socket)
     executor,
     [stream = std::move(ssl_stream), handler = clientHandler()]() mutable -> asio::awaitable<void>
     {
-      handler(std::make_unique<SslSocket>(std::move(stream)));
+      handler(std::make_unique<TlsSocket>(std::move(stream)));
       co_return;
     },
     asio::detached);

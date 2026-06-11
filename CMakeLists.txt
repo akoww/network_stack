@@ -168,7 +168,7 @@ target_sources(network_stack_core
         src/socket/SocketBase.cpp
         src/socket/TcpSocket.cpp
         src/socket/TcpImpl.cpp
-        src/socket/SslSocket.cpp
+        src/socket/TlsSocket.cpp
 
         src/client/ClientBase.cpp
         src/client/Client.cpp

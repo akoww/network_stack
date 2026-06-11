@@ -63,10 +63,10 @@ std::expected<std::size_t, std::error_code> TicketPeer::sendFrame(const TicketIn
     return TicketFrame::writeFrame(*tcpSocket, std::span(serialized));
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(_socket.get());
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(_socket.get());
+  if (TlsSocket)
   {
-    return TicketFrame::writeFrame(*sslSocket, std::span(serialized));
+    return TicketFrame::writeFrame(*TlsSocket, std::span(serialized));
   }
 
   return std::unexpected(std::make_error_code(std::errc::invalid_argument));
@@ -86,10 +86,10 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> TicketPeer::sendFra
     co_return co_await TicketFrame::asyncWriteFrame(*tcpSocket, std::span(serialized));
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(_socket.get());
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(_socket.get());
+  if (TlsSocket)
   {
-    co_return co_await TicketFrame::asyncWriteFrame(*sslSocket, std::span(serialized));
+    co_return co_await TicketFrame::asyncWriteFrame(*TlsSocket, std::span(serialized));
   }
 
   co_return std::unexpected(std::make_error_code(std::errc::invalid_argument));
@@ -113,10 +113,10 @@ std::expected<TicketInfo, std::error_code> TicketPeer::receiveFrame()
     return *ticket;
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(_socket.get());
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(_socket.get());
+  if (TlsSocket)
   {
-    auto frame = TicketFrame::readFrame(*sslSocket);
+    auto frame = TicketFrame::readFrame(*TlsSocket);
     if (!frame)
     {
       return std::unexpected(frame.error());
@@ -150,10 +150,10 @@ asio::awaitable<std::expected<TicketInfo, std::error_code>> TicketPeer::receiveF
     co_return* ticket;
   }
 
-  auto sslSocket = dynamic_cast<SslSocket*>(_socket.get());
-  if (sslSocket)
+  auto TlsSocket = dynamic_cast<TlsSocket*>(_socket.get());
+  if (TlsSocket)
   {
-    auto frame = co_await TicketFrame::asyncReadFrame(*sslSocket);
+    auto frame = co_await TicketFrame::asyncReadFrame(*TlsSocket);
     if (!frame)
     {
       co_return std::unexpected(frame.error());

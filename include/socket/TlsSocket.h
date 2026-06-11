@@ -9,14 +9,14 @@
 namespace Network
 {
 
-class SslSocket : public DualSocket
+class TlsSocket : public DualSocket
 {
 private:
   asio::ssl::stream<asio::ip::tcp::socket> _stream;
 
 public:
-  explicit SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
-  ~SslSocket() override;
+  explicit TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
+  ~TlsSocket() override;
 
   bool isConnected() const noexcept override;
 

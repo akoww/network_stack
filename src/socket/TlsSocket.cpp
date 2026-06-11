@@ -1,4 +1,4 @@
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
 #include <socket/SocketBaseDetails.h>
@@ -22,7 +22,7 @@
 namespace Network
 {
 
-SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
+TlsSocket::TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {
   asio::ip::tcp::no_delay option(true);
   _stream.next_layer().set_option(option);
@@ -30,14 +30,14 @@ SslSocket::SslSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(
   spdlog::trace("[{}] SSL socket created", getId());
 }
 
-SslSocket::~SslSocket()
+TlsSocket::~TlsSocket()
 {
   spdlog::trace("[{}] SSL socket closing", getId());
   cancelSocket();
   closeSocket();
 }
 
-void SslSocket::closeSocket() noexcept
+void TlsSocket::closeSocket() noexcept
 {
   if (_stream.next_layer().is_open())
   {
@@ -46,7 +46,7 @@ void SslSocket::closeSocket() noexcept
   }
 }
 
-void SslSocket::cancelSocket() noexcept
+void TlsSocket::cancelSocket() noexcept
 {
   SocketBase::cancelSocket();
   if (_stream.next_layer().is_open())
@@ -56,18 +56,18 @@ void SslSocket::cancelSocket() noexcept
   }
 }
 
-bool SslSocket::isConnected() const noexcept
+bool TlsSocket::isConnected() const noexcept
 {
   return _stream.next_layer().is_open();
 }
 
-bool SslSocket::isConnectionClosed(const std::error_code& ec) const noexcept
+bool TlsSocket::isConnectionClosed(const std::error_code& ec) const noexcept
 {
   return (ec == asio::error::eof || ec == asio::error::connection_reset || ec == asio::error::broken_pipe ||
           ec == asio::error::not_connected || ec == asio::ssl::error::stream_truncated);
 }
 
-std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const std::byte> in_buffer,
+std::expected<std::size_t, std::error_code> TlsSocket::writeAll(std::span<const std::byte> in_buffer,
                                                                 std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::debug("[{}] SSL writeAll {} bytes", getId(), in_buffer.size());
@@ -87,7 +87,7 @@ std::expected<std::size_t, std::error_code> SslSocket::writeAll(std::span<const 
   }
 }
 
-std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::byte> out_buffer,
+std::expected<std::size_t, std::error_code> TlsSocket::readSome(std::span<std::byte> out_buffer,
                                                                 std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] SSL readSome", getId());
@@ -112,7 +112,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readSome(std::span<std::b
   }
 }
 
-std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::byte> out_buffer,
+std::expected<std::size_t, std::error_code> TlsSocket::readExact(std::span<std::byte> out_buffer,
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
   spdlog::trace("[{}] SSL readExact", getId());
@@ -136,7 +136,7 @@ std::expected<std::size_t, std::error_code> SslSocket::readExact(std::span<std::
   }
 }
 
-std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::byte> out_buffer,
+std::expected<std::size_t, std::error_code> TlsSocket::readUntil(std::span<std::byte> out_buffer,
                                                                  std::string_view delimiter,
                                                                  std::optional<std::chrono::milliseconds> timeout)
 {
@@ -162,25 +162,25 @@ std::expected<std::size_t, std::error_code> SslSocket::readUntil(std::span<std::
   }
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncWriteAll(
+asio::awaitable<std::expected<std::size_t, std::error_code>> TlsSocket::asyncWriteAll(
   std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout)
 {
   return socket_detail::asyncWriteAllCommon(*this, in_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadSome(
+asio::awaitable<std::expected<std::size_t, std::error_code>> TlsSocket::asyncReadSome(
   std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
 {
   return socket_detail::asyncReadSomeCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadExact(
+asio::awaitable<std::expected<std::size_t, std::error_code>> TlsSocket::asyncReadExact(
   std::span<std::byte> out_buffer, std::optional<std::chrono::milliseconds> timeout)
 {
   return socket_detail::asyncReadExactCommon(*this, out_buffer, timeout);
 }
 
-asio::awaitable<std::expected<std::size_t, std::error_code>> SslSocket::asyncReadUntil(
+asio::awaitable<std::expected<std::size_t, std::error_code>> TlsSocket::asyncReadUntil(
   std::span<std::byte> out_buffer, std::string_view delim, std::optional<std::chrono::milliseconds> timeout)
 {
   return socket_detail::asyncReadUntilCommon(*this, out_buffer, delim, timeout);

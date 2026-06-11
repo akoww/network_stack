@@ -142,7 +142,7 @@ public:
 
 /// @brief Concrete socket class implementing both sync and async interfaces.
 /// Provides dual-mode socket that supports both blocking and non-blocking operations.
-/// TcpSocket and SslSocket inherit from this class.
+/// TcpSocket and TlsSocket inherit from this class.
 class DualSocket : public SocketBase, public AsyncSocket, public SyncSocket
 {
 public:

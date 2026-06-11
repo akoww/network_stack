@@ -18,7 +18,7 @@
 #include "fixtures/test_fixture_sync_client_server.h"
 #include "server/Server.h"
 #include "socket/SocketBase.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
 #include <asio.hpp>
@@ -490,10 +490,10 @@ TEST_F(IoContextFixture, TlsConnectDisconnectRepeated)
 }
 
 // ============================================================================
-// Group: SslSocket Specific
+// Group: TlsSocket Specific
 // ============================================================================
 
-TEST_F(IoContextFixture, SslSocketGetSocket)
+TEST_F(IoContextFixture, TlsSocketGetSocket)
 {
   constexpr uint16_t port = 50014;
 
@@ -513,8 +513,8 @@ TEST_F(IoContextFixture, SslSocketGetSocket)
   ASSERT_TRUE(connect_result.has_value());
 
   auto client_socket = std::move(*connect_result);
-  auto* ssl_sock = dynamic_cast<SslSocket*>(client_socket.get());
-  ASSERT_NE(ssl_sock, nullptr) << "Socket should be SslSocket";
+  auto* ssl_sock = dynamic_cast<TlsSocket*>(client_socket.get());
+  ASSERT_NE(ssl_sock, nullptr) << "Socket should be TlsSocket";
 
   auto& ssl_stream = ssl_sock->getSocket();
   EXPECT_TRUE(ssl_stream.next_layer().is_open());
@@ -544,7 +544,7 @@ TEST_F(IoContextFixture, TlsReadOnUnconnected)
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   asio::ip::tcp::socket sock(getIoContext().get_executor());
   asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
-  SslSocket socket(std::move(stream));
+  TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};
   auto result = socket.readSome(std::span(buffer));
@@ -560,7 +560,7 @@ TEST_F(IoContextFixture, TlsWriteOnUnconnected)
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
   asio::ip::tcp::socket sock(getIoContext().get_executor());
   asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
-  SslSocket socket(std::move(stream));
+  TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};
   for (std::size_t i = 0; i < buffer.size(); ++i)

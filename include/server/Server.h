@@ -13,7 +13,7 @@
 namespace Network
 {
 
-class SslSocket;
+class TlsSocket;
 
 class Server : public ServerBase, public ServerSync, public ServerAsync
 {

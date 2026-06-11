@@ -12,7 +12,7 @@
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
 #include "server/Server.h"
-#include "socket/SslSocket.h"
+#include "socket/TlsSocket.h"
 
 namespace Network::Test
 {

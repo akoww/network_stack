@@ -9,7 +9,7 @@ High-level client connection orchestration: resolves DNS, establishes connection
 ### ClientBase.h
 
 - **Shared configuration**: `host()`, `port()`, `getIoContext()`, `getSslContext()`
-- **Constructor**: `ClientBase(std::string_view host, uint16_t port, asio::io_context&)`
+- **Constructor**: `ClientBase(std::string_view host, uint16_t port, any_io_executor)`
 - **SSL context**: lazily-created with `getSslContext()`
 
 ### ClientSync (interface, in ClientBase.h)
