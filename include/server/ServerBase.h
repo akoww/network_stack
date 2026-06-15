@@ -5,6 +5,8 @@
 #include <asio/ssl/context.hpp>
 
 #include "socket/SocketBase.h"
+#include "socket/TlsOptions.h"
+#include "socket/TcpOptions.h"
 
 #include <expected>
 #include <filesystem>
@@ -48,12 +50,6 @@ public:
   /// @brief Get the io_context reference.
   [[nodiscard]] asio::any_io_executor getIoContext();
 
-  /// @brief Set the SSL certificate chain file on server (PEM format).
-  std::error_code setCertificateChain(std::filesystem::path const& path);
-
-  /// @brief Set the SSL private key file on server (PEM format only).
-  std::error_code setPrivateKey(std::filesystem::path const& path);
-
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
   void stop();
@@ -72,7 +68,6 @@ protected:
   uint16_t _port;
   asio::any_io_executor _io_ctx;
   ClientHandler _handler;
-  std::shared_ptr<asio::ssl::context> _ssl_context;
 };
 
 /// @brief Asynchronous server implementation.
@@ -94,14 +89,19 @@ public:
   virtual ~ServerAsync() = default;
 
   /// @brief Asynchronously start accepting connections.
+  /// @param tcp_opts Optional TCP socket configuration options for accepted sockets.
   /// @return error_code on failure (e.g., port already in use).
   /// @note This coroutine will not complete until server is stopped.
-  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListen() = 0;
+  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListen(TcpOptions tcp_opts = {}) = 0;
 
   /// @brief Asynchronously start accepting TLS connections.
+  /// @param tcp_opts Optional TCP socket configuration options for accepted sockets.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return error_code on failure (e.g., port already in use).
   /// @note This coroutine will not complete until server is stopped.
-  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListenTls() = 0;
+  virtual asio::awaitable<std::expected<void, std::error_code>> asyncListenTls(TlsServerOptions tls_server_opts = {},
+                                                                               TcpOptions tcp_opts = {},
+                                                                               TlsOptions tls_opts = {}) = 0;
 
 private:
 };
@@ -124,14 +124,19 @@ public:
   virtual ~ServerSync() = default;
 
   /// @brief Start accepting connections.
+  /// @param tcp_opts Optional TCP socket configuration options for accepted sockets.
   /// @return error_code on failure (e.g., port already in use).
   /// @note Blocks until listen() is called or server is stopped.
-  virtual std::expected<void, std::error_code> listen() = 0;
+  virtual std::expected<void, std::error_code> listen(TcpOptions tcp_opts = {}) = 0;
 
   /// @brief Start accepting TLS connections.
+  /// @param tcp_opts Optional TCP socket configuration options for accepted sockets.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return error_code on failure (e.g., port already in use).
   /// @note Blocks until listen() is called or server is stopped.
-  virtual std::expected<void, std::error_code> listenTls() = 0;
+  virtual std::expected<void, std::error_code> listenTls(TlsServerOptions tls_server_opts = {},
+                                                         TcpOptions tcp_opts = {},
+                                                         TlsOptions tls_opts = {}) = 0;
 };
 
 }  // namespace Network

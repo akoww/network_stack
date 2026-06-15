@@ -23,34 +23,44 @@ public:
 
   /// @brief Connect to the remote server synchronously (blocking).
   /// @param timeout Connection timeout, defaults to 500ms. Pass explicit value for production use.
+  /// @param tcp_opts Optional TCP socket configuration options.
   /// @return Socket on success, or std::error_code on failure (DNS/connect refused/timeout).
   /// @note Resolves DNS via asio::ip::tcp::resolver, then performs async TCP handshake that blocks until complete.
   /// @note Use in a thread - this call blocks until connection is established or times out.
   std::expected<std::unique_ptr<DualSocket>, std::error_code> connect(
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(500)) override;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500), TcpOptions tcp_opts = {}) override;
 
   /// @brief Connect to the remote server synchronously using TLS.
   /// @param timeout Connection + handshake timeout, defaults to 500ms. Pass explicit value for production use.
+  /// @param tcp_opts Optional TCP socket configuration options.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return TLS socket on success, or std::error_code on failure (DNS/connect refused/timeout/TLS error).
   /// @note SSL context must be configured via getSslContext() before calling.
   /// @note SSL verify mode must be set (e.g. set_verify_mode(asio::ssl::verify_none)) unless using a CA-signed cert.
   std::expected<std::unique_ptr<DualSocket>, std::error_code> connectTls(
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(500)) override;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
+    TcpOptions tcp_opts = {},
+    TlsOptions tls_opts = {}) override;
 
   /// @brief Connect to the remote server asynchronously (coroutine-based).
   /// @param timeout Connection timeout, defaults to 500ms. Pass explicit value for production use.
+  /// @param tcp_opts Optional TCP socket configuration options.
   /// @return Socket on success, or std::error_code on failure.
   /// @note Use with co_await inside asio::co_spawn'ed coroutine.
   asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> asyncConnect(
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(500)) override;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500), TcpOptions tcp_opts = {}) override;
 
   /// @brief Connect to the remote server asynchronously using TLS.
   /// @param timeout Connection + handshake timeout, defaults to 500ms. Pass explicit value for production use.
+  /// @param tcp_opts Optional TCP socket configuration options.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return TLS socket on success, or std::error_code on failure.
   /// @note Use with co_await inside asio::co_spawn'ed coroutine.
   /// @note SSL context must be configured via getSslContext() before calling.
   asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> asyncConnectTls(
-    std::chrono::milliseconds timeout = std::chrono::milliseconds(500)) override;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
+    TcpOptions tcp_opts = {},
+    TlsOptions tls_opts = {}) override;
 };
 
 }  // namespace Network

@@ -76,8 +76,6 @@ public:
   {
   }
 
-  void setSslContext(std::shared_ptr<asio::ssl::context> ctx) { _ssl_context = std::move(ctx); }
-
   ~EchoServer()
   {
     std::vector<ClientEntry> to_join;
@@ -186,8 +184,6 @@ int main(int argc, char** argv)
       std::cerr << "Failed to load private key: " << opts.private_key.string() << ": " << e.what() << "\n";
       return 1;
     }
-    server.setSslContext(std::move(ctx));
-
     auto const result = server.listenTls();
     if (result)
     {

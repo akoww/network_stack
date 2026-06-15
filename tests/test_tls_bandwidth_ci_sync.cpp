@@ -9,6 +9,7 @@
 #include "fixtures/test_fixture_sync_client_server.h"
 #include "fixtures/test_certificate_paths.h"
 #include "server/Server.h"
+#include "socket/TlsOptions.h"
 
 namespace Network::Test
 {
@@ -24,17 +25,16 @@ TEST_F(SyncClientServerFixture, SyncTlsCiBandwidth)
   std::thread server_thread(
     [&server]()
     {
-      EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
-      EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
-      auto listen_result = server.listenTls();
+      TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
+      auto listen_result = server.listenTls(tls_opts);
       EXPECT_TRUE(listen_result.has_value()) << "Server listen_tls failed";
     });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
-  client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-  auto connect_result = client.connectTls();
+  auto connect_result =
+    client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   ASSERT_TRUE(connect_result.has_value()) << "Client TLS connect failed";
 
   auto client_socket = std::move(*connect_result);

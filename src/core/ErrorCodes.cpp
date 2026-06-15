@@ -59,6 +59,9 @@ std::string ErrorCategory::message(int ev) const
 
     case Error::INTERNAL_ERROR:
       return "Internal error occurred";
+
+    case Error::OPTION_ERROR:
+      return "Internal options failure";
   }
   return "Unknown network error";
 }

@@ -86,8 +86,6 @@ public:
   {
   }
 
-  void setSslContext(std::shared_ptr<asio::ssl::context> ctx) { _ssl_context = std::move(ctx); }
-
   ~EchoServer()
   {
     std::vector<Clients> to_join;

@@ -25,9 +25,5 @@ asio::any_io_executor& ClientBase::getIoContext()
 {
   return _io_ctx;
 }
-std::shared_ptr<asio::ssl::context> ClientBase::getSslContext()
-{
-  return _ssl_context;
-}
 
 }  // namespace Network

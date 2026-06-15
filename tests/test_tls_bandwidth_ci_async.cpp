@@ -9,6 +9,7 @@
 #include "fixtures/test_fixture_async_client_server.h"
 #include "fixtures/test_certificate_paths.h"
 #include "server/Server.h"
+#include "socket/TlsOptions.h"
 
 namespace Network::Test
 {
@@ -21,14 +22,13 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
   constexpr std::size_t chunk_size = 64 * 1024;          // 64KB
 
   EchoServer server(TLS_BW_PORT, getIoContext().get_executor());
-  EXPECT_FALSE(server.setCertificateChain(Network::Test::ServerCertPath()));
-  EXPECT_FALSE(server.setPrivateKey(Network::Test::ServerKeyPath()));
 
+  TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
   asio::co_spawn(
     getIoContext().get_executor(),
-    [&server]() -> asio::awaitable<void>
+    [&server, tls_opts = std::move(tls_opts)]() -> asio::awaitable<void>
     {
-      auto listen_result = co_await server.asyncListenTls();
+      auto listen_result = co_await server.asyncListenTls(tls_opts);
       (void)listen_result;
     },
     asio::detached);
@@ -39,8 +39,8 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
       Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
-      client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-      co_return co_await client.asyncConnectTls({});
+      co_return co_await client.asyncConnectTls(std::chrono::milliseconds{2000}, {},
+                                                Network::TlsOptions{.verify_peer = false});
     },
     asio::use_future);
 

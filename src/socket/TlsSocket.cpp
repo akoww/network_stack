@@ -2,11 +2,12 @@
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
 #include <socket/SocketBaseDetails.h>
+#include "socket/TlsOptions.h"
 
-#include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>
 #include <asio/co_spawn.hpp>
 #include <asio/error.hpp>
+#include <asio/ssl/context.hpp>
 #include <asio/ssl/error.hpp>
 #include <asio/ssl/stream.hpp>
 #include <asio/read.hpp>
@@ -16,6 +17,7 @@
 #include <chrono>
 #include <expected>
 #include <future>
+#include <openssl/ssl.h>
 #include <spdlog/spdlog.h>
 #include <system_error>
 
@@ -24,9 +26,6 @@ namespace Network
 
 TlsSocket::TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
 {
-  asio::ip::tcp::no_delay option(true);
-  _stream.next_layer().set_option(option);
-
   spdlog::trace("[{}] SSL socket created", getId());
 }
 
@@ -184,6 +183,122 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> TlsSocket::asyncRea
   std::span<std::byte> out_buffer, std::string_view delim, std::optional<std::chrono::milliseconds> timeout)
 {
   return socket_detail::asyncReadUntilCommon(*this, out_buffer, delim, timeout);
+}
+
+std::shared_ptr<asio::ssl::context> createTlsContext(const TlsOptions& cfg, bool is_server)
+{
+  asio::ssl::context::method method = asio::ssl::context::tlsv12_client;
+  switch (cfg.min_version)
+  {
+    case TlsVersion::TLS1_2:
+      method = is_server ? asio::ssl::context::tlsv12_server : asio::ssl::context::tlsv12_client;
+      break;
+    case TlsVersion::TLS1_3:
+      method = is_server ? asio::ssl::context::tlsv13_server : asio::ssl::context::tlsv13_client;
+      break;
+    case TlsVersion::Auto:
+    default:
+      method = is_server ? asio::ssl::context::tlsv12_server : asio::ssl::context::tlsv12_client;
+      break;
+  }
+
+  auto ctx = std::make_shared<asio::ssl::context>(method);
+
+  // Set min/max protocol using native SSL_CTX API (ASIO doesn't expose set_protocols)
+#ifndef OPENSSL_API_3
+  // openssl 1.1.x or lower
+  uint32_t flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+  switch (cfg.min_version)
+  {
+    case TlsVersion::TLS1_2:
+      flags |= SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1;
+      break;
+    case TlsVersion::TLS1_3:
+      flags |= SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+      break;
+    default:
+      break;  // Auto/default allows TLS 1.0+
+  }
+  switch (cfg.max_version)
+  {
+    case TlsVersion::TLS1_2:
+      flags |= SSL_OP_NO_TLSv1_3;
+      break;
+    case TlsVersion::Auto:
+    default:
+      break;  // max is auto, no restriction needed
+    case TlsVersion::TLS1_3:
+      break;  // allow everything up to TLS 1.3 (default)
+  }
+  ctx->set_options(flags);
+#else
+  // OpenSSL 3.x supports set_min/max_proto_version
+  uint32_t min_ver = SSL_VERSION_TLS_1_2;
+  switch (cfg.min_version)
+  {
+    case TlsVersion::TLS1_2:
+      min_ver = SSL_VERSION_TLS_1_2;
+      break;
+    case TlsVersion::TLS1_3:
+      min_ver = SSL_VERSION_TLS_1_3;
+      break;
+    case TlsVersion::Auto:
+    default:
+      min_ver = SSL_VERSION_DEFAULT_MIN;
+      break;
+  }
+  uint32_t max_ver = SSL_VERSION_TLS_1_3;
+  switch (cfg.max_version)
+  {
+    case TlsVersion::TLS1_2:
+      max_ver = SSL_VERSION_TLS_1_2;
+      break;
+    case TlsVersion::Auto:
+    default:
+      max_ver = SSL_VERSION_DEFAULT_MAX;
+      break;
+  }
+  ctx->set_options(SSL_CTX_set_min_proto_version(ctx->native_handle(), min_ver) == 0
+                     ? std::make_error_code(std::errc::invalid_argument)
+                     : std::error_code{});
+  ctx->set_options(SSL_CTX_set_max_proto_version(ctx->native_handle(), max_ver) == 0
+                     ? std::make_error_code(std::errc::invalid_argument)
+                     : std::error_code{});
+
+#endif
+
+  if (!cfg.cipher_suites.empty())
+  {
+    std::string cipher_list;
+    for (size_t i = 0; i < cfg.cipher_suites.size(); ++i)
+    {
+      if (i > 0)
+        cipher_list += ':';
+      cipher_list += cfg.cipher_suites[i];
+    }
+    SSL_CTX_set_cipher_list(ctx->native_handle(), cipher_list.c_str());
+  }
+
+  if (!cfg.ecdh_curves.empty())
+  {
+    std::string curve_list;
+    for (size_t i = 0; i < cfg.ecdh_curves.size(); ++i)
+    {
+      if (i > 0)
+        curve_list += ':';
+      curve_list += cfg.ecdh_curves[i];
+    }
+    SSL_CTX_set1_curves_list(ctx->native_handle(), curve_list.c_str());
+  }
+
+  long ticket_sec = 86400;  // 24 hours default
+  if (cfg.ticket_lifetime.has_value())
+  {
+    ticket_sec = static_cast<long>(cfg.ticket_lifetime->count() / 1000);
+  }
+  SSL_CTX_set_timeout(ctx->native_handle(), ticket_sec);
+
+  return ctx;
 }
 
 }  // namespace Network

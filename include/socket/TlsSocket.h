@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SocketBase.h"
+#include "TlsOptions.h"
 
 #include <asio/ip/tcp.hpp>
 #include <asio/ssl/stream.hpp>
@@ -55,5 +56,7 @@ public:
     std::string_view delimiter,
     std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };
+
+std::shared_ptr<asio::ssl::context> createTlsContext(const TlsOptions& cfg, bool is_server);
 
 }  // namespace Network

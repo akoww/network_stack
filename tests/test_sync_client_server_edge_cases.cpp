@@ -71,6 +71,8 @@ TEST_F(IoContextFixture, ZeroSizeRead)
     EXPECT_EQ(*recv_result, 0);
   }
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
   server.stop();
   server_thread.join();
 }
@@ -95,6 +97,8 @@ TEST_F(IoContextFixture, RapidConnectDisconnect)
       auto client_socket = std::move(*connect_result);
     }
   }
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   server.stop();
   server_thread.join();

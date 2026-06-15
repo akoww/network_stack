@@ -30,6 +30,7 @@ enum class Error
   SERVER_LISTEN_FAILED,
   SERVER_ACCEPT_FAILED,
   // Generic errors
+  OPTION_ERROR,
   INTERNAL_ERROR
 };
 

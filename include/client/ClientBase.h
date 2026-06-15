@@ -8,6 +8,8 @@
 #include <chrono>
 #include <string>
 #include <expected>
+#include "socket/TcpOptions.h"
+#include "socket/TlsOptions.h"
 
 namespace Network
 {
@@ -39,15 +41,14 @@ public:
   /// @brief Get the io_context reference.
   asio::any_io_executor& getIoContext();
 
-  /// @brief Get the SSL context for TLS connections.
-  /// @return Shared pointer to SSL context.
-  std::shared_ptr<asio::ssl::context> getSslContext();
-
 private:
   std::string _host;
   uint16_t _port;
   asio::any_io_executor _io_ctx;
-  std::shared_ptr<asio::ssl::context> _ssl_context;
+
+protected:
+  /// @brief Protected member for SSL context. Subclasses (like Client) can access this directly.
+  std::shared_ptr<asio::ssl::context> _ssl_context = nullptr;
 };
 
 class DualSocket;
@@ -73,16 +74,21 @@ public:
   virtual ~ClientAsync() = default;
 
   /// @brief Asynchronously connect to the remote endpoint.
-  /// @param opts Connection options including timeout.
+  /// @param timeout Connection timeout, defaults to 500ms.
+  /// @param tcp_opts Optional TCP socket configuration options.
   /// @return Socket on success, or error code on failure.
   virtual asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> asyncConnect(
-    std::chrono::milliseconds timeout) = 0;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500), TcpOptions tcp_opts = {}) = 0;
 
   /// @brief Asynchronously connect to the remote endpoint using TLS.
-  /// @param opts Connection options including timeout.
+  /// @param timeout Connection + handshake timeout, defaults to 500ms.
+  /// @param tcp_opts Optional TCP socket configuration options.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return TLS socket on success, or error code on failure.
   virtual asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> asyncConnectTls(
-    std::chrono::milliseconds timeout) = 0;
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
+    TcpOptions tcp_opts = {},
+    TlsOptions tls_opts = {}) = 0;
 };
 
 /// @brief Synchronous client implementation.
@@ -105,16 +111,23 @@ public:
   virtual ~ClientSync() = default;
 
   /// @brief Connect to the remote endpoint.
-  /// @param opts Connection options including timeout.
+  /// @param timeout Connection timeout, defaults to 500ms.
+  /// @param tcp_opts Optional TCP socket configuration options.
   /// @return Socket on success, or error code on failure.
   /// @note Blocks until connection is established or times out.
-  virtual std::expected<std::unique_ptr<DualSocket>, std::error_code> connect(std::chrono::milliseconds timeout) = 0;
+  virtual std::expected<std::unique_ptr<DualSocket>, std::error_code> connect(
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500), TcpOptions tcp_opts = {}) = 0;
 
   /// @brief Connect to the remote endpoint using TLS.
-  /// @param opts Connection options including timeout.
+  /// @param timeout Connection + handshake timeout, defaults to 500ms.
+  /// @param tcp_opts Optional TCP socket configuration options.
+  /// @param tls_opts Optional TLS configuration options.
   /// @return TLS socket on success, or error code on failure.
   /// @note Blocks until connection is established or times out.
-  virtual std::expected<std::unique_ptr<DualSocket>, std::error_code> connectTls(std::chrono::milliseconds timeout) = 0;
+  virtual std::expected<std::unique_ptr<DualSocket>, std::error_code> connectTls(
+    std::chrono::milliseconds timeout = std::chrono::milliseconds(500),
+    TcpOptions tcp_opts = {},
+    TlsOptions tls_opts = {}) = 0;
 
 private:
 };

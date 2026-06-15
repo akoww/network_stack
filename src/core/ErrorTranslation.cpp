@@ -1,4 +1,5 @@
 #include "core/ErrorTranslation.h"
+#include <spdlog/spdlog.h>
 #include "core/ErrorCodes.h"
 #include <asio/error.hpp>
 
@@ -181,6 +182,14 @@ std::error_code makeSocketCreateError(std::error_code ec)
 
   // Default to socket create failure
   return make_error_code(Network::Error::SOCKET_CREATE_FAILED);
+}
+
+std::error_code makeOptionError(std::error_code ec)
+{
+  spdlog::warn("option error: {}", ec.message());
+  // Default to socket create failure
+  // TODO
+  return make_error_code(Network::Error::OPTION_ERROR);
 }
 
 }  // namespace Network

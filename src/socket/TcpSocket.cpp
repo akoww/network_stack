@@ -1,4 +1,5 @@
 #include "socket/TcpSocket.h"
+#include "socket/TcpOptions.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
 #include <socket/SocketBaseDetails.h>
@@ -22,8 +23,6 @@ namespace Network
 
 TcpSocket::TcpSocket(asio::ip::tcp::socket sock) : _socket(std::move(sock))
 {
-  asio::ip::tcp::no_delay option(true);
-  _socket.set_option(option);
   spdlog::trace("[{}] TCP socket created (moved)", getId());
 }
 

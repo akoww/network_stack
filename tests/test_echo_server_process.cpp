@@ -352,9 +352,8 @@ TEST(ProcEchoTLS, SingleMessage)
 
   {
     Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
-    client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
-    auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
+    auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value()) << "TLS connect: " << sock_res.error().message();
 
     auto sock = std::move(*sock_res);
@@ -384,9 +383,8 @@ TEST(ProcEchoTLS, MultipleMessages)
 
   {
     Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
-    client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
-    auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
+    auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value());
 
     auto sock = std::move(*sock_res);
@@ -418,9 +416,8 @@ TEST(ProcEchoTLS, TLSLargePayload)
 
   {
     Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
-    client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
 
-    auto sock_res = client.connectTls(std::chrono::milliseconds{2000});
+    auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value());
 
     auto sock = std::move(*sock_res);

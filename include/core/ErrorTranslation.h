@@ -41,4 +41,7 @@ std::error_code makeServerError(std::error_code ec, std::string_view operation);
 /// @return A context-sensitive Network error code.
 std::error_code makeSocketCreateError(std::error_code ec);
 
+// TODO add documentation
+std::error_code makeOptionError(std::error_code ec);
+
 }  // namespace Network
