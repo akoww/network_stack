@@ -56,7 +56,7 @@ class EchoServer : public Server
         context,
         [sock_ptr]() mutable -> asio::awaitable<void>
         {
-          std::array<std::byte, 8192> buffer{};
+          std::array<std::byte, 8192 * 8> buffer{};
           while (true)
           {
             auto recv_chunk_start = std::chrono::high_resolution_clock::now();

@@ -47,7 +47,7 @@ public:
     clients.back().tr = std::thread(
       [sock_ptr, client_id = clients.back().id]()
       {
-        std::array<std::byte, 1024> buffer{};
+        std::array<std::byte, 8192 * 8> buffer{};
         bool running = true;
 
         try

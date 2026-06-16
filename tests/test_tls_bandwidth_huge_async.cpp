@@ -104,15 +104,13 @@ TEST_F(AsyncClientServerFixture, AsyncTlsHugeBandwidth)
       while (bytes_read < chunk)
       {
         auto to_read = static_cast<std::size_t>(std::min(std::size_t{4096}, chunk - bytes_read));
-        auto buf_ptr = std::make_unique<std::array<std::byte, 4096>>();
+        std::array<std::byte, 4096> buf;
         auto sock_for_read = client_socket.get();
 
         auto recv_future = asio::co_spawn(
           getIoContext().get_executor(),
-          [sock = sock_for_read, bufs = std::move(buf_ptr),
-           sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
-          { return sock->asyncReadSome(std::span(*bufs).first(sz)); },
-          asio::use_future);
+          [sock = sock_for_read, &buf, sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
+          { return sock->asyncReadSome(std::span(buf).first(sz)); }, asio::use_future);
 
         auto read_ec = recv_future.get();
         if (read_ec && *read_ec > 0)

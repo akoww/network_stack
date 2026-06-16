@@ -117,7 +117,7 @@ private:
     m_clients.back().tr = std::thread(
       [sptr, client_id]()
       {
-        std::array<std::byte, 4096> buffer{};
+        std::array<std::byte, 4096 * 16> buffer{};
         bool running{true};
         try
         {
