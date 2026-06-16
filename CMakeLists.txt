@@ -222,6 +222,7 @@ set(TEST_SOURCES
     tests/test_tls_bandwidth_ci_async.cpp
     tests/test_tls_bandwidth_huge_sync.cpp
     tests/test_tls_bandwidth_huge_async.cpp
+    tests/test_handshake_timeout.cpp
 )
 
 add_separate_tests(TEST_SOURCES)

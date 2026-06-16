@@ -5,6 +5,7 @@
 #include "socket/TcpSocket.h"
 
 #include <asio/awaitable.hpp>
+#include <asio/bind_cancellation_slot.hpp>
 #include <asio/co_spawn.hpp>
 #include <asio/connect.hpp>
 #include <asio/detached.hpp>
@@ -13,10 +14,13 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/redirect_error.hpp>
 #include <asio/ssl/context.hpp>
+#include <asio/steady_timer.hpp>
 #include <asio/this_coro.hpp>
 #include <asio/use_awaitable.hpp>
 #include <asio/use_future.hpp>
 
+#include <atomic>
+#include <chrono>
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <system_error>
@@ -436,12 +440,34 @@ asio::awaitable<void> Server::acceptTlsSocket(asio::ip::tcp::socket socket,
     co_return;
   }
 
-  std::error_code ec;
-  co_await ssl_stream.async_handshake(asio::ssl::stream_base::server, asio::redirect_error(asio::use_awaitable, ec));
+  auto hs_timeout = tls_opts.handshake_timeout_ms.value_or(std::chrono::hours(24));
+  std::error_code hs_ec;
+  std::atomic<bool> hs_timed_out{false};
+  asio::steady_timer hs_timer(executor, hs_timeout);
 
-  if (ec)
+  hs_timer.async_wait(
+    [&hs_timed_out, &ssl_stream](const std::error_code& timer_ec)
+    {
+      if (!timer_ec)
+      {
+        hs_timed_out.store(true);
+        ssl_stream.lowest_layer().cancel();
+      }
+    });
+
+  co_await ssl_stream.async_handshake(asio::ssl::stream_base::server, asio::redirect_error(asio::use_awaitable, hs_ec));
+
+  hs_timer.cancel();
+
+  if (hs_ec == asio::error::operation_aborted && hs_timed_out.load())
   {
-    spdlog::error("TLS handshake failed: {}", ec.message());
+    spdlog::debug("TLS handshake timed out");
+    co_return;
+  }
+
+  if (hs_ec)
+  {
+    spdlog::error("TLS handshake failed: {}", hs_ec.message());
     co_return;
   }
 

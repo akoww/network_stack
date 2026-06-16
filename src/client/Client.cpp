@@ -26,8 +26,8 @@
 #include <spdlog/spdlog.h>
 
 #include <memory>
+#include <atomic>
 #include <system_error>
-
 namespace Network
 {
 
@@ -393,9 +393,6 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(apply_opts_ec);
   }
 
-  // TODO - apply tls settings
-  // - handshake timeout ...
-
   auto tls_context = createTlsContext(tls_opts, false /*client*/);
   asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(sock), *tls_context);
 
@@ -405,11 +402,31 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(tls_ec);
   }
 
-  // Perform TLS handshake (with optional timeout)
+  // Perform TLS handshake (with timeout)
+  auto hs_timeout = tls_opts.handshake_timeout_ms.value_or(std::chrono::hours(24));
   std::error_code hs_ec;
+  std::atomic<bool> hs_timed_out{false};
+  asio::steady_timer hs_timer(executor, hs_timeout);
 
-  // TODO - add the timeout timer to the handshake call
+  hs_timer.async_wait(
+    [&hs_timed_out, &ssl_stream](const std::error_code& timer_ec)
+    {
+      if (!timer_ec)
+      {
+        hs_timed_out.store(true);
+        ssl_stream.lowest_layer().cancel();
+      }
+    });
+
   co_await ssl_stream.async_handshake(asio::ssl::stream_base::client, asio::redirect_error(asio::use_awaitable, hs_ec));
+
+  hs_timer.cancel();
+
+  if (hs_ec == asio::error::operation_aborted && hs_timed_out.load())
+  {
+    spdlog::debug("TLS handshake timed out for {}:{}", host(), port());
+    co_return std::unexpected(makeTimeoutError());
+  }
 
   if (hs_ec)
   {
