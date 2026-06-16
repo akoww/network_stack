@@ -1,49 +1,16 @@
 # include/protocol/ - Protocol Implementations
 
-## Purpose
-
-Higher-level network protocol implementations built on socket interfaces.
-
 ## Key Components
-
-### FileTransfer.h
-
-- **`IAbstractFileTransfer`**: Generic file transfer interface (not protocol-specific)
-- **Core operations**: `list()`, `createDir()`, `exists()`, `remove()`, `read()`, `write()`, `isDirectory()`
-- **Streaming**: Callback variants for `read()` and `write()` enable large file handling without full memory load
-- **Data types**: `FileListData` (metadata), `TransferConfig` (timeout options)
-
-### FtpFileTransfer.h/cpp
-
-- **`FtpFileTransfer`**: FTP-specific implementation of `IAbstractFileTransfer`
-- **Connection**: Uses unified `Client::connect(std::chrono::milliseconds)` with 500ms default timeout - pass explicit timeout for production code
-- **Capabilities**: Detects MLST, NLST, SIZE, MDTM, EPSV, PASV, RNFR/RNTO support
-- **FTP-specific**: CWD, PWD, PASV/EPSV, PASV/EPSV data channel setup, LIST/NLST/MLSD
-- **FTP navigator**: Uses `DefaultFtpNavigator` for directory path navigation
-
-### FtpUtils.h
-
-- **`SmartDirectoryNavigator`**: Protocol-agnostic path navigation helper
-- **Features**: Cross-platform (Unix/Windows drives), lexical-only (no filesystem access)
-- **Interface**: `ftpCd()` for directory changes, `ftpSelectDrive()` for Windows drives
-- **Usage**: Derive and implement FTP-specific directory commands
-
-### Utility Functions
-
-- **`FileTransferUtils::writeFromFile()`**: Upload local file to remote server with progress callback
-- **`FileTransferUtils::readToFile()`**: Download remote file to local filesystem with progress callback
+- **`FileTransfer.h`**: `IAbstractFileTransfer` interface (`list`, `createDir`, `exists`, `remove`, `read`, `write`, `isDirectory`). Supports streaming via callbacks.
+- **`FtpFileTransfer.h/cpp`**: FTP implementation of `IAbstractFileTransfer`. Auto-detects capabilities (MLST, SIZE, EPSV, etc.). Uses `Client::connect()` (explicit timeouts recommended).
+- **`FtpUtils.h`**: `SmartDirectoryNavigator` for lexical-only, cross-platform path navigation (`ftpCd`, `ftpSelectDrive`).
+- **`FileTransferUtils`**: Helpers `writeFromFile()` and `readToFile()` with progress callbacks.
 
 ## Conventions
+- All operations return `std::expected<T, std::error_code>`.
+- FTP uses the global `IoContextWrapper`, not a raw `asio::io_context`.
+- Default timeouts: control channel 10s, data channel matches unless overridden.
+- Current FTP implementation is plain FTP (non-TLS). Passive mode is default.
 
-- Protocol classes implement `IAbstractFileTransfer` interface
-- FTP uses `IoContextWrapper` (global io_context) not raw `asio::io_context`
-- All operations return `std::expected<T, std::error_code>`
-- Timeout defaults: control channel 10s, data channel same unless overridden
-
-## Important Notes
-
-- **FTP tests require external server**: `tests/fixtures/FtpServerFixture.h` starts `busybox tcpsvd` on port 2121
-- **Non-TLS only**: Current FTP implementation is non-TLS (plain FTP, not FTPS)
-- **Capability detection**: Server features auto-detected via FEAT command
-- **Passive mode**: Default, but active mode supported via `use_passive` option
-- **Navigation**: `SmartDirectoryNavigator` is lexical only - no actual filesystem access
+## Testing Quirks
+- **FTP tests require external server**: `tests/fixtures/FtpServerFixture.h` starts `busybox tcpsvd` on port 2121. Not auto-started by CMake.

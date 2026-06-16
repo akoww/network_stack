@@ -1,35 +1,10 @@
 # include/core/ - Core Infrastructure
 
-## Purpose
-
-Foundational utilities used throughout the entire stack: error handling and io_context management.
-
 ## Key Components
-
-### ErrorCodes.h
-
-- **`Network::Error`**: Custom error enum with values: `NO_ERROR`, `CONNECTION_REFUSED`, `CONNECTION_TIMEOUT`, `CONNECTION_LOST`, `DNS_FAILURE`, `PROTOCOL_ERROR`
-- **`Network::getNetworkCategory()`**: Singleton error category for std::error_code integration
-- **`make_error_code()`**: Converts `Network::Error` to `std::error_code` via ADL lookup (must remain snake_case for ADL compatibility)
-- **`is_error_code_enum<Network::Error>`**: Enables implicit conversion to `std::error_code`
-
-### Context.h
-
-- **`IoContextWrapper`**: Singleton wrapper around `asio::io_context` with background thread management
-- **`start()`/`stop()`**: Manages worker thread lifecycle
-- **`instance()`**: Static singleton accessor
-- **`isRunning()`**: Check if the io_context is currently running
-- **Note**: Inherits from `asio::io_context`, allowing direct use of all ASIO methods
+- **`ErrorCodes.h`**: Defines `Network::Error` enum (`NO_ERROR`, `CONNECTION_REFUSED`, `CONNECTION_TIMEOUT`, `CONNECTION_LOST`, `DNS_FAILURE`, `PROTOCOL_ERROR`). Provides `make_error_code()` (snake_case for ADL) and `is_error_code_enum<Network::Error>` for `std::error_code` integration.
+- **`Context.h`**: `IoContextWrapper` is a singleton wrapping `asio::io_context` with background thread management (`start()`, `stop()`, `instance()`).
 
 ## Conventions
-
-- No external dependencies beyond standard library and ASIO
-- Singleton pattern used for `IoContextWrapper` to enable shared context across modules
-- Error codes use 0 for success (standard error code convention)
-- Thread-safe: `IoContextWrapper` manages its own synchronization
-
-## Important Notes
-
-- Always include `core/ErrorCodes.h` before other Network headers
-- Error code enums start at 0 (reserved for NO_ERROR)
-- `IoContextWrapper` automatically manages work guard to keep io_context running
+- Always include `"core/ErrorCodes.h"` before other project headers.
+- `IoContextWrapper` manages its own work guard and synchronization.
+- Error codes use 0 for `NO_ERROR`.

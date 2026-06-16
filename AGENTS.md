@@ -1,136 +1,58 @@
-# Network Stack - Agent Documentation
+# Network Stack - Agent Instructions
 
-## Project Overview
-
-Modern C++23 Network Stack built on ASIO for asynchronous I/O operations with TLS support and FTP protocol implementation.
-
-## Build System
-
-- **CMake** with C++23 standard (`CMAKE_CXX_STANDARD 23`, `CMAKE_CXX_EXTENSIONS OFF`)
-- **Dependencies**: ASIO (headers), spdlog, GTest, OpenSSL
-- Output directories: `build/bin` (executables), `build/lib` (libraries)
-- **Compiler flags**: `-Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wcast-align -Wconversion -Wsign-conversion -Wnull-dereference -Werror -pedantic` (GCC/Clang); `/W4 /WX /permissive-` (MSVC)
-- **Sanitizers in Debug**: address, undefined, leak (`-g -O0 -fsanitize=address,undefined,leak`)
-
-## Build Commands
-
+## Build & Test
 ```bash
-cd build && cmake .. && cmake --build .
+cd build && cmake .. && cmake --build .   # Debug (default)
+cmake -DCMAKE_BUILD_TYPE=Release ..       # Release rebuild
+ctest                                     # All tests
+ctest -V                                  # Verbose
+ctest -R pattern                          # Run by regex
 ```
-
-### Build with Debug/Release
-
+Run single test:
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Debug ..  # or Release
-```
-
-### Build with clang-tidy autofix
-
-```bash
-cmake -DENABLE_CLANG_TIDY_FIX=ON ..
-```
-
-### Build and Run Tests
-
-```bash
-cd build && ctest                        # All tests
-ctest -R test_error_code                 # By regex pattern
-ctest -V                                 # Verbose output
-ctest -N                                 # List all test names
-ctest -I 0,1,1                           # Run test index 0 only
-
-# Build and run a single test executable directly
-cmake .. && cmake --build . --target test_error_code
+cmake --build . --target test_error_code
 ./build/bin/test_error_code --gtest_filter=NetworkErrorTest.NoErrorIsSuccess
-./build/bin/test_error_code --gtest_list_tests  # List all tests in executable
 ```
 
-### Linting
+## Lint & Format
+- **Format**: Chromium style, **Allman braces** (breaks *before* braces), 2-space indent, 120 col limit.
+- **Tidy**: `clang-tidy -p build include/**/*.h src/**/*.cpp` (add `-fix` to auto-fix, or enable via `-DENABLE_CLANG_TIDY_FIX=ON`).
 
-```bash
-clang-tidy -p build -header-filter=include src/**/*.cpp include/**/*.h \
-  --config-file=.clang-tidy
-```
+## Architecture
+Layered dependency: `core` < `socket` < `client`/`server` < `protocol`. Headers may only depend on earlier layers.
+- **`DualSocket`**: Unified sync/async socket. Returned as `std::unique_ptr<DualSocket>`.
+- **`Client` / `Server`**: Unified classes. No separate `*Sync`/`*Async` classes exist.
+- **`IoContextWrapper`**: Singleton wrapping `asio::io_context` with background thread.
+- **Protocol**: `TicketPeer` (connection lifecycle), `TicketController`/`TicketWorker` (execution), `FtpFileTransfer` (FTP, depends on nlohmann_json).
 
-## General
-
-- **Language**: C++23 (no extensions)
-- **Namespaces**: Use `Network` for library code; `Network::Test` for test code
-- **Include order**: System headers → ASIO → project headers
-- **Header guards**: Use `#pragma once`
-
-## Files & Directories
-
-- Headers in `include/` match source structure in `src/`
-- Test files in `tests/` with pattern `test_*.cpp`
-- Implementation files in corresponding `src/` subdirectories
-- Test certificates in `tests/certs/` (CA, client, server keys/certs for TLS)
-- Test fixtures in `tests/fixtures/` (FTP server, client/server helpers)
-- **Client**: `include/client/Client.h` is the unified client class; `ClientBase.h` declares both `ClientSync` and `ClientAsync` interface classes
-- **Server**: `include/server/Server.h` is the unified server class; `ServerBase.h` declares both `ServerSync` and `ServerAsync` interface classes
-- `SocketBaseImpl.h` (in `include/socket/`) contains shared helper implementations in the `socket_detail` namespace, used by `TcpSocket` and `TlsSocket`
-
-## Naming Conventions
-
-- **Classes & Structs**: Use PascalCase (e.g., `CreateScriptedSequenceCommand`).
-- **Functions & Methods**: Use camelCase for member functions and free functions (e.g., `createElement`, `destroyElements`).
-- **Variables**: Use camelCase for local variables and member variables (e.g., `context`, `params`, `errorLog`). Private variables of classes are always starting with an underscore (e.g. `_my_private_var` while function variables or function parameters are not (e.g. `my_parameter`).
-- **Constants & Macros**: Use ALL_CAPS with underscores (e.g., `CMD_CREATE_SCRIPTED_SEQUENCE`).
-- **Enum Members**: Use ALL_CAPS with underscores.
-- **Global Functions**: Use camelCase.
-- **Exception**: `make_error_code()` must remain snake_case for ADL (Argument-Dependent Lookup) compatibility with `std::is_error_code_enum`. This enables implicit conversion from `Network::Error` to `std::error_code`.
-
-## Types & Declarations
-
-- Use `std::expected<T, E>` for operations that may fail
-- Use `std::span<T>` for buffer parameters
-- Prefer `std::string_view` over `const std::string&`
-- Use `[[nodiscard]]` for functions where ignoring return value is likely an error
-- Use `noexcept` for simple accessors and destructors
-- Use `explicit` for single-argument constructors
-- Use `override` on virtual function overrides (not `virtual` in derived classes)
-- Use `constexpr` where applicable
+## Code Conventions
+- **Naming**: `PascalCase` (classes), `camelCase` (functions/locals), `_camelCase` (private members), `ALL_CAPS` (constants/enums). Exception: `make_error_code()` is snake_case for ADL.
+- **Types**: `std::expected<T, std::error_code>` for failures (never throw ASIO errors). `std::span<T>` for buffers, `std::string_view` over `const std::string&`.
+- **Includes**: System → ASIO → project. Always include `"core/ErrorCodes.h"` first among project headers. TLS requires explicit `asio/ssl/` includes.
 
 ## Error Handling
+```cpp
+#include "core/ErrorCodes.h"
+auto result = client.connect();
+if (result) { /* *result */ } else { auto ec = result.error(); } // Never throw
+// Custom errors: make_error_code(Network::Error::DNS_FAILURE)
+```
 
-- **Custom error enum** `Network::Error` with values: `NO_ERROR`, `CONNECTION_REFUSED`, `CONNECTION_TIMEOUT`, `CONNECTION_LOST`, `DNS_FAILURE`, `PROTOCOL_ERROR`
-- Use `std::error_code` with `Network::getNetworkCategory()` for error codes
-- Convert with `makeErrorCode(Network::Error::X)` or implicit conversion via `is_error_code_enum`
-- Check errors via `if (!ec)` or `if (ec)`
-- **ASIO operations**: Always use `asio::redirect_error(asio::use_awaitable, ec)` for async operations and pass `ec` parameter for sync operations
-- **Never throw exceptions**: All ASIO errors must be captured via error codes
+## Async Rules
+- Use `asio::awaitable<T>` returning `std::expected<T, std::error_code>`.
+- **Server listen**: ALWAYS use `asio::co_spawn(io_ctx, server.asyncListen(), asio::detached)`. NEVER `co_await` directly (infinite loop).
 
-## Asynchronous Code
+## Testing Quirks
+- Tests are **separate executables** per file (via `add_separate_tests()`), not a monolith.
+- **Certs**: `tests/certs/` via `SOURCE_DIR_CERT` compile def. Use build-tree-relative paths.
+- **FTP tests**: Require external FTP server (see `tests/fixtures/FtpServerFixture.h`). Not auto-started by CMake.
+- **TLS**: Requires OpenSSL. `echo_server` is a standalone binary for external-process testing.
 
-- Use `asio::awaitable<T>` for async operations returning `std::expected<T, std::error_code>`
-- Functions marked `co_await` use `asio::co_spawn` or `co_await` within coroutines
-- Use `asio::detached` for fire-and-forget coroutines
+## Critical Pitfalls
+1. **Allman braces**: `.clang-format` enforces this. Do NOT use K&R.
+2. **Server teardown**: Destructor MUST cancel all client sockets and join coroutines/threads to prevent leaks/dangling pointers.
+3. **Socket ownership**: Callers receive `unique_ptr<DualSocket>`; clients do not retain ownership.
 
-## Formatting
-
-- 4-space indentation (no tabs)
-- Max line length: 120 characters
-- Opening braces on same line as declaration (K&R style)
-- Use spaces around operators and after commas
-- No spaces before semicolons or after opening/unary operators
-
-## Custom CMake Macros
-
-**`add_separate_tests()`** (in `cmake/makro_separate_tests.cmake`):
-- Creates individual test executables for each test file
-- Automatically links GTest and `network_stack_core`
-- Defines `ASIO_STANDALONE=1` and `_HAS_STD_BYTE=0`
-
-## Important Notes
-
-- All include directories have their own `AGENTS.md` files with detailed guidance
-  - Client uses unified `Client` class (not separate sync/async variants)
-  - Server uses unified `Server` class (not separate sync/async variants)
-- TLS support requires OpenSSL (server and client implementations)
-- FTP integration tests require a running FTP server (see `tests/fixtures/FtpServerFixture.h`)
-- `IoContextWrapper` provides singleton `io_context` with background thread management
-- `DualSocket` implements both `SyncSocket` and `AsyncSocket` interfaces for mixed usage; clients use `Client::connect()` / `Client::asyncConnect()`, servers use `Server::listen()` / `Server::asyncListen()`
-- `TicketPeer` is the core protocol class managing a `DualSocket` connection (handshake/goodbye lifecycle)
-- `TicketController` (executor) and `TicketWorker` (handler) both use `TicketPeer`
-- See [TODO.md](./TODO.md) for tasks to address
-- See [KNOWN_PROBLEMS.md](./KNOWN_PROBLEMS.md) for known issues
+## Related Docs
+- Layer-specific API details: `include/*/AGENTS.md`
+- Tasks/Issues: `TODO.md`, `KNOWN_PROBLEMS.md`
