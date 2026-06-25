@@ -1,6 +1,7 @@
 #include "server/Server.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
+#include "core/details/ContextDetail.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -28,7 +29,7 @@
 namespace Network
 {
 
-Server::Server(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler)
+Server::Server(uint16_t port, IoContextWrapper io_ctx, ClientHandler handler)
   : ServerBase(port, io_ctx, std::move(handler))
 {
   spdlog::trace("server async created on port {}", port);
@@ -497,7 +498,7 @@ std::expected<void, std::error_code> Server::listen(TcpOptions tcp_opts)
   spdlog::trace("starting sync server ...");  // TODO fix this
 
   auto future = asio::co_spawn(
-    getIoContext(),
+    detail::getExecutor(_io_ctx),
     [this, tcp_opts = std::move(tcp_opts)]() mutable -> asio::awaitable<std::expected<void, std::error_code>>
     { return Server::asyncListen(std::move(tcp_opts)); }, asio::use_future);
 
@@ -523,7 +524,7 @@ std::expected<void, std::error_code> Server::listenTls(TlsServerOptions tls_serv
   spdlog::trace("starting sync server ...");  // TODO fix this
 
   auto future = asio::co_spawn(
-    getIoContext(),
+    detail::getExecutor(_io_ctx),
     [this, tls_server_opts = std::move(tls_server_opts), tcp_opts = std::move(tcp_opts),
      tls_opts = std::move(tls_opts)]() mutable -> asio::awaitable<std::expected<void, std::error_code>>
     { return Server::asyncListenTls(std::move(tls_server_opts), std::move(tcp_opts), std::move(tls_opts)); },

@@ -1,7 +1,7 @@
 #include "socket/TlsSocket.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
-#include <socket/SocketBaseDetails.h>
+#include <socket/details/SocketBaseDetail.h>
 #include "socket/TlsOptions.h"
 
 #include <asio/buffer.hpp>

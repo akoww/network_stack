@@ -4,6 +4,7 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/ssl/context.hpp>
 
+#include "core/Context.h"
 #include "socket/SocketBase.h"
 #include "socket/TlsOptions.h"
 #include "socket/TcpOptions.h"
@@ -39,16 +40,13 @@ public:
   /// @param port Port to bind to (0 for dynamic assignment).
   /// @param io_ctx ASIO io_context for async operations.
   /// @param handler Callback function for new incoming clients.
-  explicit ServerBase(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler);
+  explicit ServerBase(uint16_t port, IoContextWrapper io_ctx, ClientHandler handler);
 
   /// @brief Get the bound host.
   [[nodiscard]] std::string_view host() const;
 
   /// @brief Get the bound port.
   [[nodiscard]] uint16_t port() const;
-
-  /// @brief Get the io_context reference.
-  [[nodiscard]] asio::any_io_executor getIoContext();
 
   /// @brief Stop the server.
   /// Stops accepting new connections and closes the acceptor.
@@ -66,7 +64,7 @@ protected:
 
   std::string _host;
   uint16_t _port;
-  asio::any_io_executor _io_ctx;
+  IoContextWrapper _io_ctx;
   ClientHandler _handler;
 };
 

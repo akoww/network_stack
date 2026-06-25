@@ -1,6 +1,7 @@
 #include "core/Context.h"
 #include "server/Server.h"
 #include "socket/SocketBase.h"
+#include "core/details/ContextDetail.h"
 
 #include <asio/ssl/context.hpp>
 
@@ -18,6 +19,8 @@
 #include <vector>
 
 namespace fs = std::filesystem;
+
+using namespace Network;
 
 volatile sig_atomic_t g_running = 1;
 void signal_handler(int)
@@ -71,8 +74,8 @@ public:
     std::unique_ptr<Network::DualSocket> sock;
   };
 
-  explicit EchoServer(uint16_t port, asio::any_io_executor ctx)
-    : Base(port, ctx, [this](std::unique_ptr<Network::DualSocket> sock) { handle_client(std::move(sock)); })
+  explicit EchoServer(uint16_t port, IoContextWrapper ctx)
+    : Base(port, std::move(ctx), [this](std::unique_ptr<Network::DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
 
@@ -161,7 +164,7 @@ int main(int argc, char** argv)
 
   Network::IoContextWrapper io_ctx;
 
-  EchoServer server(opts.port, io_ctx.get_executor());
+  EchoServer server(opts.port, io_ctx);
 
   if (!opts.cert_chain.empty() && !opts.private_key.empty())
   {

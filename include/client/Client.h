@@ -19,7 +19,7 @@ public:
   /// @param host Remote host address (domain name or IP).
   /// @param port Remote port number.
   /// @param io_ctx ASIO io_context for DNS resolution and connection setup.
-  explicit Client(std::string_view host, uint16_t port, asio::any_io_executor io_ctx);
+  explicit Client(std::string_view host, uint16_t port, IoContextWrapper io_ctx);
 
   /// @brief Connect to the remote server synchronously (blocking).
   /// @param timeout Connection timeout, defaults to 500ms. Pass explicit value for production use.

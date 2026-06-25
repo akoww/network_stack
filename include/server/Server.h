@@ -6,7 +6,7 @@
 #include <asio/ssl/context.hpp>
 
 #include "ServerBase.h"
-#include "socket/SocketBase.h"
+#include "core/Context.h"
 #include "socket/TcpOptions.h"
 #include "socket/TlsOptions.h"
 
@@ -21,7 +21,7 @@ class Server : public ServerBase, public ServerSync, public ServerAsync
 {
 public:
   /// @brief Construct with port and io_context.
-  Server(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler);
+  Server(uint16_t port, IoContextWrapper io_ctx, ClientHandler handler);
 
   /// @brief Asynchronously start accepting connections.
   /// @param tcp_opts Optional TCP socket configuration options for accepted sockets.

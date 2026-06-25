@@ -2,7 +2,7 @@
 #include "socket/TcpOptions.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
-#include <socket/SocketBaseDetails.h>
+#include <socket/details/SocketBaseDetail.h>
 
 #include <asio/awaitable.hpp>
 #include <asio/buffer.hpp>

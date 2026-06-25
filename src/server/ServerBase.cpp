@@ -1,14 +1,15 @@
 #include "server/ServerBase.h"
 #include <spdlog/spdlog.h>
 #include <asio/ssl/context.hpp>
+#include "core/details/ContextDetail.h"
 #include "socket/TlsOptions.h"
 #include "socket/TlsSocket.h"
 
 namespace Network
 {
 
-ServerBase::ServerBase(uint16_t port, asio::any_io_executor io_ctx, ClientHandler handler)
-  : _acceptor(io_ctx), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler))
+ServerBase::ServerBase(uint16_t port, IoContextWrapper io_ctx, ClientHandler handler)
+  : _acceptor(detail::getExecutor(io_ctx)), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler))
 {
   spdlog::trace("ServerBase created on port {}", port);
 }
@@ -25,10 +26,6 @@ std::string_view ServerBase::host() const
 uint16_t ServerBase::port() const
 {
   return _port;
-}
-asio::any_io_executor ServerBase::getIoContext()
-{
-  return _io_ctx;
 }
 
 void ServerBase::stop()

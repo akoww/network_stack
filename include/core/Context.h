@@ -10,31 +10,29 @@
 namespace Network
 {
 
-/// @brief Wrapper around asio::io_context with automatic background thread management.
-/// Manages an io_context with a dedicated worker thread and work guard to keep it running.
-/// Provides a singleton pattern for shared io_context access across the application.
-///
-/// Usage:
-/// ```cpp
-/// auto& ctx = IoContextWrapper::instance();
-/// ctx.start();
-/// // ... schedule work ...
-/// ctx.stop();
-/// ```
+namespace detail
+{
+struct IoContextAccess;
+}
+
 class IoContextWrapper final
 {
 public:
   IoContextWrapper(unsigned int thread_count = 4);
-  ~IoContextWrapper();
+  IoContextWrapper(const IoContextWrapper&) = default;
+  IoContextWrapper(IoContextWrapper&&) = default;
+  IoContextWrapper& operator=(const IoContextWrapper&) = default;
+  IoContextWrapper& operator=(IoContextWrapper&&) = default;
+  ~IoContextWrapper() = default;
 
-  // Expose executor for all Asio async operations
-  auto get_executor() { return pool_.get_executor(); }
+  // Optional: explicit, idempotent shutdown
+  void shutdown() noexcept;
 
 private:
-  IoContextWrapper(const IoContextWrapper&) = delete;
-  IoContextWrapper& operator=(const IoContextWrapper&) = delete;
+  struct Private;
+  std::shared_ptr<Private> _p;
 
-  asio::thread_pool pool_;  // Lazy-initialized pool
+  friend detail::IoContextAccess;
 };
 
 }  // namespace Network

@@ -3,8 +3,9 @@
 #include "core/ErrorTranslation.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpOptions.h"
-#include "socket/SocketBaseDetails.h"
+#include "socket/details/SocketBaseDetail.h"
 #include "socket/TcpSocket.h"
+#include "core/details/ContextDetail.h"
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
@@ -41,7 +42,7 @@ inline std::error_code makeTimeoutError()
 
 }  // namespace
 
-Client::Client(std::string_view host, uint16_t port, asio::any_io_executor io_ctx) : ClientBase(host, port, io_ctx)
+Client::Client(std::string_view host, uint16_t port, IoContextWrapper io_ctx) : ClientBase(host, port, io_ctx)
 {
 }
 
@@ -51,7 +52,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> Client::connect(std:
   spdlog::trace("connect to server ...");
 
   auto future = asio::co_spawn(
-    getIoContext(),
+    detail::getExecutor(_io_ctx),
     [this, timeout, tcp_opts]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
     { return Client::asyncConnect(timeout, tcp_opts); }, asio::use_future);
 
@@ -77,7 +78,7 @@ std::expected<std::unique_ptr<DualSocket>, std::error_code> Client::connectTls(s
   spdlog::trace("connect to tls server ...");
 
   auto future = asio::co_spawn(
-    getIoContext(),
+    detail::getExecutor(_io_ctx),
     [this, timeout, tcp_opts,
      tls_opts]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
     { return Client::asyncConnectTls(timeout, tcp_opts, tls_opts); },

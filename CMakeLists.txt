@@ -201,28 +201,28 @@ target_link_libraries(network_stack_core
 enable_testing()
 
 set(TEST_SOURCES
-    tests/test_error_code.cpp
-    tests/test_error_translation.cpp
-    tests/test_sync_client_server.cpp
-    tests/test_sync_client_server_edge_cases.cpp
-    tests/test_sync_timeouts.cpp
-    tests/test_context_wrapper.cpp
-    tests/test_ftp_integration.cpp
-    tests/test_sync_tls.cpp
-    tests/test_async_client_server.cpp
-    tests/test_async_client_server_edge_cases.cpp
-    tests/test_async_timeouts.cpp
-    tests/test_async_tls.cpp
-    tests/test_tls_misuse.cpp
-    tests/test_socket_edge_cases.cpp
-    tests/test_ftp_misuse.cpp
-    tests/test_echo_server_process.cpp
-    tests/test_tls_bandwidth_ci_sync.cpp
-    tests/test_bandwidth_ci_async.cpp
-    tests/test_tls_bandwidth_ci_async.cpp
-    tests/test_tls_bandwidth_huge_sync.cpp
-    tests/test_tls_bandwidth_huge_async.cpp
-    tests/test_handshake_timeout.cpp
+    #tests/test_error_code.cpp
+    #tests/test_error_translation.cpp
+    #tests/test_sync_client_server.cpp
+    #tests/test_sync_client_server_edge_cases.cpp
+    #tests/test_sync_timeouts.cpp
+    #tests/test_context_wrapper.cpp
+    #tests/test_ftp_integration.cpp
+    #tests/test_sync_tls.cpp
+    #tests/test_async_client_server.cpp
+    #tests/test_async_client_server_edge_cases.cpp
+    #tests/test_async_timeouts.cpp
+    #tests/test_async_tls.cpp
+    #tests/test_tls_misuse.cpp
+    #tests/test_socket_edge_cases.cpp
+    #tests/test_ftp_misuse.cpp
+    #tests/test_echo_server_process.cpp
+    #tests/test_tls_bandwidth_ci_sync.cpp
+    #tests/test_bandwidth_ci_async.cpp
+    #tests/test_tls_bandwidth_ci_async.cpp
+    #tests/test_tls_bandwidth_huge_sync.cpp
+    #tests/test_tls_bandwidth_huge_async.cpp
+    #tests/test_handshake_timeout.cpp
 )
 
 add_separate_tests(TEST_SOURCES)

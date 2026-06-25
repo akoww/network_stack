@@ -71,7 +71,7 @@ public:
   /// @param host FTP server hostname or IP address.
   /// @param port FTP server control port (default 21).
   /// @param io_ctx ASIO io_context for async operations.
-  explicit FtpFileTransfer(std::string_view host, uint16_t port, IoContextWrapper& io_ctx);
+  explicit FtpFileTransfer(std::string_view host, uint16_t port, IoContextWrapper io_ctx);
   ~FtpFileTransfer() override;
 
   /// @brief Connect to FTP server and perform initial setup.
@@ -186,7 +186,7 @@ private:
   uint16_t _port;
   DefaultFtpNavigator _navigator;
 
-  IoContextWrapper& _io_context;
+  IoContextWrapper _io_context;
   std::unique_ptr<DualSocket> _socket;
   ConnectOptions _options;
   FtpCapabilities _capabilities;
@@ -201,6 +201,6 @@ private:
 /// @param opts Connection options (credentials, timeout, mode).
 /// @return Unique pointer to IAbstractFileTransfer, or error code on failure.
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code> openFtpConnection(
-  std::string_view host, uint16_t port, IoContextWrapper& io_ctx, const FtpFileTransfer::ConnectOptions& opts = {});
+  std::string_view host, uint16_t port, IoContextWrapper io_ctx, const FtpFileTransfer::ConnectOptions& opts = {});
 
 }  // namespace Network

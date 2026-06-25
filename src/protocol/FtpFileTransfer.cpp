@@ -85,7 +85,7 @@ std::filesystem::path get_last_component(const std::filesystem::path& p)
 
 }  // namespace
 
-FtpFileTransfer::FtpFileTransfer(std::string_view host, uint16_t port, IoContextWrapper& io_ctx)
+FtpFileTransfer::FtpFileTransfer(std::string_view host, uint16_t port, IoContextWrapper io_ctx)
   : _host(host), _port(port), _navigator(this), _io_context(io_ctx)
 {
 }
@@ -101,7 +101,7 @@ std::expected<void, std::error_code> FtpFileTransfer::connect(const ConnectOptio
 {
   spdlog::info("FTP connecting to {}:{}", _host, _port);
 
-  Client client(_host, _port, _io_context.get_executor());
+  Client client(_host, _port, _io_context);
   auto socket_result = client.connect({opts.timeout});
 
   if (!socket_result)
@@ -1294,8 +1294,7 @@ std::expected<std::unique_ptr<SyncSocket>, std::error_code> FtpFileTransfer::ope
 
   auto endpoint = parsePasvResponse(pasv_result->full_msg);
 
-  auto data_socket =
-    std::make_unique<Client>(endpoint->address().to_string(), endpoint->port(), _io_context.get_executor());
+  auto data_socket = std::make_unique<Client>(endpoint->address().to_string(), endpoint->port(), _io_context);
   auto connect_result = data_socket->connect({getDataTimeout()});
   if (!connect_result)
   {
@@ -1371,7 +1370,7 @@ void FtpFileTransfer::parseFeatures(std::string_view feat_response)
 }
 
 std::expected<std::unique_ptr<IAbstractFileTransfer>, std::error_code> openFtpConnection(
-  std::string_view host, uint16_t port, IoContextWrapper& io_ctx, const FtpFileTransfer::ConnectOptions& opts)
+  std::string_view host, uint16_t port, IoContextWrapper io_ctx, const FtpFileTransfer::ConnectOptions& opts)
 {
   auto ftp = std::make_unique<FtpFileTransfer>(host, port, io_ctx);
   auto connect_result = ftp->connect(opts);

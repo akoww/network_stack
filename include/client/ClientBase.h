@@ -1,6 +1,5 @@
 #pragma once
 
-#include <asio/io_context.hpp>
 #include <asio/ssl/context.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
@@ -8,6 +7,8 @@
 #include <chrono>
 #include <string>
 #include <expected>
+
+#include "core/Context.h"
 #include "socket/TcpOptions.h"
 #include "socket/TlsOptions.h"
 
@@ -30,7 +31,7 @@ public:
   /// @param host Remote host address (domain name or IP).
   /// @param port Remote port number.
   /// @param io_ctx ASIO io_context for async operations.
-  explicit ClientBase(std::string_view host, uint16_t port, asio::any_io_executor io_ctx);
+  explicit ClientBase(std::string_view host, uint16_t port, IoContextWrapper io_ctx);
 
   /// @brief Get the target host.
   [[nodiscard]] std::string_view host() const;
@@ -38,15 +39,12 @@ public:
   /// @brief Get the target port.
   [[nodiscard]] uint16_t port() const;
 
-  /// @brief Get the io_context reference.
-  asio::any_io_executor& getIoContext();
-
 private:
   std::string _host;
   uint16_t _port;
-  asio::any_io_executor _io_ctx;
 
 protected:
+  IoContextWrapper _io_ctx;
   /// @brief Protected member for SSL context. Subclasses (like Client) can access this directly.
   std::shared_ptr<asio::ssl::context> _ssl_context = nullptr;
 };
