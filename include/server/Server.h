@@ -3,7 +3,6 @@
 #include <asio/ip/tcp.hpp>
 #include <asio/io_context.hpp>
 #include <asio/awaitable.hpp>
-#include <asio/ssl/context.hpp>
 
 #include "ServerBase.h"
 #include "core/Context.h"
@@ -16,6 +15,7 @@ namespace Network
 {
 
 class TlsSocket;
+class TlsContextWrapper;
 
 class Server : public ServerBase, public ServerSync, public ServerAsync
 {
@@ -60,7 +60,7 @@ public:
 protected:
   asio::awaitable<void> acceptPlainSocket(asio::ip::tcp::socket socket);
   asio::awaitable<void> acceptTlsSocket(asio::ip::tcp::socket socket,
-                                        std::shared_ptr<asio::ssl::context> ctx,
+                                        TlsContextWrapper& ctx_wrapper,
                                         const TlsOptions& tls_opts);
 
 private:

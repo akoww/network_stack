@@ -1,6 +1,5 @@
 #pragma once
 
-#include <asio/ssl/context.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/ip/tcp.hpp>
 
@@ -9,6 +8,7 @@
 #include <expected>
 
 #include "core/Context.h"
+#include "core/TlsContextWrapper.h"
 #include "socket/TcpOptions.h"
 #include "socket/TlsOptions.h"
 
@@ -45,8 +45,6 @@ private:
 
 protected:
   IoContextWrapper _io_ctx;
-  /// @brief Protected member for TLS context. Subclasses (like Client) can access this directly.
-  std::shared_ptr<asio::ssl::context> _ssl_context = nullptr;
 };
 
 class DualSocket;

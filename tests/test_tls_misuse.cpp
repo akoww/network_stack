@@ -13,6 +13,8 @@
 
 #include "client/Client.h"
 #include "core/Context.h"
+#include "core/TlsContextWrapper.h"
+#include "core/details/TlsContextDetail.h"
 #include "fixtures/test_certificate_paths.h"
 #include "fixtures/test_fixture_io_context.h"
 #include "fixtures/test_fixture_sync_client_server.h"
@@ -155,8 +157,8 @@ TEST_F(IoContextFixture, MissingCertificate)
 {
   constexpr uint16_t port = 50004;
 
+  TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
   EchoServer server(port, getIoContext());
-  auto empty_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
 
   std::thread server_thread([&server]() { static_cast<void>(server.listenTls()); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -442,9 +444,10 @@ TEST_F(IoContextFixture, TlsReadOnUnconnected)
   asio::io_context io_ctx;
   auto runner = std::thread([&]() { io_ctx.run(); });
 
-  auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
+  Network::TlsOptions tls_opts{};
+  Network::TlsContextWrapper ctx_wrapper(tls_opts);
   asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
-  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
+  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(ctx_wrapper));
   TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};
@@ -458,9 +461,10 @@ TEST_F(IoContextFixture, TlsWriteOnUnconnected)
 {
   asio::io_context io_ctx;
 
-  auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
+  Network::TlsOptions tls_opts{};
+  Network::TlsContextWrapper ctx_wrapper(tls_opts);
   asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
-  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
+  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(ctx_wrapper));
   TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};

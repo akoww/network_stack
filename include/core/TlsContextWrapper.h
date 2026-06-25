@@ -5,7 +5,7 @@
 namespace Network
 {
 
-class TlsOptions;
+struct TlsOptions;
 struct TlsServerOptions;
 
 namespace detail

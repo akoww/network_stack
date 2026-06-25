@@ -2,6 +2,7 @@
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
 #include "core/details/ContextDetail.h"
+#include "core/details/TlsContextDetail.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -14,7 +15,6 @@
 #include <asio/ip/basic_resolver.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/redirect_error.hpp>
-#include <asio/ssl/context.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/this_coro.hpp>
 #include <asio/use_awaitable.hpp>
@@ -303,35 +303,6 @@ std::error_code applyPreConnectTlsOptions(asio::ssl::stream<asio::ip::tcp::socke
   return ec;
 }
 
-std::shared_ptr<asio::ssl::context> createServerTslContext(const TlsServerOptions& tls_server_opts,
-                                                           const TlsOptions& tls_opts)
-{
-  auto ctx = createTlsContext(tls_opts, true /*server*/);
-
-  std::error_code ec;
-  if (!tls_server_opts._cert_chain_path.empty())
-  {
-    ctx->use_certificate_chain_file(tls_server_opts._cert_chain_path.string(), ec);
-    if (ec)
-    {
-      spdlog::error("Failed to load certificate chain from {}: {}", tls_server_opts._cert_chain_path.string(),
-                    ec.message());
-      return nullptr;
-    }
-  }
-
-  if (!tls_server_opts._private_key_path.empty())
-  {
-    ctx->use_private_key_file(tls_server_opts._private_key_path.string(), asio::ssl::context::pem, ec);
-    if (ec)
-    {
-      spdlog::error("Failed to load private key from {}: {}", tls_server_opts._private_key_path.string(), ec.message());
-      return nullptr;
-    }
-  }
-
-  return ctx;
-}
 }  // namespace
 
 asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(TlsServerOptions tls_server_opts,
@@ -373,11 +344,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(Tls
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  auto tls_context = createServerTslContext(tls_server_opts, tls_opts);
-  if (!tls_context)
-  {
-    co_return std::unexpected(makeOptionError(Network::Error::OPTION_ERROR));
-  }
+  TlsContextWrapper tls_wrapper(tls_opts, &tls_server_opts);
 
   spdlog::trace("server async TLS started on {}:{}", host(), port());
 
@@ -405,7 +372,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(Tls
       co_return std::unexpected(apply_opts_ec);
     }
 
-    asio::co_spawn(executor, acceptTlsSocket(std::move(socket), tls_context, tls_opts), asio::detached);
+    asio::co_spawn(executor, acceptTlsSocket(std::move(socket), tls_wrapper, tls_opts), asio::detached);
   }
 
   co_return std::expected<void, std::error_code>{};
@@ -427,12 +394,12 @@ asio::awaitable<void> Server::acceptPlainSocket(asio::ip::tcp::socket socket)
 }
 
 asio::awaitable<void> Server::acceptTlsSocket(asio::ip::tcp::socket socket,
-                                              std::shared_ptr<asio::ssl::context> ctx,
+                                              TlsContextWrapper& ctx_wrapper,
                                               const TlsOptions& tls_opts)
 {
   spdlog::debug("new async TLS connection accepted");
 
-  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *ctx);
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(socket), *detail::getTlsContext(ctx_wrapper));
   auto executor = co_await asio::this_coro::executor;
 
   if (auto tls_ec = applyPreConnectTlsOptions(ssl_stream, tls_opts))

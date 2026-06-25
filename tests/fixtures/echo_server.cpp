@@ -2,6 +2,7 @@
 #include "server/Server.h"
 #include "socket/SocketBase.h"
 #include "core/details/ContextDetail.h"
+#include "core/TlsContextWrapper.h"
 
 #include <asio/ssl/context.hpp>
 
@@ -168,26 +169,9 @@ int main(int argc, char** argv)
 
   if (!opts.cert_chain.empty() && !opts.private_key.empty())
   {
-    auto ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server);
-    try
-    {
-      ctx->use_certificate_chain_file(opts.cert_chain.string());
-    }
-    catch (const std::system_error& e)
-    {
-      std::cerr << "Failed to load cert chain: " << opts.cert_chain.string() << ": " << e.what() << "\n";
-      return 1;
-    }
-    try
-    {
-      ctx->use_private_key_file(opts.private_key.string(), asio::ssl::context::pem);
-    }
-    catch (const std::system_error& e)
-    {
-      std::cerr << "Failed to load private key: " << opts.private_key.string() << ": " << e.what() << "\n";
-      return 1;
-    }
-    auto const result = server.listenTls();
+    TlsServerOptions tls_opts{opts.cert_chain, opts.private_key};
+    TlsContextWrapper ctx_wrapper({}, &tls_opts);
+    auto const result = server.listenTls(tls_opts);
     if (result)
     {
       std::cout << "PID: " << getpid() << "\n";

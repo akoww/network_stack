@@ -6,6 +6,7 @@
 #include "socket/details/SocketBaseDetail.h"
 #include "socket/TcpSocket.h"
 #include "core/details/ContextDetail.h"
+#include "core/details/TlsContextDetail.h"
 
 #include <asio/awaitable.hpp>
 #include <asio/co_spawn.hpp>
@@ -18,7 +19,6 @@
 #include <asio/ip/basic_resolver.hpp>
 #include <asio/ip/tcp.hpp>
 #include <asio/redirect_error.hpp>
-#include <asio/ssl/context.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/use_future.hpp>
 #include <asio/bind_cancellation_slot.hpp>
@@ -394,8 +394,8 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(apply_opts_ec);
   }
 
-  auto tls_context = createTlsContext(tls_opts, false /*client*/);
-  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(sock), *tls_context);
+  TlsContextWrapper tls_wrapper(tls_opts);
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(sock), *detail::getTlsContext(tls_wrapper));
 
   if (auto tls_ec = applyPreConnectTlsOptions(ssl_stream, tls_opts))
   {

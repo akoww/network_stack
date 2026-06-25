@@ -4,6 +4,7 @@
 
 #include "client/Client.h"
 #include "core/Context.h"
+#include "core/TlsContextWrapper.h"
 #include "server/Server.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
@@ -124,12 +125,10 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes, std::si
   return {reinterpret_cast<const char*>(bytes.data()), length};
 }
 
-inline std::shared_ptr<asio::ssl::context> createSslContextWithCert()
+inline std::pair<TlsServerOptions, TlsContextWrapper> createSslContextWithCert()
 {
-  auto ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::tlsv12_server);
-  ctx->use_certificate_chain_file(std::string(Network::Test::ServerCertPath()));
-  ctx->use_private_key_file(std::string(Network::Test::ServerKeyPath()), asio::ssl::context::pem);
-  return ctx;
+  TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
+  return {tls_opts, TlsContextWrapper({}, &tls_opts)};
 }
 
 class SyncClientServerFixture : public ::testing::Test

@@ -57,6 +57,4 @@ public:
     std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;
 };
 
-std::shared_ptr<asio::ssl::context> createTlsContext(const TlsOptions& cfg, bool is_server);
-
 }  // namespace Network
