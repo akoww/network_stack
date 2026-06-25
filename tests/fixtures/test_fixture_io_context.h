@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "core/Context.h"
+#include "core/details/ContextDetail.h"
 
 namespace Network::Test
 {
@@ -17,7 +18,7 @@ public:
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io; }
+  Network::IoContextWrapper getIoContext() { return _io; }
 
 protected:
   Network::IoContextWrapper _io;

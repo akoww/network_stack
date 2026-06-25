@@ -135,7 +135,7 @@ TEST_F(IoContextFixture, ConnectSecondReturnsError)
   FtpFileTransfer ftp("127.0.0.1", FTP_UNAVAILABLE_PORT, getIoContext());
   FtpFileTransfer::ConnectOptions opts;
   opts.timeout = std::chrono::milliseconds(200);
-  ftp.connect(opts);
+  (void)ftp.connect(opts);
   auto second = ftp.connect(opts);
   EXPECT_FALSE(second.has_value()) << "second connect should also fail";
 }
@@ -145,8 +145,8 @@ TEST_F(IoContextFixture, IsAliveAfterDoubleConnect)
   FtpFileTransfer ftp("127.0.0.1", FTP_UNAVAILABLE_PORT, getIoContext());
   FtpFileTransfer::ConnectOptions opts;
   opts.timeout = std::chrono::milliseconds(200);
-  ftp.connect(opts);
-  ftp.connect(opts);
+  (void)ftp.connect(opts);
+  (void)ftp.connect(opts);
   EXPECT_FALSE(ftp.isAlive()) << "isAlive() after double connect should return false";
 }
 

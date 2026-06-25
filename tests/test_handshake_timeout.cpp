@@ -99,14 +99,14 @@ TEST_F(AsyncClientServerFixture, PlainClientToTlsServerTimeout)
   hs_timeout_opts.verify_peer = false;
 
   // Start the TLS echo server in a background coroutine.
-  EchoServer server(PORT, getIoContext().get_executor());
+  EchoServer server(PORT, getIoContext());
 
   auto tls_server_opts = TlsServerOptions{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
   spdlog::debug("[timeout_test] Starting TLS echo server on port {} with handshake_timeout=100ms", PORT);
 
   auto listen_future = asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [&server, tls_opts = std::move(hs_timeout_opts),
      tls_server_opts]() -> asio::awaitable<std::expected<void, std::error_code>>
     {
@@ -127,12 +127,12 @@ TEST_F(AsyncClientServerFixture, PlainClientToTlsServerTimeout)
   spdlog::debug("[timeout_test] Starting plain TCP client (port='{}'...)", PORT);
 
   asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [this, port = PORT]() mutable -> asio::awaitable<void>
     {
       std::error_code ec;
-      asio::ip::tcp::socket sock(asio::make_strand(getIoContext().get_executor()));
-      asio::ip::tcp::resolver resolver(asio::make_strand(getIoContext().get_executor()));
+      asio::ip::tcp::socket sock(asio::make_strand(detail::getExecutor(getIoContext())));
+      asio::ip::tcp::resolver resolver(asio::make_strand(detail::getExecutor(getIoContext())));
       auto endpoints = co_await resolver.async_resolve("127.0.0.1", std::to_string(port), asio::use_awaitable);
       co_await asio::async_connect(sock, endpoints, asio::redirect_error(asio::use_awaitable, ec));
 
@@ -144,7 +144,7 @@ TEST_F(AsyncClientServerFixture, PlainClientToTlsServerTimeout)
       spdlog::debug("[timeout_test] Client connected, now waiting 300s...");
 
       // Wait so we can observe that the server times out.
-      asio::steady_timer timer(asio::make_strand(getIoContext().get_executor()), std::chrono::seconds(1));
+      asio::steady_timer timer(asio::make_strand(detail::getExecutor(getIoContext())), std::chrono::seconds(1));
       co_await timer.async_wait(asio::use_awaitable);
 
       spdlog::debug("[timeout_test] Client done, leaving server hanging with unhandled TLS connection");
@@ -179,7 +179,7 @@ TEST_F(AsyncClientServerFixture, TlsClientToPlainServerTimeout)
 
   spdlog::debug("[timeout_test] Starting blackhole TCP server on port {}", PORT);
 
-  auto blackhole_server = std::make_shared<BlackholeTcpServer>(PORT, getIoContext().get_executor());
+  auto blackhole_server = std::make_shared<BlackholeTcpServer>(PORT, detail::getExecutor(getIoContext()));
   blackhole_server->start();
 
   // Wait a bit to give the accept loop time to start.
@@ -194,12 +194,12 @@ TEST_F(AsyncClientServerFixture, TlsClientToPlainServerTimeout)
 
   auto timeout_future = asio::co_spawn(
 
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [this, port = PORT, &tls_opts]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
     {
       spdlog::debug("[timeout_test] Client asyncConnectTls to port {}", static_cast<int>(port));
 
-      Client client("127.0.0.1", PORT, getIoContext().get_executor());
+      Client client("127.0.0.1", PORT, getIoContext());
 
       auto result = co_await client.asyncConnectTls(std::chrono::milliseconds(5), TcpOptions{}, tls_opts);
 

@@ -21,11 +21,11 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
   constexpr std::size_t total_bytes = 10 * 1024 * 1024;  // 10MB
   constexpr std::size_t chunk_size = 64 * 1024;          // 64KB
 
-  EchoServer server(TLS_BW_PORT, getIoContext().get_executor());
+  EchoServer server(TLS_BW_PORT, getIoContext());
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
   asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [&server, tls_opts = std::move(tls_opts)]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListenTls(tls_opts);
@@ -35,10 +35,10 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   auto connect_future = asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
+      Client client("127.0.0.1", TLS_BW_PORT, getIoContext());
       co_return co_await client.asyncConnectTls(std::chrono::milliseconds{2000}, {},
                                                 Network::TlsOptions{.verify_peer = false});
     },
@@ -65,7 +65,7 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
 
     auto sock_ptr_for_capture = client_socket.get();
     auto send_future = asio::co_spawn(
-      getIoContext().get_executor(),
+      detail::getExecutor(getIoContext()),
       [sock = sock_ptr_for_capture, buf = data_ref]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
       { return sock->asyncWriteAll(buf); }, asio::use_future);
 
@@ -85,7 +85,7 @@ TEST_F(AsyncClientServerFixture, AsyncTlsCiBandwidth)
       auto sock_for_read = client_socket.get();
 
       auto recv_future = asio::co_spawn(
-        getIoContext().get_executor(),
+        detail::getExecutor(getIoContext()),
         [sock = sock_for_read, &bufs, sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return sock->asyncReadSome(std::span(bufs).first(sz)); }, asio::use_future);
 

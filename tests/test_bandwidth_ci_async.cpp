@@ -20,10 +20,10 @@ TEST_F(AsyncClientServerFixture, AsyncCiBandwidth)
   constexpr std::size_t chunk_size = 1024 * 16 * 16;
   // constexpr std::size_t total_bytes = 96 * chunk_size;  // 10MB
 
-  EchoServer server(BW_PORT, getIoContext().get_executor());
+  EchoServer server(BW_PORT, getIoContext());
 
   asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [&server]() -> asio::awaitable<void>
     {
       auto listen_result = co_await server.asyncListen();
@@ -33,10 +33,10 @@ TEST_F(AsyncClientServerFixture, AsyncCiBandwidth)
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto connect_future = asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [this]() -> asio::awaitable<std::expected<std::unique_ptr<AsyncSocket>, std::error_code>>
     {
-      Client client("127.0.0.1", BW_PORT, getIoContext().get_executor());
+      Client client("127.0.0.1", BW_PORT, getIoContext());
       co_return co_await client.asyncConnect();
     },
     asio::use_future);
@@ -64,7 +64,7 @@ TEST_F(AsyncClientServerFixture, AsyncCiBandwidth)
 
     auto sock_ptr_for_capture = client_socket.get();
     auto send_future = asio::co_spawn(
-      getIoContext().get_executor(),
+      detail::getExecutor(getIoContext()),
       [sock = sock_ptr_for_capture, buf = data_ref]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
       { return sock->asyncWriteAll(buf); }, asio::use_future);
 
@@ -92,7 +92,7 @@ TEST_F(AsyncClientServerFixture, AsyncCiBandwidth)
       auto sock_for_read = client_socket.get();
 
       auto recv_future = asio::co_spawn(
-        getIoContext().get_executor(),
+        detail::getExecutor(getIoContext()),
         [sock = sock_for_read, &bufs, sz = to_read]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
         { return sock->asyncReadSome(std::span(bufs).first(sz)); }, asio::use_future);
 

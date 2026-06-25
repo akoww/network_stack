@@ -81,7 +81,7 @@ public:
       });
   }
 
-  EchoServer(uint16_t port, asio::any_io_executor io_ctx)
+  EchoServer(uint16_t port, IoContextWrapper io_ctx)
     : Server(port, io_ctx, [this](std::unique_ptr<DualSocket> sock) { handle_client(std::move(sock)); })
   {
   }
@@ -142,7 +142,7 @@ public:
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io; }
+  Network::IoContextWrapper getIoContext() { return _io; }
 
 protected:
   Network::IoContextWrapper _io;

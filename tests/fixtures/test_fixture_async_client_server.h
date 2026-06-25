@@ -5,6 +5,7 @@
 
 #include "client/Client.h"
 #include "core/Context.h"
+#include "core/details/ContextDetail.h"
 #include "server/Server.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
@@ -114,9 +115,11 @@ public:
     spdlog::info("stopped server");
   }
 
-  EchoServer(uint16_t port, asio::any_io_executor io_ctx)
-    : Server(
-        port, io_ctx, [this, io_ctx](std::unique_ptr<DualSocket> sock) { handle_client_impl(io_ctx, std::move(sock)); })
+  EchoServer(uint16_t port, IoContextWrapper io_ctx)
+    : Server(port,
+             io_ctx,
+             [this, io_ctx = detail::getExecutor(io_ctx)](std::unique_ptr<DualSocket> sock)
+             { handle_client_impl(io_ctx, std::move(sock)); })
   {
     spdlog::info("created server");
   }
@@ -141,7 +144,7 @@ public:
 
   void TearDown() override {}
 
-  Network::IoContextWrapper& getIoContext() { return _io; }
+  Network::IoContextWrapper getIoContext() { return _io; }
 
 protected:
   Network::IoContextWrapper _io;

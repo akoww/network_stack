@@ -21,7 +21,7 @@ TEST_F(SyncClientServerFixture, SyncTlsCiBandwidth)
   constexpr std::size_t total_bytes = 10 * 1024 * 1024;  // 10MB
   constexpr std::size_t chunk_size = 64 * 1024;          // 64KB
 
-  EchoServer server(TLS_BW_PORT, getIoContext().get_executor());
+  EchoServer server(TLS_BW_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -32,7 +32,7 @@ TEST_F(SyncClientServerFixture, SyncTlsCiBandwidth)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-  Client client("127.0.0.1", TLS_BW_PORT, getIoContext().get_executor());
+  Client client("127.0.0.1", TLS_BW_PORT, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   ASSERT_TRUE(connect_result.has_value()) << "Client TLS connect failed";

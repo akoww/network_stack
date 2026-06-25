@@ -4,6 +4,7 @@
 
 // Include your header
 #include "core/Context.h"
+#include "core/details/ContextDetail.h"
 
 using namespace Network;
 
@@ -12,7 +13,7 @@ TEST(IoContextWrapperTest, ExecuteTaskViaPost)
   IoContextWrapper ctx;
   std::atomic<bool> task_done{false};
 
-  asio::post(ctx.get_executor(), [&task_done]() { task_done.store(true); });
+  asio::post(detail::getExecutor(ctx), [&task_done]() { task_done.store(true); });
 
   while (!task_done.load())
   {
@@ -32,7 +33,7 @@ TEST(IoContextWrapperTest, DirectPostIfAccessible)
 
   try
   {
-    asio::post(ctx.get_executor(),
+    asio::post(detail::getExecutor(ctx),
                [&task_done]()
                {
                  std::cout << "running\n";

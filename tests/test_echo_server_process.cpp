@@ -225,7 +225,7 @@ TEST(ProcEcho, SingleMessage)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value()) << "Connect: " << sock_res.error().message();
 
@@ -255,7 +255,7 @@ TEST(ProcEcho, MultipleMessages)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value());
 
@@ -287,7 +287,7 @@ TEST(ProcEcho, LargeBinaryPayload)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_plain_env.port(), io_ctx);
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     ASSERT_TRUE(sock_res.has_value());
 
@@ -330,7 +330,7 @@ TEST(ProcEcho, ConnectToDeadServer)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", test_port, io_ctx.get_executor());
+    Network::Client client("127.0.0.1", test_port, io_ctx);
     auto sock_res = client.connect(std::chrono::milliseconds{1000});
     // Should fail since port is no longer bound — or get ECONNREFUSED/ETIMEDOUT
     EXPECT_FALSE(sock_res.has_value()) << "Should not connect to dead server";
@@ -351,7 +351,7 @@ TEST(ProcEchoTLS, SingleMessage)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value()) << "TLS connect: " << sock_res.error().message();
@@ -382,7 +382,7 @@ TEST(ProcEchoTLS, MultipleMessages)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value());
@@ -415,7 +415,7 @@ TEST(ProcEchoTLS, TLSLargePayload)
   Network::IoContextWrapper io_ctx;
 
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
 
     auto sock_res = client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     ASSERT_TRUE(sock_res.has_value());
@@ -454,7 +454,7 @@ TEST(ProcEchoTLS, PlainClientToTLSServer)
 
   // Connect a plain client to the TLS server — should gracefully disconnect
   {
-    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx.get_executor());
+    Network::Client client("127.0.0.1", g_tls_env.port(), io_ctx);
     auto sock_res = client.connect(std::chrono::milliseconds{2000});
     if (!sock_res.has_value())
     {

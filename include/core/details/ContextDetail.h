@@ -1,6 +1,9 @@
 #pragma once
 #include "../Context.h"
+
 #include <asio.hpp>
+#include <asio/io_context.hpp>
+#include <asio/thread_pool.hpp>
 
 namespace Network
 {

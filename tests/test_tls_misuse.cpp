@@ -40,12 +40,12 @@ TEST_F(IoContextFixture, TlsClientToPlainServer)
 {
   constexpr uint16_t port = 50000;
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server]() { server.listen(); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server]() { static_cast<void>(server.listen()); });
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -65,11 +65,11 @@ TEST_F(IoContextFixture, PlainClientToTlsServer)
   constexpr uint16_t port = 50001;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value()) << "Plain client should connect at TCP level";
 
@@ -97,11 +97,11 @@ TEST_F(IoContextFixture, PlainWriteToTlsServerGarbledRead)
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result = client.connect();
   ASSERT_TRUE(connect_result.has_value());
 
@@ -128,11 +128,11 @@ TEST_F(IoContextFixture, TlsWriteToPlainServer)
 {
   constexpr uint16_t port = 50003;
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server]() { server.listen(); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server]() { static_cast<void>(server.listen()); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -155,13 +155,13 @@ TEST_F(IoContextFixture, MissingCertificate)
 {
   constexpr uint16_t port = 50004;
 
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
   auto empty_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
 
-  std::thread server_thread([&server]() { server.listenTls(); });
+  std::thread server_thread([&server]() { static_cast<void>(server.listenTls()); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -177,7 +177,7 @@ TEST_F(IoContextFixture, MissingPrivateKey)
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), ""};
 
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
   std::thread server_thread(
     [&server, tls_opts]()
     {
@@ -196,7 +196,7 @@ TEST_F(IoContextFixture, SelfSignedVerifyPeer)
   constexpr uint16_t port = 50006;
 
   TlsServerOptions tls_opts{Network::Test::SelfSignedCertPath(), Network::Test::SelfSignedKeyPath()};
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
 
   std::thread server_thread(
     [&server, &tls_opts]()
@@ -206,7 +206,7 @@ TEST_F(IoContextFixture, SelfSignedVerifyPeer)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = true});
 
@@ -225,7 +225,7 @@ TEST_F(IoContextFixture, SelfSignedAcceptAny)
 {
   constexpr uint16_t port = 50007;
 
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
   TlsServerOptions tls_opts{Network::Test::SelfSignedCertPath(), Network::Test::SelfSignedKeyPath()};
 
   std::thread server_thread(
@@ -236,7 +236,7 @@ TEST_F(IoContextFixture, SelfSignedAcceptAny)
     });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -271,7 +271,7 @@ TEST_F(IoContextFixture, WrongKeyPair)
   constexpr uint16_t port = 50008;
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ClientKeyPath()};
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
 
   std::thread server_thread(
     [&server, &tls_opts]()
@@ -295,14 +295,14 @@ TEST_F(IoContextFixture, TlsConnectThenServerStop)
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   server.stop();
   server_thread.join();
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   EXPECT_FALSE(connect_result.has_value()) << "Client should not connect to stopped server";
@@ -316,13 +316,13 @@ TEST_F(IoContextFixture, TlsHandshakeRepeated)
   constexpr uint16_t port = 50012;
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   for (int i = 0; i < 10; ++i)
   {
-    Client client("127.0.0.1", port, getIoContext().get_executor());
+    Client client("127.0.0.1", port, getIoContext());
     auto connect_result =
       client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -357,14 +357,14 @@ TEST_F(IoContextFixture, TlsConnectDisconnectRepeated)
   constexpr int iterations = 50;
 
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   int success_count = 0;
   for (int i = 0; i < iterations; ++i)
   {
-    Client client("127.0.0.1", port, getIoContext().get_executor());
+    Client client("127.0.0.1", port, getIoContext());
     auto connect_result =
       client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
     if (!connect_result)
@@ -403,11 +403,11 @@ TEST_F(IoContextFixture, TlsSocketGetSocket)
   constexpr uint16_t port = 50014;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -443,7 +443,7 @@ TEST_F(IoContextFixture, TlsReadOnUnconnected)
   auto runner = std::thread([&]() { io_ctx.run(); });
 
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
-  asio::ip::tcp::socket sock(getIoContext().get_executor());
+  asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
   asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
   TlsSocket socket(std::move(stream));
 
@@ -459,7 +459,7 @@ TEST_F(IoContextFixture, TlsWriteOnUnconnected)
   asio::io_context io_ctx;
 
   auto ssl_ctx = std::make_shared<asio::ssl::context>(asio::ssl::context::sslv23);
-  asio::ip::tcp::socket sock(getIoContext().get_executor());
+  asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
   asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *ssl_ctx);
   TlsSocket socket(std::move(stream));
 
@@ -482,11 +482,11 @@ TEST_F(IoContextFixture, TlsZeroLengthWrite)
   constexpr uint16_t port = 50015;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -506,8 +506,8 @@ TEST_F(IoContextFixture, TlsLargePayload)
   constexpr std::size_t payload_size = 100 * 1024;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::vector<std::byte> payload(payload_size);
@@ -516,7 +516,7 @@ TEST_F(IoContextFixture, TlsLargePayload)
     payload[i] = static_cast<std::byte>(static_cast<unsigned char>(i % 256));
   }
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -554,8 +554,8 @@ TEST_F(IoContextFixture, TlsBinaryData)
   constexpr uint16_t port = 50017;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::array<std::byte, 256> binary_data{};
@@ -564,7 +564,7 @@ TEST_F(IoContextFixture, TlsBinaryData)
     binary_data[i] = static_cast<std::byte>(static_cast<unsigned char>(i));
   }
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -602,13 +602,13 @@ TEST_F(IoContextFixture, TlsConcurrentReadWrite)
   constexpr uint16_t port = 50018;
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server, &tls_opts]() { server.listenTls(tls_opts); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server, &tls_opts]() { void(server.listenTls(tls_opts)); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   std::atomic<std::size_t> total_read{0};
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
 
@@ -658,14 +658,14 @@ TEST_F(IoContextFixture, AsyncTlsConnectToPlain)
 {
   constexpr uint16_t port = 50019;
 
-  EchoServer server(port, getIoContext().get_executor());
-  std::thread server_thread([&server]() { server.listen(); });
+  EchoServer server(port, getIoContext());
+  std::thread server_thread([&server]() { static_cast<void>(server.listen()); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", port, getIoContext().get_executor());
+  Client client("127.0.0.1", port, getIoContext());
 
   auto connect_future = asio::co_spawn(
-    getIoContext().get_executor(),
+    detail::getExecutor(getIoContext()),
     [&client]() -> asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>>
     {
       co_return co_await client.asyncConnectTls(std::chrono::milliseconds{2000}, {},
@@ -691,11 +691,11 @@ TEST_F(IoContextFixture, AsyncTlsServerListenFail)
 {
   constexpr uint16_t port = 50020;
 
-  EchoServer server(port, getIoContext().get_executor());
+  EchoServer server(port, getIoContext());
   TlsServerOptions tls_opts{"/nonexistent/path/server.crt", "/nonexistent/path/server.crt"};
 
   auto listen_future = asio::co_spawn(
-    getIoContext().get_executor(), [&server, &tls_opts]() -> asio::awaitable<std::expected<void, std::error_code>>
+    detail::getExecutor(getIoContext()), [&server, &tls_opts]() -> asio::awaitable<std::expected<void, std::error_code>>
     { co_return co_await server.asyncListenTls(tls_opts); }, asio::use_future);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));

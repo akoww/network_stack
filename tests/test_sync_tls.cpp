@@ -22,7 +22,7 @@ constexpr uint16_t TEST_TLS_PORT = 12347;
 
 TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
 {
-  EchoServer server(TEST_TLS_PORT, getIoContext().get_executor());
+  EchoServer server(TEST_TLS_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -33,7 +33,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", TEST_TLS_PORT, getIoContext().get_executor());
+  Client client("127.0.0.1", TEST_TLS_PORT, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client with TLS";
@@ -58,7 +58,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerSingleMessage)
 
 TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
 {
-  EchoServer server(TEST_TLS_PORT, getIoContext().get_executor());
+  EchoServer server(TEST_TLS_PORT, getIoContext());
   std::thread server_thread(
     [&server]()
     {
@@ -69,7 +69,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  Client client("127.0.0.1", TEST_TLS_PORT, getIoContext().get_executor());
+  Client client("127.0.0.1", TEST_TLS_PORT, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   ASSERT_TRUE(connect_result.has_value()) << "Cant connect client with TLS";
@@ -97,7 +97,7 @@ TEST_F(SyncClientServerFixture, TlsEchoServerMultipleMessages)
 
 TEST_F(SyncClientServerFixture, TlsConnectionRefused)
 {
-  Client client("127.0.0.1", 59998, getIoContext().get_executor());
+  Client client("127.0.0.1", 59998, getIoContext());
   auto connect_result =
     client.connectTls(std::chrono::milliseconds{2000}, {}, Network::TlsOptions{.verify_peer = false});
   EXPECT_FALSE(connect_result.has_value());
