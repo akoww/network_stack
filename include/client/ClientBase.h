@@ -45,7 +45,7 @@ private:
 
 protected:
   IoContextWrapper _io_ctx;
-  /// @brief Protected member for SSL context. Subclasses (like Client) can access this directly.
+  /// @brief Protected member for TLS context. Subclasses (like Client) can access this directly.
   std::shared_ptr<asio::ssl::context> _ssl_context = nullptr;
 };
 

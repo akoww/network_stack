@@ -164,6 +164,7 @@ target_sources(network_stack_core
         src/core/Context.cpp
         src/core/ErrorCodes.cpp
         src/core/ErrorTranslation.cpp
+        src/core/TlsContextWrapper.cpp
 
         src/socket/SocketBase.cpp
         src/socket/TcpSocket.cpp
