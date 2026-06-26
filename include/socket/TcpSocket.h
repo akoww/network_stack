@@ -8,6 +8,11 @@
 namespace Network
 {
 
+namespace detail
+{
+struct TcpSocketAccess;
+}
+
 /// @brief TCP socket implementation using ASIO.
 /// Supports both synchronous and asynchronous operations.
 /// This class implements both SyncSocket and AsyncSocket interfaces,
@@ -25,7 +30,10 @@ namespace Network
 class TcpSocket : public DualSocket
 {
 private:
-  asio::ip::tcp::socket _socket;
+  struct Private;
+  std::shared_ptr<Private> _p;
+
+  friend detail::TcpSocketAccess;
 
 public:
   /// @brief Construct by moving in an existing socket.
@@ -39,8 +47,6 @@ public:
   void cancelSocket() noexcept override;
 
   bool isConnectionClosed(const std::error_code& ec) const noexcept override;
-
-  asio::ip::tcp::socket& getSocket() { return _socket; }
 
   // sync
 

@@ -2,7 +2,10 @@
 
 #include "core/ErrorCodes.h"
 #include "socket/SocketBase.h"
+#include "socket/details/TlsSocketDetail.h"
+#include "socket/details/TcpSocketDetail.h"
 
+#include <asio/cancellation_signal.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/bind_cancellation_slot.hpp>
 #include <asio/buffer.hpp>
@@ -22,6 +25,31 @@
 
 namespace Network
 {
+
+struct SocketBase::Private
+{
+  asio::cancellation_signal cancel_signal;
+};
+
+namespace detail
+{
+
+struct SocketAccess
+{
+  static asio::cancellation_signal& cancelSignal(SocketBase& sock) { return sock._p->cancel_signal; };
+  static const asio::cancellation_signal& cancelSignal(const SocketBase& sock) { return sock._p->cancel_signal; };
+};
+
+inline asio::cancellation_signal& cancelSignal(SocketBase& socket)
+{
+  return SocketAccess::cancelSignal(socket);
+}
+
+inline const asio::cancellation_signal& cancelSignal(const SocketBase& socket)
+{
+  return SocketAccess::cancelSignal(socket);
+}
+}  // namespace detail
 
 namespace socket_detail
 {
@@ -50,7 +78,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadWithTimeou
                                                                                   MutableBuffer buffer,
                                                                                   std::chrono::milliseconds timeout)
 {
-  auto& underlyingSocket = socket.getSocket();
+  auto& underlyingSocket = detail::getSocket(socket);
   auto executor = co_await asio::this_coro::executor;
 
   std::atomic<bool> timed_out{false};
@@ -68,8 +96,8 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadWithTimeou
 
   std::error_code read_ec;
   auto bytes = co_await underlyingSocket.async_read_some(
-    buffer,
-    asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::redirect_error(asio::use_awaitable, read_ec)));
+    buffer, asio::bind_cancellation_slot(detail::cancelSignal(socket).slot(),
+                                         asio::redirect_error(asio::use_awaitable, read_ec)));
 
   timer.cancel();
 
@@ -91,7 +119,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncReadSomeCommon
   SocketType& socket, std::span<std::byte> out, std::optional<std::chrono::milliseconds> timeout)
 {
   auto& readBuffer = socket.getReadBuffer();
-  auto& underlyingSocket = socket.getSocket();
+  auto& underlyingSocket = detail::getSocket(socket);
 
   if (!socket.isConnected())
   {
@@ -261,7 +289,7 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   if (!timeout)
     timeout = std::chrono::hours(24);
 
-  auto& underlyingSocket = socket.getSocket();
+  auto& underlyingSocket = detail::getSocket(socket);
   auto executor = co_await asio::this_coro::executor;
 
   std::atomic<bool> timed_out{false};
@@ -280,9 +308,10 @@ asio::awaitable<std::expected<std::size_t, std::error_code>> asyncWriteAllCommon
   spdlog::debug("[{}] writing {} bytes (timeout={}ms)", socket.getId(), buffer.size(), timeout->count());
 
   std::error_code write_ec;
-  auto bytes = co_await asio::async_write(
-    underlyingSocket, asio::buffer(buffer),
-    asio::bind_cancellation_slot(socket.cancelSignal().slot(), asio::redirect_error(asio::use_awaitable, write_ec)));
+  auto bytes =
+    co_await asio::async_write(underlyingSocket, asio::buffer(buffer),
+                               asio::bind_cancellation_slot(detail::cancelSignal(socket).slot(),
+                                                            asio::redirect_error(asio::use_awaitable, write_ec)));
 
   timer.cancel();
 

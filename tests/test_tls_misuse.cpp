@@ -22,6 +22,7 @@
 #include "socket/SocketBase.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
+#include "socket/details/TlsSocketDetail.h"
 
 #include <asio.hpp>
 #include <asio/awaitable.hpp>
@@ -419,7 +420,8 @@ TEST_F(IoContextFixture, TlsSocketGetSocket)
   auto* ssl_sock = dynamic_cast<TlsSocket*>(client_socket.get());
   ASSERT_NE(ssl_sock, nullptr) << "Socket should be TlsSocket";
 
-  auto& ssl_stream = ssl_sock->getSocket();
+  auto& ssl_stream = detail::getSocket(*ssl_sock);
+
   EXPECT_TRUE(ssl_stream.next_layer().is_open());
 
   const std::string msg = "ssl socket check";

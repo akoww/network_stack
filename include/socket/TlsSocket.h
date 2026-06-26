@@ -10,10 +10,18 @@
 namespace Network
 {
 
+namespace detail
+{
+struct TlsSocketAccess;
+}
+
 class TlsSocket : public DualSocket
 {
 private:
-  asio::ssl::stream<asio::ip::tcp::socket> _stream;
+  struct Private;
+  std::shared_ptr<Private> _p;
+
+  friend detail::TlsSocketAccess;
 
 public:
   explicit TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream);
@@ -25,8 +33,6 @@ public:
   void cancelSocket() noexcept override;
 
   bool isConnectionClosed(const std::error_code& ec) const noexcept override;
-
-  asio::ssl::stream<asio::ip::tcp::socket>& getSocket() { return _stream; }
 
   std::expected<std::size_t, std::error_code> writeAll(
     std::span<const std::byte> in_buffer, std::optional<std::chrono::milliseconds> timeout = std::nullopt) override;

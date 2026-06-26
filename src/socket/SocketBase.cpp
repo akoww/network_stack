@@ -1,4 +1,5 @@
 #include "socket/SocketBase.h"
+#include "socket/details/SocketBaseDetail.h"
 
 #include <atomic>
 #include <spdlog/spdlog.h>
@@ -11,7 +12,7 @@ namespace
 std::atomic<unsigned int> id_counter = 0;
 }
 
-SocketBase::SocketBase() : _id(id_counter++)
+SocketBase::SocketBase() : _id(id_counter++), _p(std::make_shared<Private>())
 {
   spdlog::trace("[{}] socket created", _id);
 }
@@ -24,7 +25,7 @@ unsigned int SocketBase::getId() const
 void SocketBase::cancelSocket()
 {
   spdlog::trace("[{}] cancelling socket", _id);
-  _cancel_signal.emit(asio::cancellation_type_t::all);
+  detail::cancelSignal(*this).emit(asio::cancellation_type_t::all);
 }
 
 }  // namespace Network

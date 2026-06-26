@@ -1,4 +1,6 @@
 #include "socket/TlsSocket.h"
+#include "socket/details/TlsSocketDetail.h"
+
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
 #include <socket/details/SocketBaseDetail.h>
@@ -24,7 +26,7 @@
 namespace Network
 {
 
-TlsSocket::TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _stream(std::move(stream))
+TlsSocket::TlsSocket(asio::ssl::stream<asio::ip::tcp::socket> stream) : _p(std::make_shared<Private>(std::move(stream)))
 {
   spdlog::trace("[{}] SSL socket created", getId());
 }
@@ -38,26 +40,26 @@ TlsSocket::~TlsSocket()
 
 void TlsSocket::closeSocket() noexcept
 {
-  if (_stream.next_layer().is_open())
+  if (detail::getSocket(*this).next_layer().is_open())
   {
     std::error_code ec;
-    _stream.next_layer().close(ec);
+    detail::getSocket(*this).next_layer().close(ec);
   }
 }
 
 void TlsSocket::cancelSocket() noexcept
 {
   SocketBase::cancelSocket();
-  if (_stream.next_layer().is_open())
+  if (detail::getSocket(*this).next_layer().is_open())
   {
     std::error_code ec;
-    _stream.next_layer().cancel(ec);
+    detail::getSocket(*this).next_layer().cancel(ec);
   }
 }
 
 bool TlsSocket::isConnected() const noexcept
 {
-  return _stream.next_layer().is_open();
+  return detail::getSocket(*this).next_layer().is_open();
 }
 
 bool TlsSocket::isConnectionClosed(const std::error_code& ec) const noexcept
@@ -72,7 +74,7 @@ std::expected<std::size_t, std::error_code> TlsSocket::writeAll(std::span<const 
   spdlog::debug("[{}] SSL writeAll {} bytes", getId(), in_buffer.size());
 
   auto future = asio::co_spawn(
-    _stream.next_layer().get_executor(),
+    detail::getSocket(*this).next_layer().get_executor(),
     [this, in_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncWriteAll(in_buffer, timeout); }, asio::use_future);
 
@@ -92,7 +94,7 @@ std::expected<std::size_t, std::error_code> TlsSocket::readSome(std::span<std::b
   spdlog::trace("[{}] SSL readSome", getId());
 
   auto future = asio::co_spawn(
-    _stream.next_layer().get_executor(),
+    detail::getSocket(*this).next_layer().get_executor(),
     [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadSome(out_buffer, timeout); }, asio::use_future);
 
@@ -116,7 +118,7 @@ std::expected<std::size_t, std::error_code> TlsSocket::readExact(std::span<std::
 {
   spdlog::trace("[{}] SSL readExact", getId());
   auto future = asio::co_spawn(
-    _stream.next_layer().get_executor(),
+    detail::getSocket(*this).next_layer().get_executor(),
     [this, out_buffer, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadExact(out_buffer, timeout); }, asio::use_future);
 
@@ -142,7 +144,7 @@ std::expected<std::size_t, std::error_code> TlsSocket::readUntil(std::span<std::
   spdlog::trace("[{}] SSL readUntil '{}'", getId(), delimiter);
 
   auto future = asio::co_spawn(
-    _stream.next_layer().get_executor(),
+    detail::getSocket(*this).next_layer().get_executor(),
     [this, out_buffer, delimiter, timeout]() -> asio::awaitable<std::expected<std::size_t, std::error_code>>
     { return asyncReadUntil(out_buffer, delimiter, timeout); }, asio::use_future);
 
