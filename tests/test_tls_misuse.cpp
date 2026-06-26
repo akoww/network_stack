@@ -445,9 +445,10 @@ TEST_F(IoContextFixture, TlsReadOnUnconnected)
   auto runner = std::thread([&]() { io_ctx.run(); });
 
   Network::TlsOptions tls_opts{};
-  Network::TlsContextWrapper ctx_wrapper(tls_opts);
+  auto ctx_result = Network::createTlsContextWrapper(tls_opts);
+  EXPECT_TRUE(ctx_result.has_value()) << "TLS context should be created successfully";
   asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
-  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(ctx_wrapper));
+  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(*ctx_result));
   TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};
@@ -462,9 +463,10 @@ TEST_F(IoContextFixture, TlsWriteOnUnconnected)
   asio::io_context io_ctx;
 
   Network::TlsOptions tls_opts{};
-  Network::TlsContextWrapper ctx_wrapper(tls_opts);
+  auto ctx_result = Network::createTlsContextWrapper(tls_opts);
+  EXPECT_TRUE(ctx_result.has_value()) << "TLS context should be created successfully";
   asio::ip::tcp::socket sock(detail::getExecutor(getIoContext()));
-  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(ctx_wrapper));
+  asio::ssl::stream<asio::ip::tcp::socket> stream(std::move(sock), *Network::detail::getTlsContext(*ctx_result));
   TlsSocket socket(std::move(stream));
 
   std::array<std::byte, 1024> buffer{};

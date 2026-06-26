@@ -170,7 +170,8 @@ int main(int argc, char** argv)
   if (!opts.cert_chain.empty() && !opts.private_key.empty())
   {
     TlsServerOptions tls_opts{opts.cert_chain, opts.private_key};
-    TlsContextWrapper ctx_wrapper({}, &tls_opts);
+    // Factory function validates file existence
+    (void)Network::createTlsContextWrapper({}, &tls_opts);
     auto const result = server.listenTls(tls_opts);
     if (result)
     {

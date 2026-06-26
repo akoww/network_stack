@@ -1,6 +1,7 @@
 #include "client/Client.h"
 #include "core/ErrorCodes.h"
 #include "core/ErrorTranslation.h"
+#include "core/TlsContextWrapper.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpOptions.h"
 #include "socket/details/SocketBaseDetail.h"
@@ -394,8 +395,12 @@ asio::awaitable<std::expected<std::unique_ptr<DualSocket>, std::error_code>> Cli
     co_return std::unexpected(apply_opts_ec);
   }
 
-  TlsContextWrapper tls_wrapper(tls_opts);
-  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(sock), *detail::getTlsContext(tls_wrapper));
+  auto ctx_result = createTlsContextWrapper(tls_opts);
+  if (!ctx_result)
+  {
+    co_return std::unexpected(ctx_result.error());
+  }
+  asio::ssl::stream<asio::ip::tcp::socket> ssl_stream(std::move(sock), *detail::getTlsContext(*ctx_result));
 
   if (auto tls_ec = applyPreConnectTlsOptions(ssl_stream, tls_opts))
   {

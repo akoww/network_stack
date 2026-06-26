@@ -125,10 +125,10 @@ inline std::string_view to_string_view(std::span<const std::byte> bytes, std::si
   return {reinterpret_cast<const char*>(bytes.data()), length};
 }
 
-inline std::pair<TlsServerOptions, TlsContextWrapper> createSslContextWithCert()
+inline TlsContextWrapper createSslContextWithCert()
 {
   TlsServerOptions tls_opts{Network::Test::ServerCertPath(), Network::Test::ServerKeyPath()};
-  return {tls_opts, TlsContextWrapper({}, &tls_opts)};
+  return Network::TlsContextWrapper({}, &tls_opts);
 }
 
 class SyncClientServerFixture : public ::testing::Test

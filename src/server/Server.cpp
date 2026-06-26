@@ -3,6 +3,7 @@
 #include "core/ErrorTranslation.h"
 #include "core/details/ContextDetail.h"
 #include "core/details/TlsContextDetail.h"
+#include "core/TlsContextWrapper.h"
 #include "socket/TlsSocket.h"
 #include "socket/TcpSocket.h"
 
@@ -344,7 +345,12 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(Tls
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  TlsContextWrapper tls_wrapper(tls_opts, &tls_server_opts);
+  auto ctx_result = createTlsContextWrapper(tls_opts, &tls_server_opts);
+  if (!ctx_result)
+  {
+    co_return std::unexpected(ctx_result.error());
+  }
+  TlsContextWrapper& tls_wrapper = *ctx_result;
 
   spdlog::trace("server async TLS started on {}:{}", host(), port());
 

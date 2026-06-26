@@ -1,6 +1,9 @@
 #include "core/TlsContextWrapper.h"
+#include "core/ErrorCodes.h"
 #include "core/details/TlsContextDetail.h"
 
+#include <expected>
+#include <filesystem>
 #include <spdlog/spdlog.h>
 
 #include <system_error>
@@ -180,6 +183,32 @@ void TlsContextWrapper::shutdown() noexcept
 #endif
     _p->context_.reset();
   }
+}
+
+std::expected<Network::TlsContextWrapper, std::error_code> createTlsContextWrapper(const TlsOptions& cfg,
+                                                                                   const TlsServerOptions* server_opts)
+{
+  // If no server options (client mode), just construct - always succeeds
+  if (!server_opts)
+  {
+    return Network::TlsContextWrapper(cfg, nullptr);
+  }
+
+  // Server mode: validate that files exist before creating context
+  std::error_code file_ec;
+
+  if (!server_opts->_cert_chain_path.empty() && !std::filesystem::exists(server_opts->_cert_chain_path, file_ec))
+  {
+    return std::unexpected(make_error_code(Error::TLS_CERT_LOAD_FAILURE));
+  }
+
+  if (!server_opts->_private_key_path.empty() && !std::filesystem::exists(server_opts->_private_key_path, file_ec))
+  {
+    return std::unexpected(make_error_code(Error::TLS_CERT_LOAD_FAILURE));
+  }
+
+  // All checks passed, create the wrapper
+  return Network::TlsContextWrapper(cfg, server_opts);
 }
 
 }  // namespace Network

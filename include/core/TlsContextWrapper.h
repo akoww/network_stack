@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <memory>
 
 namespace Network
@@ -28,5 +29,8 @@ private:
 
   friend detail::TlsContextAccess;
 };
+
+std::expected<Network::TlsContextWrapper, std::error_code> createTlsContextWrapper(
+  const TlsOptions& cfg, const TlsServerOptions* server_opts = nullptr);
 
 }  // namespace Network

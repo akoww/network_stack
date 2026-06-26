@@ -51,6 +51,9 @@ std::string ErrorCategory::message(int ev) const
     case Error::TLS_VALIDATION_FAILED:
       return "TLS certificate validation failed";
 
+    case Error::TLS_CERT_LOAD_FAILURE:
+      return "Failed to load TLS certificate or private key";
+
     case Error::SERVER_LISTEN_FAILED:
       return "Failed to start server listener";
 
