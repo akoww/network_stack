@@ -3,16 +3,20 @@
 #include <asio/ssl/context.hpp>
 #include "core/details/ContextDetail.h"
 #include "socket/TlsOptions.h"
+#include "server/details/ServerBaseDetail.h"
 #include "socket/TlsSocket.h"
 
 namespace Network
 {
 
 ServerBase::ServerBase(uint16_t port, IoContextWrapper io_ctx, ClientHandler handler)
-  : _acceptor(detail::getExecutor(io_ctx)), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx), _handler(std::move(handler))
+  : _p(std::make_unique<Private>(detail::getExecutor(io_ctx))), _host("0.0.0.0"), _port(port), _io_ctx(io_ctx),
+    _handler(std::move(handler))
 {
   spdlog::trace("ServerBase created on port {}", port);
 }
+
+ServerBase::~ServerBase() = default;
 
 ServerBase::ClientHandler ServerBase::clientHandler()
 {
@@ -33,7 +37,7 @@ void ServerBase::stop()
   spdlog::trace("closing server...");
   _stop_requested.store(true);
   std::error_code ec;
-  _acceptor.cancel(ec);
+  ServerAccess::getAcceptor(*this).cancel(ec);
   if (ec)
   {
     spdlog::warn("acceptor cancel error: {}", ec.message());

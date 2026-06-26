@@ -34,7 +34,9 @@ class ServerBase
 public:
   using ClientHandler = std::function<void(std::unique_ptr<DualSocket>)>;
 
-  virtual ~ServerBase() = default;
+  virtual ~ServerBase();
+  ServerBase(ServerBase&&) = delete;
+  ServerBase& operator=(ServerBase&&) = delete;
 
   /// @brief Construct with port and io_context.
   /// @param port Port to bind to (0 for dynamic assignment).
@@ -60,7 +62,10 @@ public:
 
 protected:
   std::atomic<bool> _stop_requested{false};
-  asio::ip::tcp::acceptor _acceptor;
+
+  struct Private;
+  friend struct ServerAccess;
+  std::unique_ptr<Private> _p;
 
   std::string _host;
   uint16_t _port;

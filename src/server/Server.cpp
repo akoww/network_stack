@@ -26,6 +26,7 @@
 #include <memory>
 #include <spdlog/spdlog.h>
 #include <system_error>
+#include "server/details/ServerBaseDetail.h"
 
 namespace Network
 {
@@ -100,28 +101,29 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen([[mayb
 
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
-  _acceptor.open(endpoint.protocol(), ec);
+  auto& acceptor = ServerAccess::getAcceptor(*this);
+  acceptor.open(endpoint.protocol(), ec);
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.set_option(asio::socket_base::reuse_address(tcp_opts.reuse_addr), ec);
+  acceptor.set_option(asio::socket_base::reuse_address(tcp_opts.reuse_addr), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.bind(endpoint, ec);
+  acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.listen(asio::socket_base::max_listen_connections, ec);
+  acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
@@ -136,7 +138,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListen([[mayb
     asio::ip::tcp::socket socket(executor);
 
     // TODO add timeout
-    co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
+    co_await acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
     {
@@ -317,28 +319,29 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(Tls
 
   asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), port());
 
-  _acceptor.open(endpoint.protocol(), ec);
+  auto& acceptor = ServerAccess::getAcceptor(*this);
+  acceptor.open(endpoint.protocol(), ec);
   if (ec)
   {
     spdlog::error("failed to open acceptor: {}", ec.message());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+  acceptor.set_option(asio::socket_base::reuse_address(true), ec);
   if (ec)
   {
     spdlog::error("failed to set reuse_address: {}", ec.message());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.bind(endpoint, ec);
+  acceptor.bind(endpoint, ec);
   if (ec)
   {
     spdlog::error("failed to bind to {}:{}", host(), port());
     co_return std::unexpected(makeSocketCreateError(ec));
   }
 
-  _acceptor.listen(asio::socket_base::max_listen_connections, ec);
+  acceptor.listen(asio::socket_base::max_listen_connections, ec);
   if (ec)
   {
     spdlog::error("failed to start listening: {}", ec.message());
@@ -359,7 +362,7 @@ asio::awaitable<std::expected<void, std::error_code>> Server::asyncListenTls(Tls
     ec = {};
     asio::ip::tcp::socket socket(executor);
 
-    co_await _acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
+    co_await acceptor.async_accept(socket, asio::redirect_error(asio::use_awaitable, ec));
 
     if (ec == asio::error::operation_aborted || ec == asio::error::bad_descriptor)
     {
@@ -459,10 +462,11 @@ asio::awaitable<void> Server::acceptTlsSocket(asio::ip::tcp::socket socket,
 
 void Server::stop()
 {
+  auto& acceptor = ServerAccess::getAcceptor(*this);
   spdlog::trace("server async stopping...");
   ServerBase::stop();
-  _acceptor.cancel();
-  _acceptor.close();
+  acceptor.cancel();
+  acceptor.close();
   spdlog::trace("server async stopped");
 }
 
