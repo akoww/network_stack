@@ -1,7 +1,7 @@
 # include/server/ - Server Abstractions
 
 ## Key Components
-- **`ServerBase.h`**: Holds common state (`host`, `port`, acceptor, TLS context) and defines `ClientHandler` (`std::function<void(std::unique_ptr<DualSocket>)>`).
+- **`ServerBase.h`**: Holds common state (`host`, `port`, acceptor, TLS context) and defines `ClientHandler` (`std::function<void(std::unique_ptr<DualSocket>)>`). Uses pimpl pattern (`std::unique_ptr<Private>`) with `ServerAccess` helper in `details/ServerBaseDetail.h`.
 - **`Server.h/cpp`**: Unified class implementing both `ServerSync` (`listen()`, `listenTls()`) and `ServerAsync` (`asyncListen()`, `asyncListenTls()`).
 
 ## Conventions

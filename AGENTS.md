@@ -15,15 +15,23 @@ cmake --build . --target test_error_code
 ```
 
 ## Lint & Format
-- **Format**: Chromium style, **Allman braces** (breaks *before* braces), 2-space indent, 120 col limit.
+- **Format**: Chromium style, **Allman braces** (breaks *before* braces), 2-space indent, 120 col limit (.clang-format).
 - **Tidy**: `clang-tidy -p build include/**/*.h src/**/*.cpp` (add `-fix` to auto-fix, or enable via `-DENABLE_CLANG_TIDY_FIX=ON`).
 
 ## Architecture
 Layered dependency: `core` < `socket` < `client`/`server` < `protocol`. Headers may only depend on earlier layers.
 - **`DualSocket`**: Unified sync/async socket. Returned as `std::unique_ptr<DualSocket>`.
 - **`Client` / `Server`**: Unified classes. No separate `*Sync`/`*Async` classes exist.
-- **`IoContextWrapper`**: Singleton wrapping `asio::io_context` with background thread.
+- **`IoContextWrapper`**: Singleton wrapping `asio::thread_pool` (not io_context directly) with background thread management (`start()`, `stop()`, `instance()`).
 - **Protocol**: `TicketPeer` (connection lifecycle), `TicketController`/`TicketWorker` (execution), `FtpFileTransfer` (FTP, depends on nlohmann_json).
+
+### Pimpl Pattern for Headers
+To reduce ASIO dependencies in public headers:
+- Sockets (`TcpSocket`, `TlsSocket`): Use `std::shared_ptr<Private>` with friend accessors in `include/*/%7Bdetail/,details%7D/*.h`.
+- Server: Uses `std::unique_ptr<Private>` with `ServerAccess` helper (see `include/server/details/ServerBaseDetail.h`).
+- TLS context: Uses `std::shared_ptr<Private>` with `TlsContextAccess` in `include/core/details/TlsContextDetail.h`.
+
+**Never include ASIO headers directly in `.h` files when a pimpl detail header can be used instead.**
 
 ## Code Conventions
 - **Naming**: `PascalCase` (classes), `camelCase` (functions/locals), `_camelCase` (private members), `ALL_CAPS` (constants/enums). Exception: `make_error_code()` is snake_case for ADL.
@@ -41,6 +49,10 @@ if (result) { /* *result */ } else { auto ec = result.error(); } // Never throw
 ## Async Rules
 - Use `asio::awaitable<T>` returning `std::expected<T, std::error_code>`.
 - **Server listen**: ALWAYS use `asio::co_spawn(io_ctx, server.asyncListen(), asio::detached)`. NEVER `co_await` directly (infinite loop).
+
+### TLS Context Creation
+- Server mode requires cert files to exist before context creation. Use `createTlsContextWrapper()` which validates files and returns `std::expected<TlsContextWrapper, error_code>`.
+- Client mode always succeeds. `Shutdown()` must be called before ~TlsContextWrapper().
 
 ## Testing Quirks
 - Tests are **separate executables** per file (via `add_separate_tests()`), not a monolith.
