@@ -48,7 +48,7 @@ public:
   virtual bool isConnectionClosed(const std::error_code& ec) const noexcept = 0;
 
   std::vector<std::byte>& getReadBuffer() { return _read_buffer; }
-  unsigned int getId() const;
+  [[nodiscard]] unsigned int getId() const;
 };
 
 /// @brief Synchronous socket interface.

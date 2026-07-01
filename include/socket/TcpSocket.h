@@ -41,12 +41,12 @@ public:
 
   ~TcpSocket() override;
 
-  bool isConnected() const noexcept override;
+  [[nodiscard]] bool isConnected() const noexcept override;
 
   void closeSocket() noexcept override;
   void cancelSocket() noexcept override;
 
-  bool isConnectionClosed(const std::error_code& ec) const noexcept override;
+  [[nodiscard]] bool isConnectionClosed(const std::error_code& ec) const noexcept override;
 
   // sync
 

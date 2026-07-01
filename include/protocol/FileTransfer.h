@@ -17,7 +17,6 @@ namespace Network
 /// must handle protocol-specific details.
 /// @section ftp_usage FTP Example
 /// ```cpp
-/// asio::io_context io_ctx;
 /// FtpFileTransfer ftp("example.com", 21, io_ctx);
 /// auto result = ftp.connect({.username = "user", .password = "pass"});
 /// if (result) {

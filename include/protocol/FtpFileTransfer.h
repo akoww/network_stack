@@ -38,7 +38,6 @@ private:
 /// Provides file transfer operations over FTP protocol using ASIO coroutines.
 /// @section connection Connect Example
 /// ```cpp
-/// asio::io_context io_ctx;
 /// FtpFileTransfer ftp("ftp.example.com", 21, io_ctx);
 /// auto result = ftp.connect({
 ///   .username = "user",

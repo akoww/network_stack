@@ -1,7 +1,6 @@
 #pragma once
 
 #include <asio/awaitable.hpp>
-#include <asio/io_context.hpp>
 #include <chrono>
 #include <cstddef>
 #include <expected>

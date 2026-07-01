@@ -170,6 +170,8 @@ target_sources(network_stack_core
         src/socket/TcpSocket.cpp
         src/socket/TcpImpl.cpp
         src/socket/TlsSocket.cpp
+        src/socket/TcpSocketFactory.cpp
+        src/socket/TlsSocketFactory.cpp
 
         src/client/ClientBase.cpp
         src/client/Client.cpp
