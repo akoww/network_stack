@@ -5,29 +5,40 @@ This guide explains how to use the network stack for synchronous and asynchronou
 ## Quick Start
 
 ```cpp
+#include "core/ErrorCodes.h"
 #include "core/Context.h"
-#include "server/ServerAsync.h"
-#include "client/ClientAsync.h"
+#include "core/details/ContextDetail.h"
+#include "server/Server.h"
+#include "client/Client.h"
 
-// 1. Create io_context wrapper
+// 1. Create io_context wrapper (thread pool starts automatically)
 Network::IoContextWrapper io_ctx;
-io_ctx.start();
 
-// 2. Start server (async)
-MyAsyncServer server(8080, io_ctx);
-asio::co_spawn(io_ctx, server.listen(), asio::detached);
+// 2. Start server (async) - pass a ClientHandler callback
+Network::Server server(8080, io_ctx, [](std::unique_ptr<Network::DualSocket> sock)
+{
+  // handle client...
+});
+asio::co_spawn(Network::detail::getExecutor(io_ctx), server.asyncListen(), asio::detached);
 
 // 3. Connect client (async)
-ClientAsync client("127.0.0.1", 8080, io_ctx);
-auto result = co_await client.connect({});
-if (result) { /* use socket */ }
+Network::Client client("127.0.0.1", 8080, io_ctx);
+auto connect_future = asio::co_spawn(
+  Network::detail::getExecutor(io_ctx),
+  [&client]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
+  {
+    co_return co_await client.asyncConnect();
+  },
+  asio::use_future);
+auto result = connect_future.get();
+if (result) { /* use *result */ }
 
 // 4. Cleanup
 server.stop();
-io_ctx.stop();
+io_ctx.shutdown();
 ```
 
-**Important:** Always track client connections in `ClientConnection` struct to prevent dangling pointers and thread leaks. Server destructor must cancel sockets and join all client coroutines/threads.
+**Important:** Always track client connections in a struct to prevent dangling pointers and thread leaks. Server destructor must cancel sockets and join all client coroutines/threads.
 
 ---
 
@@ -49,7 +60,7 @@ io_ctx.stop();
 All operations return `std::expected<T, std::error_code>` - **no exceptions**:
 
 ```cpp
-auto result = client.connect({});
+auto result = client.connect();
 if (result)
 {
   // success: *result contains the socket
@@ -62,31 +73,56 @@ else
 
 ### IoContextWrapper
 
-Use `IoContextWrapper` for a managed `io_context` with background thread:
+Use `IoContextWrapper` for a managed `asio::thread_pool` with background threads:
 
 ```cpp
 #include "core/Context.h"
 
-Network::IoContextWrapper io_ctx;
-io_ctx.start();  // Start background thread
+Network::IoContextWrapper io_ctx;        // Thread pool starts immediately (default 4 threads)
+Network::IoContextWrapper io_ctx(8);     // Or specify thread count
 
 // ... your code ...
 
-io_ctx.stop();  // Stop and join thread
+io_ctx.shutdown();  // Optional: explicit, idempotent shutdown
 ```
 
-**Important:** `IoContextWrapper` must outlive all async operations and client/server objects
+`IoContextWrapper` is a copyable value type backed by `std::shared_ptr`. It is **not** a singleton. The thread pool starts automatically on construction. `shutdown()` is optional and idempotent - the destructor also cleans up.
+
+**Important:** `IoContextWrapper` must outlive all async operations and client/server objects that reference it.
+
+### Sync vs Async
+
+`Server` and `Client` are unified classes that support both sync and async operations:
+
+| Operation | Sync (blocking) | Async (`co_await`) |
+|---|---|---|
+| Server listen | `server.listen()` | `co_await server.asyncListen()` |
+| Client connect | `client.connect()` | `co_await client.asyncConnect()` |
+| Socket read | `sock->readSome()` | `co_await sock->asyncReadSome()` |
+| Socket write | `sock->writeAll()` | `co_await sock->asyncWriteAll()` |
+
+**`co_await` only works with the `async*` methods.** The sync methods block the calling thread and cannot be awaited.
+
+### Getting the Executor
+
+Many ASIO functions (like `co_spawn`) need an executor. Get it from `IoContextWrapper` via:
+
+```cpp
+#include "core/details/ContextDetail.h"
+
+asio::any_io_executor exec = Network::detail::getExecutor(io_ctx);
+```
 
 ---
 
 ## Lifetime Management
 
-**Why do we need `ClientConnection`?** The examples use a `ClientConnection` struct to track active connections. Without it, you'd get **dangling pointers** and **thread leaks**:
+**Why do we need a `ClientConnection` struct?** The examples use a struct to track active connections. Without it, you'd get **dangling pointers** and **thread leaks**:
 
 ### The Problem
 
 ```cpp
-// ❌ BAD: Socket destroyed immediately after handler returns
+// BAD: Socket destroyed immediately after handler returns
 void handle_client(std::unique_ptr<DualSocket> sock)
 {
   std::thread t([sock = std::move(sock)]() {
@@ -99,7 +135,7 @@ void handle_client(std::unique_ptr<DualSocket> sock)
 ### The Solution
 
 ```cpp
-// ✅ GOOD: Socket and thread tracked in struct
+// GOOD: Socket and thread tracked in struct
 struct ClientConnection
 {
   std::unique_ptr<DualSocket> sock;  // Keeps socket alive
@@ -109,19 +145,19 @@ struct ClientConnection
 void handle_client(std::unique_ptr<DualSocket> sock)
 {
   ClientConnection entry{std::move(sock)};
-  
+
   {
     std::lock_guard<std::mutex> lock(mutex);
     clients.push_back(std::move(entry));  // Store in vector
   }
-  
+
   clients.back().thread = std::thread(
     [sock_ptr = clients.back().sock.get()]() {
       sock_ptr->readSome(...);  // Safe - sock is kept alive by vector
     });
 }
 
-~Server()
+~MyServer()
 {
   for (auto& c : clients)
   {
@@ -145,15 +181,18 @@ void handle_client(std::unique_ptr<DualSocket> sock)
 
 ### Server Overview
 
-Async servers use coroutines to handle multiple clients concurrently. The server accepts connections and spawns coroutines for each client.
+Async servers use coroutines to handle multiple clients concurrently. The server accepts connections and invokes the `ClientHandler` callback for each new connection.
 
 #### Create a Custom Server
 
 ```cpp
-#include "server/ServerAsync.h"
+#include "core/ErrorCodes.h"
+#include "core/Context.h"
+#include "core/details/ContextDetail.h"
+#include "server/Server.h"
 #include "socket/DualSocket.h"
 
-class MyAsyncServer : public Network::ServerAsync
+class MyServer : public Network::Server
 {
   struct ClientConnection
   {
@@ -164,7 +203,7 @@ class MyAsyncServer : public Network::ServerAsync
   mutable std::mutex _mutex;
   std::vector<ClientConnection> _clients;
 
-  void handle_client_impl(asio::io_context& context, std::unique_ptr<Network::DualSocket> sock)
+  void handle_client_impl(asio::any_io_executor executor, std::unique_ptr<Network::DualSocket> sock)
   {
     if (!sock)
       return;
@@ -178,7 +217,7 @@ class MyAsyncServer : public Network::ServerAsync
       auto& client_ref = _clients.back();
 
       client_ref.future = asio::co_spawn(
-        context,
+        executor,
         [sock_ptr]() mutable -> asio::awaitable<void>
         {
           std::array<std::byte, 1024> buffer{};
@@ -199,14 +238,14 @@ class MyAsyncServer : public Network::ServerAsync
   }
 
 public:
-  MyAsyncServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerAsync(port, io_ctx, 
-      [this, &io_ctx](std::unique_ptr<Network::DualSocket> sock)
-      { handle_client_impl(io_ctx, std::move(sock)); })
+  MyServer(uint16_t port, Network::IoContextWrapper io_ctx)
+    : Server(port, io_ctx,
+             [this, executor = Network::detail::getExecutor(io_ctx)](std::unique_ptr<Network::DualSocket> sock)
+             { handle_client_impl(executor, std::move(sock)); })
   {
   }
 
-  ~MyAsyncServer()
+  ~MyServer() override
   {
     std::vector<ClientConnection> to_cleanup;
     {
@@ -232,25 +271,18 @@ public:
 #### Start the Server
 
 ```cpp
-asio::io_context io_ctx;
-Network::IoContextWrapper io_wrapper;  // or use existing io_context
-MyAsyncServer server(8080, io_ctx);
+Network::IoContextWrapper io_ctx;
+MyServer server(8080, io_ctx);
 
 asio::co_spawn(
-  io_ctx,
-  [&server]() -> asio::awaitable<void>
-  {
-    auto result = co_await server.listen();
-    if (!result)
-    {
-      // handle error: result.error()
-    }
-  },
-  asio::detached);  // Start listening
+  Network::detail::getExecutor(io_ctx),
+  server.asyncListen(),
+  asio::detached);  // Start listening (fire-and-forget)
 ```
 
 **Important:**
-- Use `asio::co_spawn(..., asio::detached)` - never `co_await server.listen()` directly
+- Use `asio::co_spawn(..., server.asyncListen(), asio::detached)` - never `co_await server.asyncListen()` directly (it's an infinite accept loop)
+- The `ClientHandler` callback is invoked for each accepted connection
 - Server destructor cancels all client sockets and waits for coroutines to finish
 
 #### Stop the Server
@@ -267,12 +299,22 @@ Clients connect to remote servers using coroutines.
 #### Connect to a Server
 
 ```cpp
-#include "client/ClientAsync.h"
+#include "core/ErrorCodes.h"
+#include "client/Client.h"
 
-asio::io_context io_ctx;
-Network::ClientAsync client("127.0.0.1", 8080, io_ctx);
+Network::IoContextWrapper io_ctx;
+Network::Client client("127.0.0.1", 8080, io_ctx);
 
-auto result = co_await client.connect({});
+// asyncConnect() must be co_awaited inside a coroutine
+auto connect_future = asio::co_spawn(
+  Network::detail::getExecutor(io_ctx),
+  [&client]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
+  {
+    co_return co_await client.asyncConnect();
+  },
+  asio::use_future);
+
+auto result = connect_future.get();
 if (result)
 {
   auto socket = std::move(*result);
@@ -287,7 +329,7 @@ else
 #### Send and Receive Data
 
 ```cpp
-// Write data
+// Write data (must be inside a coroutine)
 std::string msg = "Hello, Server!";
 auto send_result = co_await socket->asyncWriteAll(
   std::as_bytes(std::span(msg)));
@@ -296,7 +338,7 @@ if (!send_result)
   // handle error
 }
 
-// Read data
+// Read data (must be inside a coroutine)
 std::array<std::byte, 1024> buffer{};
 auto recv_result = co_await socket->asyncReadSome(std::span(buffer));
 if (recv_result && *recv_result > 0)
@@ -320,35 +362,31 @@ socket->cancelSocket();  // Cancel all pending operations
 
 ### Server Overview
 
-Sync servers use threads to handle clients. Each client connection runs in its own thread.
+Sync servers use threads to handle clients. Each client connection runs in its own thread. The `listen()` call blocks, so it must run in a separate thread.
 
 #### Create a Custom Server
 
 ```cpp
-#include "server/ServerSync.h"
+#include "core/ErrorCodes.h"
+#include "server/Server.h"
 
-class MySyncServer : public Network::ServerSync
+class MySyncServer : public Network::Server
 {
   struct ClientConnection
   {
     unsigned int id;
-    std::thread thread;              // Stores the thread running the client handler
-    std::unique_ptr<Network::DualSocket> sock;  // Keeps socket alive, prevents dangling pointer
+    std::thread thread;
+    std::unique_ptr<Network::DualSocket> sock;
   };
 
   mutable std::mutex _mutex;
-  std::vector<ClientConnection> _clients;  // Track all active connections for lifetime management
+  std::vector<ClientConnection> _clients;
 
   void handle_client(std::unique_ptr<Network::DualSocket> sock)
   {
     if (!sock)
       return;
 
-    // Why ClientConnection?
-    // 1. We need to store the socket (unique_ptr) to prevent it from being destroyed
-    // 2. We need the thread to join it later (can't join if detached)
-    // Without this tracking, threads would be leaked and sockets would be dangling
-    
     ClientConnection entry;
     entry.id = sock->getId();
     entry.sock = std::move(sock);
@@ -359,7 +397,6 @@ class MySyncServer : public Network::ServerSync
       _clients.push_back(std::move(entry));
     }
 
-    // Start thread to handle client (NOT detached - server must join it)
     auto& client_ref = _clients.back();
     client_ref.thread = std::thread(
       [sock_ptr, id = client_ref.id]()
@@ -387,19 +424,14 @@ class MySyncServer : public Network::ServerSync
   }
 
 public:
-  MySyncServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerSync(port, io_ctx, [this](std::unique_ptr<Network::DualSocket> sock)
-                 { handle_client(std::move(sock)); })
+  MySyncServer(uint16_t port, Network::IoContextWrapper io_ctx)
+    : Server(port, io_ctx, [this](std::unique_ptr<Network::DualSocket> sock)
+             { handle_client(std::move(sock)); })
   {
   }
 
-  ~MySyncServer()
+  ~MySyncServer() override
   {
-    // Clean up all client connections before server is destroyed
-    // 1. Cancel all sockets to stop pending operations
-    // 2. Move clients to temp vector to release lock quickly
-    // 3. Join all threads to wait for them to finish
-    
     std::vector<ClientConnection> to_join;
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -416,7 +448,7 @@ public:
       if (c.sock)
         c.sock->cancelSocket();
       if (c.thread.joinable())
-        c.thread.join();  // Wait for thread to finish (blocks until done)
+        c.thread.join();
     }
   }
 };
@@ -425,7 +457,7 @@ public:
 #### Start the Server
 
 ```cpp
-asio::io_context io_ctx;
+Network::IoContextWrapper io_ctx;
 MySyncServer server(8080, io_ctx);
 
 std::thread server_thread([&server]() { server.listen(); });
@@ -447,12 +479,13 @@ Clients connect to remote servers using blocking calls.
 #### Connect to a Server
 
 ```cpp
-#include "client/ClientSync.h"
+#include "core/ErrorCodes.h"
+#include "client/Client.h"
 
-asio::io_context io_ctx;
-Network::ClientSync client("127.0.0.1", 8080, io_ctx);
+Network::IoContextWrapper io_ctx;
+Network::Client client("127.0.0.1", 8080, io_ctx);
 
-auto result = client.connect({});
+auto result = client.connect();
 if (result)
 {
   auto socket = std::move(*result);
@@ -500,30 +533,40 @@ socket->cancelSocket();  // Cancel all pending operations
 
 ### Server TLS Configuration
 
-```cpp
-// Async server
-server.getSslContext()->use_certificate_chain_file("path/to/server.crt");
-server.getSslContext()->use_private_key_file("path/to/server.key", asio::ssl::context::pem);
-asio::co_spawn(io_ctx, server.listen_tls(), asio::detached);
+TLS server options require certificate and key file paths via `TlsServerOptions`:
 
-// Sync server
-server.getSslContext()->use_certificate_chain_file("path/to/server.crt");
-server.getSslContext()->use_private_key_file("path/to/server.key", asio::ssl::context::pem);
-server.listen_tls();  // in thread
+```cpp
+#include "socket/TlsOptions.h"
+
+// Async TLS listen
+Network::TlsServerOptions tls_server_opts{"path/to/server.crt", "path/to/server.key"};
+asio::co_spawn(
+  Network::detail::getExecutor(io_ctx),
+  server.asyncListenTls(tls_server_opts),
+  asio::detached);
+
+// Sync TLS listen (in a thread)
+Network::TlsServerOptions tls_server_opts{"path/to/server.crt", "path/to/server.key"};
+server.listenTls(tls_server_opts);
 ```
 
 ### Client TLS Configuration
 
 ```cpp
-// Async client
-ClientAsync client("host", port, io_ctx);
-client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-auto result = co_await client.connect_tls({});
+// Async client TLS
+Network::Client client("host", port, io_ctx);
+auto connect_future = asio::co_spawn(
+  Network::detail::getExecutor(io_ctx),
+  [&client]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
+  {
+    co_return co_await client.asyncConnectTls();
+  },
+  asio::use_future);
+auto result = connect_future.get();
 
-// Sync client
-ClientSync client("host", port, io_ctx);
-client.getSslContext()->set_verify_mode(asio::ssl::verify_none);
-auto result = client.connect_tls({});
+// Sync client TLS
+Network::Client client("host", port, io_ctx);
+auto result = client.connectTls();
 ```
 
 ### Using Test Certificates
@@ -545,41 +588,38 @@ Test certificates are available in `tests/certs/`:
 #### Async Echo Server
 
 ```cpp
-#include "server/ServerAsync.h"
+#include "core/ErrorCodes.h"
+#include "core/Context.h"
+#include "core/details/ContextDetail.h"
+#include "server/Server.h"
 #include "socket/DualSocket.h"
 
-class EchoServer : public ServerAsync
+class EchoServer : public Network::Server
 {
   struct ClientConnection
   {
-    std::future<void> future;        // Stores the coroutine future to join it later
-    std::unique_ptr<DualSocket> sock;  // Keeps socket alive, prevents dangling pointer
+    std::future<void> future;
+    std::unique_ptr<Network::DualSocket> sock;
   };
 
   mutable std::mutex _mutex;
-  std::vector<ClientConnection> _clients;  // Track all active connections for lifetime management
+  std::vector<ClientConnection> _clients;
 
-  void handle_client_impl(asio::io_context& context, std::unique_ptr<DualSocket> sock)
+  void handle_client_impl(asio::any_io_executor executor, std::unique_ptr<Network::DualSocket> sock)
   {
     if (!sock)
       return;
 
-    // Why ClientConnection?
-    // 1. We need to store the socket (unique_ptr) to prevent it from being destroyed
-    // 2. We need the future to wait for the coroutine to finish before server destructs
-    // Without this tracking, sockets would be destroyed while coroutines still run -> dangling pointers
-    
     ClientConnection entry{std::future<void>{}, std::move(sock)};
-    DualSocket* sock_ptr = entry.sock.get();
+    Network::DualSocket* sock_ptr = entry.sock.get();
 
     {
       std::lock_guard<std::mutex> lock(_mutex);
       _clients.push_back(std::move(entry));
       auto& client_ref = _clients.back();
 
-      // Spawn coroutine and store its future for later joining
       client_ref.future = asio::co_spawn(
-        context,
+        executor,
         [sock_ptr]() mutable -> asio::awaitable<void>
         {
           std::array<std::byte, 1024> buffer{};
@@ -599,20 +639,15 @@ class EchoServer : public ServerAsync
   }
 
 public:
-  EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerAsync(port, io_ctx, 
-      [this, &io_ctx](std::unique_ptr<DualSocket> sock)
-      { handle_client_impl(io_ctx, std::move(sock)); })
+  EchoServer(uint16_t port, Network::IoContextWrapper io_ctx)
+    : Server(port, io_ctx,
+             [this, executor = Network::detail::getExecutor(io_ctx)](std::unique_ptr<Network::DualSocket> sock)
+             { handle_client_impl(executor, std::move(sock)); })
   {
   }
 
-  ~EchoServer()
+  ~EchoServer() override
   {
-    // Clean up all client connections before server is destroyed
-    // 1. Cancel all sockets to stop pending operations
-    // 2. Move clients to temp vector to release lock
-    // 3. Join all futures to wait for coroutines to finish
-    
     std::vector<ClientConnection> to_cleanup;
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -628,7 +663,7 @@ public:
     for (auto& c : to_cleanup)
     {
       if (c.future.valid())
-        c.future.get();  // Wait for coroutine to finish (blocks until done)
+        c.future.get();
     }
   }
 };
@@ -637,42 +672,37 @@ public:
 #### Sync Echo Server
 
 ```cpp
-#include "server/ServerSync.h"
+#include "core/ErrorCodes.h"
+#include "server/Server.h"
 #include "socket/DualSocket.h"
 
-class EchoServer : public ServerSync
+class SyncEchoServer : public Network::Server
 {
   struct ClientConnection
   {
     unsigned int id;
-    std::thread thread;              // Stores the thread running the client handler
-    std::unique_ptr<DualSocket> sock;  // Keeps socket alive, prevents dangling pointer
+    std::thread thread;
+    std::unique_ptr<Network::DualSocket> sock;
   };
 
   mutable std::mutex _mutex;
-  std::vector<ClientConnection> _clients;  // Track all active connections for lifetime management
+  std::vector<ClientConnection> _clients;
 
-  void handle_client(std::unique_ptr<DualSocket> sock)
+  void handle_client(std::unique_ptr<Network::DualSocket> sock)
   {
     if (!sock)
       return;
 
-    // Why ClientConnection?
-    // 1. We need to store the socket (unique_ptr) to prevent it from being destroyed
-    // 2. We need the thread to join it later (can't join if detached)
-    // Without this tracking, threads would be leaked and sockets would be dangling
-    
     ClientConnection entry;
     entry.id = sock->getId();
     entry.sock = std::move(sock);
-    DualSocket* sock_ptr = entry.sock.get();
+    Network::DualSocket* sock_ptr = entry.sock.get();
 
     {
       std::lock_guard<std::mutex> lock(_mutex);
       _clients.push_back(std::move(entry));
     }
 
-    // Start thread to handle client (NOT detached - server must join it)
     auto& client_ref = _clients.back();
     client_ref.thread = std::thread(
       [sock_ptr, id = client_ref.id]()
@@ -700,19 +730,14 @@ class EchoServer : public ServerSync
   }
 
 public:
-  EchoServer(uint16_t port, asio::io_context& io_ctx)
-    : ServerSync(port, io_ctx, [this](std::unique_ptr<DualSocket> sock)
-                 { handle_client(std::move(sock)); })
+  SyncEchoServer(uint16_t port, Network::IoContextWrapper io_ctx)
+    : Server(port, io_ctx, [this](std::unique_ptr<Network::DualSocket> sock)
+             { handle_client(std::move(sock)); })
   {
   }
 
-  ~EchoServer()
+  ~SyncEchoServer() override
   {
-    // Clean up all client connections before server is destroyed
-    // 1. Cancel all sockets to stop pending operations
-    // 2. Move clients to temp vector to release lock quickly
-    // 3. Join all threads to wait for them to finish
-    
     std::vector<ClientConnection> to_join;
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -729,7 +754,7 @@ public:
       if (c.sock)
         c.sock->cancelSocket();
       if (c.thread.joinable())
-        c.thread.join();  // Wait for thread to finish (blocks until done)
+        c.thread.join();
     }
   }
 };
@@ -750,7 +775,7 @@ protected:
   void SetUp() override
   {
     Network::Test::AsyncClientServerFixture::SetUp();
-    // Server created automatically, io_context started
+    // IoContextWrapper available via getIoContext()
   }
 };
 
@@ -761,7 +786,7 @@ protected:
   void SetUp() override
   {
     Network::Test::SyncClientServerFixture::SetUp();
-    // Server created automatically, io_context started
+    // IoContextWrapper available via getIoContext()
   }
 };
 ```
@@ -786,15 +811,22 @@ std::string_view sv = Network::Test::to_string_view(buffer, bytes_read);
 ### Connection Refused
 
 ```cpp
-auto result = client.connect({});
+auto result = client.connect();
 EXPECT_TRUE(!result.has_value());  // No server listening
 ```
 
 ### Invalid Host
 
 ```cpp
-ClientAsync client("invalid.host", port, io_ctx);
-auto result = co_await client.connect({});
+Network::Client client("invalid.host", port, io_ctx);
+auto connect_future = asio::co_spawn(
+  Network::detail::getExecutor(io_ctx),
+  [&client]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
+  {
+    co_return co_await client.asyncConnect();
+  },
+  asio::use_future);
+auto result = connect_future.get();
 EXPECT_TRUE(!result.has_value());  // DNS resolution failed
 ```
 
@@ -802,7 +834,7 @@ EXPECT_TRUE(!result.has_value());  // DNS resolution failed
 
 ```cpp
 server.stop();
-auto result = co_await server.listen();  // Will return error
+auto result = server.listen();  // Will return error
 ```
 
 ### Socket Cancelled
@@ -815,7 +847,7 @@ socket->cancelSocket();  // All pending operations will complete with error
 
 - Server client vectors use `std::mutex` for thread safety
 - Client sockets are single-threaded (don't share across threads)
-- Async coroutines run on io_context thread (no additional locking needed)
+- Async coroutines run on the thread pool (no additional locking needed)
 
 ### Common Errors
 
@@ -833,65 +865,56 @@ socket->cancelSocket();  // All pending operations will complete with error
 ### Async Echo Server with Multiple Clients
 
 ```cpp
-#include "server/ServerAsync.h"
-#include "client/ClientAsync.h"
+#include "core/ErrorCodes.h"
 #include "core/Context.h"
+#include "core/details/ContextDetail.h"
+#include "server/Server.h"
+#include "client/Client.h"
 
-// Server (from above)
-class EchoServer : public ServerAsync { /* ... */ };
+// EchoServer class (from above)
 
 int main()
 {
-  asio::io_context io_ctx;
-  Network::IoContextWrapper io_wrapper;  // For background thread
+  Network::IoContextWrapper io_ctx;
 
   EchoServer server(8080, io_ctx);
-  
+
   asio::co_spawn(
-    io_ctx,
-    [&server]() -> asio::awaitable<void>
-    {
-      auto result = co_await server.listen();
-      if (!result)
-      {
-        std::cerr << "Server failed: " << result.error().message() << std::endl;
-        return;
-      }
-    },
+    Network::detail::getExecutor(io_ctx),
+    server.asyncListen(),
     asio::detached);
 
   // Simulate multiple clients
-  // Note: In production code, track client threads in a vector and join them
   std::vector<std::thread> client_threads;
   for (int i = 0; i < 3; i++)
   {
     client_threads.emplace_back([i, &io_ctx]()
       {
-        asio::io_context client_ctx;
-        Network::ClientAsync client("127.0.0.1", 8080, client_ctx);
-        
+        Network::IoContextWrapper client_io;
+        Network::Client client("127.0.0.1", 8080, client_io);
+
         auto result = asio::co_spawn(
-          client_ctx,
-          [&]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
+          Network::detail::getExecutor(client_io),
+          [&client]() -> asio::awaitable<std::expected<std::unique_ptr<Network::DualSocket>, std::error_code>>
           {
-            co_return co_await client.connect({});
+            co_return co_await client.asyncConnect();
           },
           asio::use_future).get();
 
         if (result)
         {
-            auto socket = std::move(*result);
+          auto socket = std::move(*result);
           // communicate with server...
         }
       });
   }
 
-  io_ctx.run();  // Run async operations
-
-  // Join all client threads before exiting
   for (auto& t : client_threads)
     t.join();
-  
+
+  server.stop();
+  io_ctx.shutdown();
+
   return 0;
 }
 ```
@@ -899,17 +922,18 @@ int main()
 ### Sync Echo Server with Multiple Clients
 
 ```cpp
-#include "server/ServerSync.h"
-#include "client/ClientSync.h"
+#include "core/ErrorCodes.h"
 #include "core/Context.h"
+#include "server/Server.h"
+#include "client/Client.h"
 
-class EchoServer : public ServerSync { /* ... */ };
+// SyncEchoServer class (from above)
 
 int main()
 {
-  asio::io_context io_ctx;
+  Network::IoContextWrapper io_ctx;
 
-  EchoServer server(8080, io_ctx);
+  SyncEchoServer server(8080, io_ctx);
   std::thread server_thread([&server]() { server.listen(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -919,11 +943,11 @@ int main()
   {
     client_threads.emplace_back([i, &io_ctx]()
       {
-        Network::ClientSync client("127.0.0.1", 8080, io_ctx);
-        auto result = client.connect({});
+        Network::Client client("127.0.0.1", 8080, io_ctx);
+        auto result = client.connect();
         if (result)
         {
-            auto socket = std::move(*result);
+          auto socket = std::move(*result);
           // communicate with server...
         }
       });
@@ -942,13 +966,14 @@ int main()
 
 ## Best Practices
 
-1. **Always track sockets**: Store `unique_ptr<Socket>` to ensure proper lifetime
+1. **Always track sockets**: Store `unique_ptr<DualSocket>` to ensure proper lifetime
 2. **Cancel before close**: Call `cancelSocket()` to drain pending operations
 3. **Join threads**: Sync servers must join all client threads before destruction
-4. **Use fixtures**: Test fixtures handle io_context and cleanup automatically
+4. **Use fixtures**: Test fixtures handle IoContextWrapper and cleanup automatically
 5. **Check results**: Always verify `std::expected` before using value
-6. **Timeouts**: Specify connection timeouts to prevent hanging
-7. **No_DETACH**: Never detach client threads or let coroutines run after server stops
+6. **Timeouts**: Specify connection timeouts (e.g., `std::chrono::seconds(10)`) for production code
+7. **No detach**: Never detach client threads or let coroutines run after server stops
+8. **Use `async*` for `co_await`**: Only `asyncReadSome`, `asyncWriteAll`, `asyncConnect`, `asyncListen` etc. are awaitable
 
 ---
 
